@@ -8,10 +8,12 @@ import os
 import sys
 import json
 import time
+import subprocess
 import argparse
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
+import psutil
 
 # Import all enhanced modules
 from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer

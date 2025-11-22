@@ -277,6 +277,20 @@ class DeploymentMonitor:
             self.logger.error(f"Error getting deployed contracts: {e}")
             return []
 
+    def get_recent_transactions(self, address: str, limit: int = 50) -> List[Dict]:
+        """Get recent transactions for an address"""
+        try:
+            response = self.session.get(
+                f"{self.api_url}/v2/accounts/{address}/transactions?limit={limit}",
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("results", [])
+        except Exception as e:
+            self.logger.error(f"Error getting recent transactions: {e}")
+            return []
+
     def verify_deployment(self, expected_contracts: List[str], address: str) -> Dict:
         """Verify deployment completeness"""
         self.logger.info("🔍 Verifying deployment...")
@@ -482,6 +496,10 @@ def main():
                     available_stx = balance_stx - locked_balance
                     nonce = account_info.get('nonce', 0)
 
+                    # Helper function to get recent transactions
+                    def get_recent_transactions(address, limit=10):
+                        recent_transactions = monitor.get_recent_transactions(address, limit)
+                        return recent_transactions
                     print(f"   Balance: {Fore.GREEN}{balance_stx:,.6f} STX{Style.RESET_ALL}")
 
                     if locked_balance > 0:
@@ -491,7 +509,7 @@ def main():
                     print(f"   Nonce: {nonce}")
 
                     # Show deployment cost warnings
-                    self._show_deployment_cost_warnings(available_stx)
+                    monitor._show_deployment_cost_warnings(available_stx)
 
                 print(f"\n📦 Deployed Contracts:")
                 contracts = monitor.get_deployed_contracts(address)
