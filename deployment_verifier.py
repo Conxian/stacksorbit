@@ -347,8 +347,8 @@ class DeploymentVerifier:
             if error and not result.get('passed'):
                 print(f"       Error: {error}")
 
-        print("
-📦 Contract Status:"        contract_check = self.verification_results['checks'].get('Contract Deployment', {})
+        print("📦 Contract Status:")
+        contract_check = self.verification_results['checks'].get('Contract Deployment', {})
         details = contract_check.get('details', {})
 
         if details:
@@ -358,8 +358,8 @@ class DeploymentVerifier:
             print(f"   Missing: {details.get('missing', 0)}")
 
         if self.verification_results['recommendations']:
-            print("
-💡 Recommendations:"            for rec in self.verification_results['recommendations']:
+            print("💡 Recommendations:")
+            for rec in self.verification_results['recommendations']:
                 print(f"   • {rec}")
 
         print("\n" + "=" * 60)
