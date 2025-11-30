@@ -4,8 +4,8 @@ This document lists the identified issues in the StacksOrbit documentation.
 
 ## 1. Ambiguity
 
-*   **Inconsistent Commands:** The `README.md` presents multiple commands for similar actions, such as `npm run setup` and `python setup_wizard.py`, without clear guidance on when to use each. This can lead to confusion for new developers.
-*   **Vague "Ultimate" and "Enhanced" Terminology:** The project uses terms like "ultimate" and "enhanced" (e.g., `ultimate_stacksorbit.py`, `enhanced_dashboard.py`) without a clear definition of what makes them "ultimate" or "enhanced" compared to their counterparts.
+*   **Inconsistent Commands (historical, largely resolved):** Earlier versions of the documentation (including legacy `README_ENHANCED.md` and `README_ULTIMATE.md`) presented multiple overlapping commands for similar actions, such as `npm run setup` and `python setup_wizard.py`, without clear guidance on when to use each. The current `README.md` and `AGENTS.md` now standardize on the `stacksorbit_cli.py` entry point and should be treated as canonical, while the legacy READMEs are retained as extended background.
+*   **Vague "Ultimate" and "Enhanced" Terminology (legacy docs):** The project historically used terms like "ultimate" and "enhanced" (e.g., `ultimate_stacksorbit.py`, `enhanced_dashboard.py`) without a clear definition of what makes them "ultimate" or "enhanced" compared to their counterparts. These labels are now considered legacy; `AGENTS.md` and `stacksorbit_cli.py` describe the current, unified toolchain.
 
 ## 2. Contradictions
 
@@ -13,9 +13,9 @@ This document lists the identified issues in the StacksOrbit documentation.
 
 ## 3. Missing Elements
 
-*   **No `AGENTS.md` File:** There are no specific instructions tailored for an AI agent, which could streamline automated development and testing processes.
-*   **Lack of a Clear "Single Source of Truth":** The fragmented nature of the documentation makes it difficult to identify which document is the most current and authoritative source of information.
-*   **No High-Level Architectural Overview:** The documentation lacks a diagram or high-level description of the project's architecture, which would help new developers understand how the different components interact.
+*   **No `AGENTS.md` File (resolved):** This issue has been addressed. `AGENTS.md` now exists and serves as the primary reference for both human developers and AI agents.
+*   **Lack of a Clear "Single Source of Truth" (resolved):** The creation of `AGENTS.md` and the simplified root `README.md` established a clear "single source of truth" for development and deployment information. Other READMEs are now secondary and should defer to `AGENTS.md`.
+*   **No High-Level Architectural Overview (resolved):** The high-level architecture, including the relationship between the CLI, core deployer, monitoring dashboard, and the Stacks blockchain, is now documented in `AGENTS.md` (see section 1.1 Architectural Overview).
 
 ## 4. Scalability Concerns
 

@@ -91,7 +91,7 @@ class StacksOrbitDashboard(App):
                 # API Status
                 api_status = self.monitor.check_api_status()
                 self.query_one("#api_status").update(f"[bold green]{api_status.get('status', 'unknown').upper()}[/]")
-                self.query_one("#block_height").update(str(api_gstatus.get('block_height', 0)))
+                self.query_one("#block_height").update(str(api_status.get('block_height', 0)))
 
                 # Account Info
                 account_info = self.monitor.get_account_info(self.address)
