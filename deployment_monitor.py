@@ -145,7 +145,8 @@ class DeploymentMonitor:
             if not account_info:
                 return
 
-            current_nonce = account_info.get('nonce', 0)
+            nonce_raw = account_info.get('nonce', 0)
+            current_nonce = int(nonce_raw, 16) if isinstance(nonce_raw, str) and nonce_raw.startswith('0x') else int(nonce_raw)
 
             # Check if we have new transactions
             if current_nonce > len(self.deployment_history):
@@ -490,11 +491,15 @@ def main():
                 print(f"\n👤 Account Status:")
                 account_info = monitor.get_account_info(address)
                 if account_info:
-                    balance_microstx = int(account_info.get('balance', 0))
+                    balance_raw = account_info.get('balance', 0)
+                    balance_microstx = int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)
                     balance_stx = balance_microstx / 1000000
-                    locked_balance = int(account_info.get('locked', 0)) / 1000000
+                    
+                    locked_raw = account_info.get('locked', 0)
+                    locked_balance = (int(locked_raw, 16) if isinstance(locked_raw, str) and locked_raw.startswith('0x') else int(locked_raw)) / 1000000
                     available_stx = balance_stx - locked_balance
-                    nonce = account_info.get('nonce', 0)
+                    nonce_raw = account_info.get('nonce', 0)
+                    nonce = int(nonce_raw, 16) if isinstance(nonce_raw, str) and nonce_raw.startswith('0x') else int(nonce_raw)
 
                     # Helper function to get recent transactions
                     def get_recent_transactions(address, limit=10):

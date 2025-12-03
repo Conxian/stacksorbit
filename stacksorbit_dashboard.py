@@ -96,7 +96,12 @@ class StacksOrbitDashboard(App):
                 # Account Info
                 account_info = self.monitor.get_account_info(self.address)
                 if account_info:
-                    balance_stx = int(account_info.get('balance', 0)) / 1_000_000
+                    balance_raw = account_info.get('balance', 0)
+                    if isinstance(balance_raw, str) and balance_raw.startswith('0x'):
+                        balance_stx = int(balance_raw, 16) / 1_000_000
+                    else:
+                        balance_stx = int(balance_raw) / 1_000_000
+                    
                     self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
                     self.query_one("#nonce").update(str(account_info.get('nonce', 0)))
 

@@ -1,5 +1,5 @@
 {
-  "current_directory": "C:\\Users\\bmokoka\\anyachainlabs\\stacksorbit",
+  "current_directory": "C:\\Users\\bmokoka\\anyachainlabs\\Conxian",
   "last_scan": null,
   "contract_hashes": {},
   "deployment_status": {},
@@ -18,7 +18,12 @@
       "from": null,
       "to": "C:\\Users\\bmokoka\\anyachainlabs\\stacksorbit",
       "timestamp": 1761480609.340462
+    },
+    {
+      "from": null,
+      "to": "C:\\Users\\bmokoka\\anyachainlabs\\Conxian",
+      "timestamp": 1764744465.1141114
     }
   ],
-  "last_updated": 1761490677.730333
+  "last_updated": 1764746723.3010595
 }

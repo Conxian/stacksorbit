@@ -191,8 +191,14 @@ class GenericStacksAutoDetector:
 
     def _detect_current_setup(self) -> Dict:
         """Detect current directory setup and contracts (generic)"""
-        current_dir = Path.cwd()
-        print(f"📂 Current directory: {current_dir}")
+        # Check for PROJECT_ROOT in config first
+        config_project_root = self._check_config_project_root()
+        if config_project_root and config_project_root.exists():
+            current_dir = config_project_root
+            print(f"📂 Using configured project directory: {current_dir}")
+        else:
+            current_dir = Path.cwd()
+            print(f"📂 Current directory: {current_dir}")
 
         # Check if directory changed
         if str(current_dir) != self.state.get('current_directory'):
@@ -208,6 +214,33 @@ class GenericStacksAutoDetector:
 
         # Detect contracts using multiple methods (SDK 3.8 compatible)
         contracts = self._comprehensive_generic_contract_detection(current_dir)
+
+        # If no contracts found, try to look in parent directories or ask user
+        if not contracts:
+            print("⚠️  No contracts found in current directory.")
+            
+            # Try parent directory
+            parent_dir = current_dir.parent
+            parent_contracts = self._comprehensive_generic_contract_detection(parent_dir)
+            
+            if parent_contracts:
+                print(f"✅ Found contracts in parent directory: {parent_dir}")
+                use_parent = input(f"   Use parent directory '{parent_dir}'? (y/n): ").lower() == 'y'
+                if use_parent:
+                    current_dir = parent_dir
+                    contracts = parent_contracts
+            else:
+                # Ask user for path
+                print("❓ Please specify the path to your Stacks project (or press Enter to keep current):")
+                user_path = input("   Project path: ").strip()
+                if user_path:
+                    user_dir = Path(user_path).resolve()
+                    if user_dir.exists():
+                        print(f"📂 Switching to: {user_dir}")
+                        current_dir = user_dir
+                        contracts = self._comprehensive_generic_contract_detection(current_dir)
+                    else:
+                        print(f"❌ Directory does not exist: {user_dir}")
 
         # Check for deployment artifacts
         deployment_artifacts = self._find_deployment_artifacts(current_dir)
@@ -228,6 +261,21 @@ class GenericStacksAutoDetector:
             'directory_changed': str(current_dir) != self.state.get('previous_directory', ''),
             'sdk_compatibility': self.state.get('sdk_compatibility', '3.8')
         }
+
+    def _check_config_project_root(self) -> Optional[Path]:
+        """Check for PROJECT_ROOT in .env"""
+        try:
+            # Simple .env parsing to avoid circular dependencies
+            env_path = self.project_root / ".env"
+            if env_path.exists():
+                with open(env_path, 'r') as f:
+                    for line in f:
+                        if line.strip().startswith('PROJECT_ROOT='):
+                            path_str = line.split('=', 1)[1].strip().strip('"').strip("'")
+                            return (self.project_root / path_str).resolve()
+        except:
+            pass
+        return None
 
     def _comprehensive_generic_contract_detection(self, directory: Path) -> List[Dict]:
         """Generic contract detection compatible with any Stacks project"""
@@ -1037,66 +1085,35 @@ class GenericStacksAutoDetector:
         return recommendations
 
     def _check_wallet_balance(self) -> Dict:
-        """Check wallet balance and deployment readiness"""
-        wallet_status = {
+        """Check wallet balance if configured"""
+        status = {
             'has_balance': False,
             'balance_stx': 0.0,
             'available_stx': 0.0,
-            'locked_stx': 0.0,
-            'recommended_minimum': 5.0,  # Minimum recommended for deployment
-            'network': None,
-            'address': None
+            'recommended_minimum': 10.0
         }
 
-        # Check configuration
-        config_status = self._check_configuration(self.project_root)
-        if not config_status['is_valid']:
-            return wallet_status
-
-        # Get address from config
-        address = self._extract_address_from_config()
-        network = config_status.get('network')
-
-        if not address or not network:
-            return wallet_status
-
-        wallet_status['address'] = address
-        wallet_status['network'] = network
-
         try:
-            # Try to get account info using requests (simplified)
-            import requests
-
-            api_urls = {
-                'mainnet': 'https://api.hiro.so',
-                'testnet': 'https://api.testnet.hiro.so',
-                'devnet': 'http://localhost:20443'
-            }
-
-            api_url = api_urls.get(network, api_urls['testnet'])
-
-            response = requests.get(f"{api_url}/v2/accounts/{address}", timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-
-                balance_microstx = int(data.get('balance', 0))
-                locked_microstx = int(data.get('locked', 0))
-
-                balance_stx = balance_microstx / 1000000
-                locked_stx = locked_microstx / 1000000
-                available_stx = balance_stx - locked_stx
-
-                wallet_status.update({
-                    'has_balance': True,
-                    'balance_stx': balance_stx,
-                    'available_stx': available_stx,
-                    'locked_stx': locked_stx
-                })
+            from enhanced_conxian_deployment import EnhancedConfigManager, ConxianHiroMonitor
+            
+            # Use Conxian monitor if available
+            config_manager = EnhancedConfigManager(self.project_root / ".env")
+            config = config_manager.load_config()
+            
+            address = config.get('SYSTEM_ADDRESS')
+            if address:
+                monitor = ConxianHiroMonitor(config.get('NETWORK', 'testnet'))
+                account = monitor.get_account_info(address)
+                
+                if account:
+                    # Safe parsing for balance (hex or dec)
+                    balance_raw = account.get('balance', 0)
+                    balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000
 
         except Exception as e:
             print(f"⚠️  Could not check wallet balance: {e}")
 
-        return wallet_status
+        return status
 
     def _extract_address_from_config(self) -> Optional[str]:
         """Extract Stacks address from configuration"""
@@ -1118,20 +1135,10 @@ class GenericStacksAutoDetector:
 
         return None
 
-def main():
-    """Main auto-detection function"""
-    print("🚀 StacksOrbit Generic Auto-Detection System")
-    print("=" * 55)
-
-    # Check if Conxian mode is requested via environment
-    use_conxian = os.getenv('STACKSORBIT_CONXIAN_MODE', 'false').lower() == 'true'
-
-    # Initialize detector
-    detector = GenericStacksAutoDetector(use_conxian_mode=use_conxian)
-
-    # Run complete detection and analysis
+if __name__ == "__main__":
+    detector = GenericStacksAutoDetector()
     analysis = detector.detect_and_analyze()
-
+    
     # Show results
     print(f"\n📂 Directory: {analysis['detection']['directory']}")
     print(f"📦 Contracts found: {analysis['detection']['contracts_found']}")
@@ -1143,7 +1150,7 @@ def main():
     # Show SDK compatibility
     sdk_compat = analysis['detection']['sdk_compatibility']
     print(f"🔧 SDK Compatibility: {sdk_compat}")
-
+    
     # Show recommendations
     recommendations = detector.get_deployment_recommendations(analysis)
     if recommendations:
@@ -1152,21 +1159,24 @@ def main():
             print(f"   {rec}")
 
     # Show deployment plan
-    if analysis['deployment_plan']['filtered_contracts']:
+    filtered_contracts = analysis['deployment_plan']['filtered_contracts']
+    if filtered_contracts:
         print("\n📋 Deployment order:")
-        for i, contract in enumerate(analysis['deployment_plan']['filtered_contracts'][:10], 1):
+        max_display = 10
+        for i, contract in enumerate(filtered_contracts[:max_display], 1):
             category = contract.get('category', 'general')
             print(f"   {i}. {contract['name']} ({category})")
 
-        if len(analysis['deployment_plan']['filtered_contracts']) > 10:
-            print(f"   ... and {len(analysis['deployment_plan']['filtered_contracts']) - 10} more")
+        remaining = len(filtered_contracts) - max_display
+        if remaining > 0:
+            print(f"   ... and {remaining} more")
 
-    print(f"\n⛽ Estimated gas: {analysis['deployment_plan']['estimated_gas']:.1f} STX")
-    print(f"⏰ Estimated time: {analysis['deployment_plan']['estimated_time']} minutes")
+    # Show deployment estimates
+    deployment_plan = analysis['deployment_plan']
+    print(f"\n⛽ Estimated gas: {deployment_plan['estimated_gas']:.1f} STX")
+    print(f"⏰ Estimated time: {deployment_plan['estimated_time']} minutes")
 
-    print(f"\n✅ Ready: {analysis['ready']}")
+    is_ready = analysis['ready']
+    print(f"\n✅ Ready: {is_ready}")
 
-    return 0 if analysis['ready'] else 1
-
-if __name__ == "__main__":
-    exit(main())
+    sys.exit(0 if is_ready else 1)

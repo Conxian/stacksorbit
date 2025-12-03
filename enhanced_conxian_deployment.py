@@ -216,18 +216,26 @@ class EnhancedConxianDeployer:
         self.contract_categories = self._load_contract_categories()
 
     def _load_contract_categories(self) -> Dict:
-        """Load contract categories from configuration"""
+        """Load contract categories from configuration (Generic + Conxian)"""
         return {
+            # Generic Categories
+            'traits': ['trait', 'interface', 'standard', 'sip-'],
+            'libs': ['utils', 'lib', 'math', 'constant', 'err'],
+            'tokens': ['token', 'ft', 'nft', 'coin'],
+            'defi': ['swap', 'pool', 'dex', 'vault', 'pair', 'liquidity', 'staking', 'farm'],
+            'oracle': ['oracle', 'price', 'feed'],
+            'dao': ['governance', 'dao', 'proposal', 'voting', 'timelock'],
+            'storage': ['store', 'registry', 'db', 'list'],
+            
+            # Conxian Specific (kept for backward compatibility)
             'core': ['all-traits', 'utils-encoding', 'utils-utils', 'lib-error-codes'],
-            'tokens': ['cxd-token', 'cxlp-token', 'cxvg-token', 'cxtr-token', 'cxs-token'],
-            'governance': ['governance-token', 'proposal-engine', 'timelock-controller'],
-            'dex': ['dex-factory', 'dex-router', 'dex-pool', 'dex-vault', 'fee-manager'],
-            'dimensional': ['dim-registry', 'dim-metrics', 'position-nft', 'dimensional-core'],
-            'oracle': ['oracle', 'oracle-aggregator', 'btc-adapter'],
-            'security': ['circuit-breaker', 'pausable', 'mev-protector'],
-            'monitoring': ['analytics-aggregator', 'monitoring-dashboard'],
-            'self-run': ['self-run', 'autonomous', 'auto-deploy', 'self-healing'],
-            'self-managed': ['managed', 'supervised', 'controlled', 'orchestrated']
+            'conxian_tokens': ['cxd-token', 'cxlp-token', 'cxvg-token', 'cxtr-token', 'cxs-token'],
+            'conxian_governance': ['governance-token', 'proposal-engine', 'timelock-controller'],
+            'conxian_dex': ['dex-factory', 'dex-router', 'dex-pool', 'dex-vault', 'fee-manager'],
+            'conxian_dimensional': ['dim-registry', 'dim-metrics', 'position-nft', 'dimensional-core'],
+            'conxian_oracle': ['oracle-aggregator', 'btc-adapter'],
+            'conxian_security': ['circuit-breaker', 'pausable', 'mev-protector'],
+            'conxian_monitoring': ['analytics-aggregator', 'monitoring-dashboard']
         }
 
     def run_pre_checks(self) -> bool:
@@ -309,7 +317,8 @@ class EnhancedConxianDeployer:
 
         account_info = self.monitor.get_account_info(self.config['SYSTEM_ADDRESS'])
         if account_info:
-            balance = int(account_info.get('balance', 0)) / 1000000  # Convert to STX
+            balance_raw = account_info.get('balance', 0)
+            balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000  # Convert to STX
             min_balance = 10  # Minimum 10 STX for deployment
 
             print(f"[SUCCESS] Current balance: {balance} STX")
@@ -327,7 +336,8 @@ class EnhancedConxianDeployer:
 
         account_info = self.monitor.get_account_info(self.config['SYSTEM_ADDRESS'])
         if account_info:
-            nonce = account_info.get('nonce', 0)
+            nonce_raw = account_info.get('nonce', 0)
+            nonce = int(nonce_raw, 16) if isinstance(nonce_raw, str) and nonce_raw.startswith('0x') else int(nonce_raw)
             if nonce > 0:
                 print(f"[INFO] Upgrade mode (nonce: {nonce})")
                 self.config['DEPLOYMENT_MODE'] = 'upgrade'
@@ -337,6 +347,8 @@ class EnhancedConxianDeployer:
         else:
             print("[INFO] Assuming full deployment mode")
             self.config['DEPLOYMENT_MODE'] = 'full'
+        
+        return True
 
     def _check_system_alignment(self) -> bool:
         """Check system alignment - deployed vs expected contracts"""
@@ -524,9 +536,12 @@ class EnhancedConxianDeployer:
         """Get list of contracts to deploy"""
         contracts = []
 
-        # Get the project directory from the config path
-        config_path = Path(self.config.get('CONFIG_PATH', '.env'))
-        project_dir = config_path.parent
+        # Get the project directory
+        if self.config.get('PROJECT_ROOT'):
+            project_dir = Path(self.config.get('PROJECT_ROOT'))
+        else:
+            config_path = Path(self.config.get('CONFIG_PATH', '.env'))
+            project_dir = config_path.parent
 
         # Try Clarinet.toml first in the project directory
         clarinet_path = project_dir / "Clarinet.toml"
@@ -587,23 +602,33 @@ class EnhancedConxianDeployer:
         return contracts
 
     def _sort_by_dependencies(self, contracts: List[Dict]) -> List[Dict]:
-        """Sort contracts by dependency order"""
-        # Define deployment order
-        priority_order = [
-            'all-traits', 'utils-encoding', 'utils-utils', 'lib-error-codes',
-            'cxd-token', 'cxlp-token', 'cxvg-token', 'cxtr-token', 'cxs-token',
-            'governance-token', 'proposal-engine', 'timelock-controller',
-            'oracle', 'oracle-aggregator', 'btc-adapter',
-            'dex-factory', 'dex-router', 'dex-pool', 'dex-vault',
-            'dim-registry', 'dim-metrics', 'position-nft', 'dimensional-core'
+        """Sort contracts by dependency order (Generic + Conxian)"""
+        # Define priority tiers (regex patterns or substrings)
+        tiers = [
+            # Tier 1: Traits & Interfaces (must be first)
+            ['trait', 'interface', 'standard', 'sip-'],
+            # Tier 2: Libraries & Utils
+            ['utils', 'lib-', 'math', 'constant', 'err'],
+            # Tier 3: Core Systems & Registries
+            ['registry', 'storage', 'core', 'manager', 'factory'],
+            # Tier 4: Tokens (depend on traits)
+            ['token', 'ft', 'nft', 'coin'],
+            # Tier 5: Oracles (depend on nothing or traits)
+            ['oracle', 'price', 'feed'],
+            # Tier 6: DeFi & Apps (depend on tokens/factory)
+            ['swap', 'pool', 'dex', 'vault', 'router'],
+            # Tier 7: Governance (depends on tokens)
+            ['governance', 'dao', 'proposal', 'voting'],
+            # Tier 8: Applications/Others
+            [] 
         ]
 
         def get_priority(contract):
-            name = contract['name']
-            for i, priority in enumerate(priority_order):
-                if priority in name:
+            name = contract['name'].lower()
+            for i, tier in enumerate(tiers):
+                if any(pattern in name for pattern in tier):
                     return i
-            return len(priority_order)  # Low priority for unknown contracts
+            return len(tiers) # Default priority
 
         return sorted(contracts, key=get_priority)
 

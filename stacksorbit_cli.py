@@ -692,6 +692,8 @@ class UltimateStacksOrbit:
                 return self.run_enhanced_dashboard(kwargs)
             elif command == 'diagnose':
                 return self.run_comprehensive_diagnosis(kwargs)
+            elif command == 'detect':
+                return self.run_auto_detection(kwargs)
             elif command == 'template':
                 return self.apply_deployment_template(kwargs)
             elif command == 'devnet':
@@ -719,6 +721,24 @@ class UltimateStacksOrbit:
             print(f"\n{Fore.GREEN}✅ Setup completed!{Style.RESET_ALL}")
             print("💡 Next: Run 'stacksorbit deploy --dry-run' to test deployment")
         return 0 if success else 1
+
+    def run_auto_detection(self, options: Dict) -> int:
+        """Run enhanced auto-detection"""
+        print(f"{Fore.CYAN}🔍 Enhanced Auto-Detection{Style.RESET_ALL}")
+        
+        from stacksorbit_auto_detect import StacksOrbitCLIIntegration
+        integration = StacksOrbitCLIIntegration()
+        
+        # Pass directory if specified
+        directory = options.get('directory')
+        if directory:
+            import os
+            os.chdir(directory)
+            
+        analysis = integration.run_detection()
+        integration.show_detection_results()
+        
+        return 0 if analysis['ready'] else 1
 
     def run_enhanced_deployment(self, options: Dict) -> int:
         """Run enhanced deployment with all features"""
@@ -808,7 +828,8 @@ class UltimateStacksOrbit:
                 print(f"\n👤 Account Status:")
                 account_info = monitor.get_account_info(address)
                 if account_info:
-                    balance = int(account_info.get('balance', 0)) / 1000000
+                    balance_raw = account_info.get('balance', 0)
+                    balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000
                     print(f"   Balance: {balance} STX")
                     print(f"   Nonce: {account_info.get('nonce', 0)}")
 
@@ -948,7 +969,8 @@ class UltimateStacksOrbit:
             try:
                 account_info = monitor.get_account_info(address)
                 if account_info:
-                    balance = int(account_info.get('balance', 0)) / 1000000
+                    balance_raw = account_info.get('balance', 0)
+                    balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000
                     print(f"{Fore.GREEN}✅ Account balance: {balance} STX{Style.RESET_ALL}")
                     diagnosis['scores']['account'] = min(100, balance * 10)  # Score based on balance
                 else:
@@ -987,7 +1009,7 @@ class UltimateStacksOrbit:
             deps_ok = True
 
             # Check Python dependencies
-            python_deps = ['requests', 'toml', 'pyyaml']
+            python_deps = ['requests', 'toml', 'yaml']
             for dep in python_deps:
                 try:
                     __import__(dep)
@@ -1183,6 +1205,7 @@ class UltimateStacksOrbit:
         print("  verify          Verify deployment completeness")
         print("  dashboard       Launch enhanced monitoring dashboard")
         print("  diagnose        Run comprehensive system diagnosis")
+        print("  detect          Auto-detect project and contracts")
         print("  template        Apply deployment template")
         print()
         print("Deployment Options:")
@@ -1243,6 +1266,7 @@ def main():
     parser.add_argument('--config', default='.env', help='Configuration file path')
     parser.add_argument('--network', choices=['devnet', 'testnet', 'mainnet'], default='testnet')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+    parser.add_argument('--directory', '-d', help='Directory to analyze (for detect command)')
 
     # Deployment options
     parser.add_argument('--category', choices=['base', 'core', 'tokens', 'dex', 'dimensional', 'oracle', 'governance', 'security', 'monitoring'])
@@ -1284,7 +1308,8 @@ def main():
             'contracts': args.contracts,
             'comprehensive': args.comprehensive,
             'verbose': args.verbose,
-            'devnet_command': args.devnet_command
+            'devnet_command': args.devnet_command,
+            'directory': args.directory
         }
 
         # Execute command
