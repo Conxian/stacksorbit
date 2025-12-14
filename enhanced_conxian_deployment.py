@@ -16,6 +16,10 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import argparse
 
+# Force UTF-8 encoding for stdout on Windows
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # Enhanced imports for monitoring
 try:
     import psutil
@@ -53,6 +57,13 @@ class EnhancedConfigManager:
 
         # Store the config path for the deployer to use
         self.config['CONFIG_PATH'] = str(self.config_path)
+
+        # Normalize keys for compatibility
+        if 'STACKS_DEPLOYER_PRIVKEY' in self.config and 'DEPLOYER_PRIVKEY' not in self.config:
+            self.config['DEPLOYER_PRIVKEY'] = self.config['STACKS_DEPLOYER_PRIVKEY']
+        elif 'STACKS_PRIVKEY' in self.config and 'DEPLOYER_PRIVKEY' not in self.config:
+            self.config['DEPLOYER_PRIVKEY'] = self.config['STACKS_PRIVKEY']
+
         return self.config
 
     def _create_default_config(self):
@@ -113,6 +124,7 @@ CONFIRMATION_TIMEOUT=300
         # Validate address format
         if 'SYSTEM_ADDRESS' in self.config:
             if not self._validate_address(self.config['SYSTEM_ADDRESS']):
+                print(f"DEBUG: Invalid address value: '{self.config['SYSTEM_ADDRESS']}' Length: {len(self.config['SYSTEM_ADDRESS'])}")
                 errors.append("Invalid SYSTEM_ADDRESS format")
 
         # Validate network
@@ -129,7 +141,8 @@ CONFIRMATION_TIMEOUT=300
 
     def _validate_address(self, address: str) -> bool:
         """Validate Stacks address format"""
-        return address.startswith('S') and len(address) == 41
+        # Stacks addresses are typically 40-42 chars depending on encoding
+        return address.startswith('S') and len(address) >= 40 and len(address) <= 42
 
 class ConxianHiroMonitor:
     """Enhanced monitoring using Hiro API"""
@@ -560,28 +573,60 @@ class EnhancedConxianDeployer:
         return self._sort_by_dependencies(contracts)
 
     def _parse_clarinet_toml(self, clarinet_path: Path) -> List[Dict]:
-        """Parse contracts from Clarinet.toml"""
+        """Parse contracts from Clarinet.toml with dependencies"""
         contracts = []
 
         try:
             with open(clarinet_path, 'r') as f:
-                content = f.read()
+                lines = f.readlines()
 
-            # Simple regex to find contract definitions
-            import re
-            contract_matches = re.findall(r'\[contracts\.([^\]]+)\]\s+path\s*=\s*["\']([^"\']+)["\']', content)
+            current_contract = None
+            current_data = {}
+            
+            # Custom simple parser for TOML-like structure (robust enough for Clarinet.toml)
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
 
-            for contract_name, contract_path in contract_matches:
-                full_path = clarinet_path.parent / contract_path
-                if full_path.exists():
-                    contracts.append({
-                        'name': contract_name,
-                        'path': contract_path,
-                        'full_path': str(full_path)
-                    })
+                # Match [contracts.name]
+                if line.startswith('[contracts.') and line.endswith(']'):
+                    # Save previous contract
+                    if current_contract:
+                        current_data['name'] = current_contract
+                        current_data['full_path'] = str(clarinet_path.parent / current_data['path']) if 'path' in current_data else ''
+                        contracts.append(current_data)
+                    
+                    # Start new contract
+                    current_contract = line[11:-1]
+                    current_data = {'depends_on': []}
+                    continue
+
+                # Match key = value
+                if '=' in line and current_contract:
+                    key, value = [p.strip() for p in line.split('=', 1)]
+                    
+                    # Handle path
+                    if key == 'path':
+                        current_data['path'] = value.strip('"\'')
+                    
+                    # Handle depends_on = ["a", "b"]
+                    elif key == 'depends_on':
+                        # Simple array parsing: ["a", "b"] -> [a, b]
+                        deps_str = value.strip('[]')
+                        if deps_str:
+                            deps = [d.strip().strip('"\'') for d in deps_str.split(',')]
+                            current_data['depends_on'] = [d for d in deps if d] # Filter empty
+
+            # Add last contract
+            if current_contract:
+                current_data['name'] = current_contract
+                current_data['full_path'] = str(clarinet_path.parent / current_data['path']) if 'path' in current_data else ''
+                contracts.append(current_data)
 
         except Exception as e:
-            print(f"Warning: Could not parse Clarinet.toml: {e}")
+            print(f"[WARNING] Could not parse Clarinet.toml fully: {e}")
+            # Fallback will handle this if list is empty, or return partial results
 
         return contracts
 
@@ -602,35 +647,57 @@ class EnhancedConxianDeployer:
         return contracts
 
     def _sort_by_dependencies(self, contracts: List[Dict]) -> List[Dict]:
-        """Sort contracts by dependency order (Generic + Conxian)"""
-        # Define priority tiers (regex patterns or substrings)
-        tiers = [
-            # Tier 1: Traits & Interfaces (must be first)
-            ['trait', 'interface', 'standard', 'sip-'],
-            # Tier 2: Libraries & Utils
-            ['utils', 'lib-', 'math', 'constant', 'err'],
-            # Tier 3: Core Systems & Registries
-            ['registry', 'storage', 'core', 'manager', 'factory'],
-            # Tier 4: Tokens (depend on traits)
-            ['token', 'ft', 'nft', 'coin'],
-            # Tier 5: Oracles (depend on nothing or traits)
-            ['oracle', 'price', 'feed'],
-            # Tier 6: DeFi & Apps (depend on tokens/factory)
-            ['swap', 'pool', 'dex', 'vault', 'router'],
-            # Tier 7: Governance (depends on tokens)
-            ['governance', 'dao', 'proposal', 'voting'],
-            # Tier 8: Applications/Others
-            [] 
-        ]
+        """Sort contracts using topological sort based on dependencies"""
+        
+        # Build dependency graph
+        contract_map = {c['name']: c for c in contracts}
+        graph = {c['name']: set() for c in contracts}
+        
+        for contract in contracts:
+            name = contract['name']
+            # Add explicit dependencies
+            for dep in contract.get('depends_on', []):
+                if dep in contract_map:
+                    graph[name].add(dep)
+            
+            # implicit trait dependencies (fallback if not explicit)
+            if 'trait' in name:
+                # Traits usually have no deps or depend on other traits
+                pass 
+        
+        # Topological Sort (Kahn's Algorithm modified for simple DFS)
+        visited = set()
+        temp_mark = set()
+        sorted_list = []
+        
+        def visit(n):
+            if n in temp_mark:
+                 # Circular dependency detected, break cycle by just returning
+                 # (In strict mode we'd raise error, but here we want best-effort)
+                 print(f"[WARNING] Circular dependency detected involving {n}")
+                 return
+            if n not in visited:
+                temp_mark.add(n)
+                for m in graph.get(n, []):
+                    visit(m)
+                temp_mark.remove(n)
+                visited.add(n)
+                sorted_list.append(n)
 
-        def get_priority(contract):
-            name = contract['name'].lower()
-            for i, tier in enumerate(tiers):
-                if any(pattern in name for pattern in tier):
-                    return i
-            return len(tiers) # Default priority
-
-        return sorted(contracts, key=get_priority)
+        # Visit all nodes
+        # Sort keys first to ensure deterministic output for independent nodes
+        for name in sorted(graph.keys()):
+            if name not in visited:
+                visit(name)
+                
+        # Result is list of names in dependency order
+        # Map back to contract objects
+        ordered_contracts = []
+        for name in sorted_list:
+            if name in contract_map:
+                ordered_contracts.append(contract_map[name])
+                
+        return ordered_contracts
 
     def _deploy_single_contract(self, contract: Dict) -> Optional[str]:
         """Deploy a single contract (placeholder - would use Stacks SDK)"""

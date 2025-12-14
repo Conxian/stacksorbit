@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
 
+# Force UTF-8 encoding for stdout on Windows to handle emojis
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # Import our enhanced modules
 from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
 from deployment_monitor import DeploymentMonitor
@@ -164,7 +168,7 @@ class ConxianTestnetDeployer:
             print("\n📦 Deployed Contracts:")
             contracts = monitor.get_deployed_contracts(address)
             print(f"   Count: {len(contracts)}")
-            print("
+
 
             for contract in contracts:
                 print(f"   - {contract.get('contract_id', 'unknown')}")
