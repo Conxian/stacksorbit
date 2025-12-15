@@ -19,7 +19,7 @@ import psutil
 from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
 from deployment_monitor import DeploymentMonitor
 from deployment_verifier import DeploymentVerifier
-from enhanced_dashboard import EnhancedDashboard
+from stacksorbit_gui import StacksOrbitGUI
 from local_devnet import LocalDevnet
 
 try:
@@ -807,57 +807,49 @@ class UltimateStacksOrbit:
         config_manager = EnhancedConfigManager(self.config_path)
         config = config_manager.load_config()
 
-        if options.get('dashboard'):
-            # Run dashboard
-            dashboard = EnhancedDashboard(config, config.get('NETWORK', 'testnet'))
-            dashboard.start_dashboard()
-            return 0
+        monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
 
-        else:
-            # Run command-line monitoring
-            monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
+        # Show API status
+        api_status = monitor.check_api_status()
+        print(f"🌐 API Status: {api_status['status']}")
+        print(f"   Network: {api_status.get('network_id', 'unknown')}")
+        print(f"   Block Height: {api_status.get('block_height', 0)}")
 
-            # Show API status
-            api_status = monitor.check_api_status()
-            print(f"🌐 API Status: {api_status['status']}")
-            print(f"   Network: {api_status.get('network_id', 'unknown')}")
-            print(f"   Block Height: {api_status.get('block_height', 0)}")
+        address = config.get('SYSTEM_ADDRESS')
+        if address:
+            print(f"\n👤 Account Status:")
+            account_info = monitor.get_account_info(address)
+            if account_info:
+                balance_raw = account_info.get('balance', 0)
+                balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000
+                print(f"   Balance: {balance} STX")
+                print(f"   Nonce: {account_info.get('nonce', 0)}")
 
-            address = config.get('SYSTEM_ADDRESS')
-            if address:
-                print(f"\n👤 Account Status:")
-                account_info = monitor.get_account_info(address)
-                if account_info:
-                    balance_raw = account_info.get('balance', 0)
-                    balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000
-                    print(f"   Balance: {balance} STX")
-                    print(f"   Nonce: {account_info.get('nonce', 0)}")
+            print(f"\n📦 Deployed Contracts:")
+            contracts = monitor.get_deployed_contracts(address)
+            print(f"   Count: {len(contracts)}")
 
-                print(f"\n📦 Deployed Contracts:")
-                contracts = monitor.get_deployed_contracts(address)
-                print(f"   Count: {len(contracts)}")
+            if contracts:
+                print("   Recent contracts:")
+                for contract in contracts[-5:]:  # Show last 5
+                    print(f"     - {contract.get('contract_id', 'unknown')}")
 
-                if contracts:
-                    print("   Recent contracts:")
-                    for contract in contracts[-5:]:  # Show last 5
-                        print(f"     - {contract.get('contract_id', 'unknown')}")
+        if options.get('follow'):
+            print(f"\n🔄 Starting real-time monitoring...")
+            print("📝 Press Ctrl+C to stop")
 
-            if options.get('follow'):
-                print(f"\n🔄 Starting real-time monitoring...")
-                print("📝 Press Ctrl+C to stop")
+            monitor_thread = monitor.start_monitoring()
 
-                monitor_thread = monitor.start_monitoring()
+            try:
+                while monitor.is_monitoring:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
 
-                try:
-                    while monitor.is_monitoring:
-                        time.sleep(1)
-                except KeyboardInterrupt:
-                    pass
+            monitor.stop_monitoring()
+            print("✅ Monitoring stopped")
 
-                monitor.stop_monitoring()
-                print("✅ Monitoring stopped")
-
-            return 0
+        return 0
 
     def run_enhanced_verification(self, options: Dict) -> int:
         """Run enhanced verification"""
@@ -900,15 +892,10 @@ class UltimateStacksOrbit:
 
     def run_enhanced_dashboard(self, options: Dict) -> int:
         """Run enhanced dashboard"""
-        print(f"{Fore.CYAN}📊 Enhanced Dashboard Mode{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}📊 Launching StacksOrbit GUI...{Style.RESET_ALL}")
 
-        # Load configuration
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
-
-        # Start dashboard
-        dashboard = EnhancedDashboard(config, config.get('NETWORK', 'testnet'))
-        dashboard.start_dashboard()
+        app = StacksOrbitGUI()
+        app.run()
 
         return 0
 
@@ -1237,7 +1224,7 @@ class UltimateStacksOrbit:
         print("  stacksorbit deploy --category core --dry-run")
         print()
         print("  # Monitor in real-time")
-        print("  stacksorbit monitor --follow --dashboard")
+        print("  stacksorbit monitor --follow")
         print()
         print("  # Comprehensive verification")
         print("  stacksorbit verify --comprehensive")
@@ -1278,7 +1265,6 @@ def main():
 
     # Monitoring options
     parser.add_argument('--follow', action='store_true', help='Follow in real-time')
-    parser.add_argument('--dashboard', action='store_true', help='Launch dashboard')
     parser.add_argument('--api-only', action='store_true', help='API status only')
 
     # Verification options
@@ -1303,7 +1289,6 @@ def main():
             'skip_checks': args.skip_checks,
             'force': args.force,
             'follow': args.follow,
-            'dashboard': args.dashboard,
             'api_only': args.api_only,
             'contracts': args.contracts,
             'comprehensive': args.comprehensive,

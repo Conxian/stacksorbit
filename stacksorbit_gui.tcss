@@ -1,0 +1,121 @@
+/* StacksOrbit GUI CSS - Modern Theme */
+
+Screen {
+    background: #0c0c0d;
+    color: #c0c0c0;
+    layout: vertical;
+    padding: 1;
+}
+
+Header {
+    background: #1e1e20;
+    color: #e0e0e0;
+    text-style: bold;
+    padding: 1 2;
+}
+
+Footer {
+    background: #1e1e20;
+    color: #a0a0a0;
+    padding: 0 2;
+}
+
+TabbedContent {
+    background: #151516;
+    border: heavy #2a2a2c;
+    padding: 1;
+}
+
+TabPane {
+    padding: 1;
+}
+
+Tabs {
+    background: #1e1e20;
+}
+
+Tab {
+    padding: 1 2;
+    background: #1a1a1b;
+    border: round #2a2a2c;
+}
+
+Tab:hover {
+    background: #252527;
+}
+
+Tab.--current {
+    background: #007acc;
+    color: white;
+    text-style: bold;
+}
+
+.metric-card {
+    background: #1a1a1b;
+    border: round #2a2a2c;
+    padding: 1 2;
+    margin: 1;
+}
+
+.metric-card Label {
+    color: #a0a0a0;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.metric-card Static {
+    color: #e0e0e0;
+    text-style: bold;
+}
+
+#overview-buttons {
+    padding: 1 0;
+    align: center middle;
+}
+
+Button {
+    margin: 0 1;
+    padding: 1 2;
+    border: round #2a2a2c;
+    background: #252527;
+}
+
+Button:hover {
+    background: #303032;
+}
+
+Button.primary {
+    background: #007acc;
+    color: white;
+}
+
+DataTable {
+    background: #151516;
+    border: heavy #2a2a2c;
+}
+
+DataTable .datatable--header {
+    background: #1e1e20;
+    text-style: bold;
+}
+
+DataTable .datatable--cursor {
+    background: #007acc;
+    color: white;
+}
+
+Log {
+    background: #151516;
+    border: heavy #2a2a2c;
+    padding: 1;
+}
+
+Input {
+    background: #252527;
+    border: round #2a2a2c;
+    padding: 1;
+}
+
+Input:focus {
+    border: round #007acc;
+}
