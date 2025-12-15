@@ -9,6 +9,8 @@
 
 **Deploy smart contracts to Stacks blockchain with confidence.**
 
+![StacksOrbit TUI Screenshot](stacksorbit-tui-screenshot.svg)
+
 ---
 
 ## 📖 Documentation
