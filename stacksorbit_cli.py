@@ -761,13 +761,26 @@ class UltimateStacksOrbit:
             return 1
 
         # Initialize deployer
-        deployer = EnhancedConxianDeployer(config, options.get('verbose', False))
+        run_npm_tests = bool(options.get('run_npm_tests')) or bool(options.get('dry_run'))
+        npm_test_script = options.get('npm_test_script') or 'test'
+        clarinet_check_timeout = int(options.get('clarinet_check_timeout', 300))
+        deployer = EnhancedConxianDeployer(
+            config,
+            options.get('verbose', False),
+            run_npm_tests=run_npm_tests,
+            npm_test_script=npm_test_script,
+            clarinet_check_timeout=clarinet_check_timeout
+        )
 
         # Run pre-deployment checks
+        pre_checks_passed = True
         if not options.get('skip_checks'):
             print("🔍 Running comprehensive pre-deployment checks...")
-            if not deployer.run_pre_checks():
-                if not options.get('force'):
+            pre_checks_passed = deployer.run_pre_checks()
+            if not pre_checks_passed:
+                if options.get('dry_run') and not options.get('force'):
+                    print(f"{Fore.YELLOW}⚠️  Pre-deployment checks reported issues. Continuing because --dry-run was specified.{Style.RESET_ALL}")
+                elif not options.get('force'):
                     print(f"{Fore.RED}❌ Pre-deployment checks failed.{Style.RESET_ALL}")
                     print("💡 Use --force to continue anyway")
                     return 1
@@ -781,7 +794,10 @@ class UltimateStacksOrbit:
 
         # Show results
         if options.get('dry_run'):
-            print(f"\n{Fore.GREEN}✅ Dry run completed successfully{Style.RESET_ALL}")
+            if pre_checks_passed:
+                print(f"\n{Fore.GREEN}✅ Dry run completed successfully{Style.RESET_ALL}")
+            else:
+                print(f"\n{Fore.YELLOW}⚠️  Dry run completed with issues (see pre-deployment checks above){Style.RESET_ALL}")
         else:
             print(f"\n📊 Deployment Results:")
             print(f"   ✅ Successful: {len(results.get('successful', []))}")
@@ -1262,6 +1278,9 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='Dry run deployment')
     parser.add_argument('--skip-checks', action='store_true', help='Skip pre-deployment checks')
     parser.add_argument('--force', action='store_true', help='Force deployment')
+    parser.add_argument('--run-npm-tests', action='store_true', help='Run npm tests during pre-deployment checks')
+    parser.add_argument('--npm-test-script', default='test', help='npm script to run (e.g. test, test:all)')
+    parser.add_argument('--clarinet-check-timeout', type=int, default=300, help='Timeout for clarinet check (seconds)')
 
     # Monitoring options
     parser.add_argument('--follow', action='store_true', help='Follow in real-time')
@@ -1279,6 +1298,7 @@ def main():
     try:
         # Initialize ultimate deployer
         deployer = UltimateStacksOrbit()
+        deployer.config_path = args.config
 
         # Convert args to dict
         options = {
@@ -1288,6 +1308,9 @@ def main():
             'dry_run': args.dry_run,
             'skip_checks': args.skip_checks,
             'force': args.force,
+            'run_npm_tests': args.run_npm_tests,
+            'npm_test_script': args.npm_test_script,
+            'clarinet_check_timeout': args.clarinet_check_timeout,
             'follow': args.follow,
             'api_only': args.api_only,
             'contracts': args.contracts,

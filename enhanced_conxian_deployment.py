@@ -222,9 +222,20 @@ class ConxianHiroMonitor:
 class EnhancedConxianDeployer:
     """Enhanced Conxian deployer with full CLI integration"""
 
-    def __init__(self, config: Dict, verbose: bool = False):
+    def __init__(
+        self,
+        config: Dict,
+        verbose: bool = False,
+        run_npm_tests: bool = False,
+        npm_test_script: str = 'test',
+        clarinet_check_timeout: int = 300
+    ):
         self.config = config
         self.verbose = verbose
+        self.run_npm_tests = run_npm_tests
+        self.npm_test_script = npm_test_script
+        self.clarinet_check_timeout = clarinet_check_timeout
+        self.pre_check_results: Dict[str, bool] = {}
         self.monitor = ConxianHiroMonitor(config.get('NETWORK', 'testnet'))
         self.contract_categories = self._load_contract_categories()
 
@@ -251,6 +262,13 @@ class EnhancedConxianDeployer:
             'conxian_monitoring': ['analytics-aggregator', 'monitoring-dashboard']
         }
 
+    def _get_project_dir(self) -> Path:
+        if self.config.get('PROJECT_ROOT'):
+            return Path(self.config.get('PROJECT_ROOT'))
+
+        config_path = Path(self.config.get('CONFIG_PATH', '.env'))
+        return config_path.parent
+
     def run_pre_checks(self) -> bool:
         """Run comprehensive pre-deployment checks"""
         print(f"\n[INFO] Running Pre-Deployment Checks\n")
@@ -258,18 +276,28 @@ class EnhancedConxianDeployer:
         checks = [
             ('Environment', self._check_environment),
             ('Network', self._check_network),
-            ('Compilation', self._check_compilation),
+            ('Compilation', self._check_compilation)
+        ]
+
+        if self.run_npm_tests:
+            checks.append(('NPM Tests', self._check_npm_tests))
+
+        checks.extend([
             ('Account Balance', self._check_balance),
             ('Deployment Mode', self._check_deployment_mode),
             ('System Alignment', self._check_system_alignment)
-        ]
+        ])
 
         all_passed = True
+        self.pre_check_results = {}
         for check_name, check_func in checks:
             try:
-                if not check_func():
+                passed = bool(check_func())
+                self.pre_check_results[check_name] = passed
+                if not passed:
                     all_passed = False
             except Exception as e:
+                self.pre_check_results[check_name] = False
                 print(f"[ERROR] {check_name} check failed: {e}")
                 all_passed = False
 
@@ -309,20 +337,100 @@ class EnhancedConxianDeployer:
         """Check contract compilation"""
         print("Checking contract compilation...")
 
+        project_dir = self._get_project_dir()
+        timeout = int(self.clarinet_check_timeout)
+
         try:
-            result = subprocess.run(['clarinet', 'check'],
-                                  capture_output=True, text=True, timeout=60)
+            stdin_input = "y\n" * 10
+            result = subprocess.run(
+                ['clarinet', 'check'],
+                cwd=str(project_dir),
+                capture_output=True,
+                text=True,
+                input=stdin_input,
+                timeout=timeout
+            )
+            output = ((result.stdout or '') + (result.stderr or '')).strip()
+
             if result.returncode == 0:
                 print("[SUCCESS] All contracts compile successfully")
                 return True
-            else:
-                print("[WARNING] Compilation issues detected (deployment may still work)")
+
+            print("[ERROR] Compilation issues detected")
+            if output:
                 if self.verbose:
-                    print(result.stdout)
-                return True
+                    print(output)
+                else:
+                    lines = output.splitlines()
+                    tail = "\n".join(lines[-20:])
+                    print(tail)
+            return False
+
+        except subprocess.TimeoutExpired as e:
+            print(f"[ERROR] Clarinet check timed out after {timeout} seconds")
+            if self.verbose:
+                out = ((e.stdout or '') + (e.stderr or '')).strip()
+                if out:
+                    print(out)
+            return False
+        except FileNotFoundError:
+            print("[ERROR] Clarinet not found (is it installed and on PATH?)")
+            return False
         except Exception as e:
-            print(f"[WARNING] Could not run compilation check: {e}")
+            print(f"[ERROR] Could not run compilation check: {e}")
+            return False
+
+    def _check_npm_tests(self) -> bool:
+        """Run npm tests for the project"""
+        print("Running npm tests...")
+
+        project_dir = self._get_project_dir()
+        package_json = project_dir / 'package.json'
+        if not package_json.exists():
+            print("[INFO] package.json not found - skipping npm tests")
             return True
+
+        script = self.npm_test_script or 'test'
+        if script == 'test':
+            command = ['npm', 'test']
+        else:
+            command = ['npm', 'run', script]
+
+        timeout = int(self.config.get('NPM_TEST_TIMEOUT', 1800))
+
+        try:
+            result = subprocess.run(
+                command,
+                cwd=str(project_dir),
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+
+            if result.returncode == 0:
+                print(f"[SUCCESS] npm tests passed (script: {script})")
+                return True
+
+            print(f"[ERROR] npm tests failed (script: {script})")
+            output = ((result.stdout or '') + (result.stderr or '')).strip()
+            if output:
+                if self.verbose:
+                    print(output)
+                else:
+                    lines = output.splitlines()
+                    tail = "\n".join(lines[-40:])
+                    print(tail)
+            return False
+
+        except subprocess.TimeoutExpired:
+            print(f"[ERROR] npm tests timed out after {timeout} seconds (script: {script})")
+            return False
+        except FileNotFoundError:
+            print("[ERROR] npm not found (is Node.js installed and on PATH?)")
+            return False
+        except Exception as e:
+            print(f"[ERROR] Could not run npm tests: {e}")
+            return False
 
     def _check_balance(self) -> bool:
         """Check account balance"""
@@ -513,6 +621,15 @@ class EnhancedConxianDeployer:
         """Perform dry run of deployment"""
         print(f"\n[INFO] DRY RUN MODE")
         print("=" * 60)
+
+        if getattr(self, 'pre_check_results', None):
+            failed_checks = [name for name, ok in self.pre_check_results.items() if not ok]
+            if failed_checks:
+                print("[INFO] Pre-Deployment Checks Summary (issues detected):")
+                for check_name, ok in self.pre_check_results.items():
+                    status = 'PASS' if ok else 'FAIL'
+                    print(f"   {status}: {check_name}")
+                print()
 
         contracts = self._get_deployment_list(category)
         total_gas = 0
