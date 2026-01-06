@@ -45,6 +45,15 @@ class EnhancedConfigManager:
 
     def load_config(self) -> Dict:
         """Load configuration from .env file"""
+        # Sentinel: Prioritize environment variables for secrets
+        deployer_privkey_env = os.environ.get('DEPLOYER_PRIVKEY')
+        if deployer_privkey_env:
+            self.config['DEPLOYER_PRIVKEY'] = deployer_privkey_env
+            if COLORAMA_AVAILABLE:
+                print(f"{Fore.GREEN}🛡️ Sentinel: Loaded DEPLOYER_PRIVKEY from environment variable.{Style.RESET_ALL}")
+            else:
+                print("🛡️ Sentinel: Loaded DEPLOYER_PRIVKEY from environment variable.")
+
         if not self.config_path.exists():
             self._create_default_config()
 
@@ -53,7 +62,20 @@ class EnhancedConfigManager:
                 line = line.strip()
                 if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
-                    self.config[key.strip()] = value.strip().strip('"')
+                    key = key.strip()
+                    value = value.strip().strip('"')
+
+                    if key == 'DEPLOYER_PRIVKEY':
+                        if value and 'DEPLOYER_PRIVKEY' not in self.config:
+                            self.config['DEPLOYER_PRIVKEY'] = value
+                            if COLORAMA_AVAILABLE:
+                                print(f"{Fore.YELLOW}⚠️  Sentinel Security Warning: DEPLOYER_PRIVKEY found in .env file.{Style.RESET_ALL}")
+                                print(f"{Fore.YELLOW}   For better security, please remove it and set it as an environment variable.{Style.RESET_ALL}")
+                            else:
+                                print("⚠️ Sentinel Security Warning: DEPLOYER_PRIVKEY found in .env file.")
+                                print("   For better security, please remove it and set it as an environment variable.")
+                    else:
+                        self.config[key] = value
 
         # Store the config path for the deployer to use
         self.config['CONFIG_PATH'] = str(self.config_path)
