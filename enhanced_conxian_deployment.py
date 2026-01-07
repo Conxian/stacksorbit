@@ -44,16 +44,34 @@ class EnhancedConfigManager:
         self.deployment_history = []
 
     def load_config(self) -> Dict:
-        """Load configuration from .env file"""
+        """Load configuration from .env file, prioritizing environment variables for secrets."""
         if not self.config_path.exists():
             self._create_default_config()
 
+        # Load from .env file first
         with open(self.config_path, 'r') as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
                     self.config[key.strip()] = value.strip().strip('"')
+
+        # Sentinel Security Enhancement: Prioritize environment variables for secrets
+        deployer_privkey_env = os.environ.get('DEPLOYER_PRIVKEY')
+        if deployer_privkey_env:
+            self.config['DEPLOYER_PRIVKEY'] = deployer_privkey_env
+            if COLORAMA_AVAILABLE:
+                print(f"{Fore.GREEN}🛡️ Sentinel: Loaded DEPLOYER_PRIVKEY from environment variable.{Style.RESET_ALL}")
+            else:
+                print("🛡️ Sentinel: Loaded DEPLOYER_PRIVKEY from environment variable.")
+        elif self.config.get('DEPLOYER_PRIVKEY') and self.config['DEPLOYER_PRIVKEY'] not in ('', 'your_private_key_here'):
+            if COLORAMA_AVAILABLE:
+                print(f"{Fore.YELLOW}🛡️ Sentinel Security Warning: DEPLOYER_PRIVKEY found in .env file.{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}   For enhanced security, please move this secret to an environment variable.{Style.RESET_ALL}")
+            else:
+                print("🛡️ Sentinel Security Warning: DEPLOYER_PRIVKEY found in .env file.")
+                print("   For enhanced security, please move this secret to an environment variable.")
+
 
         # Store the config path for the deployer to use
         self.config['CONFIG_PATH'] = str(self.config_path)

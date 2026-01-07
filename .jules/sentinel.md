@@ -1,0 +1,4 @@
+## 2024-05-20 - Prioritize Environment Variables for Secrets
+**Vulnerability:** The application was loading the `DEPLOYER_PRIVKEY` from a plaintext `.env` file, creating a risk of secret exposure.
+**Learning:** The previous security fix attempted to guide users to use environment variables but didn't enforce it in the code. This created a situation where the application would still read the secret from the `.env` file, undermining the security advice.
+**Prevention:** When implementing security controls, ensure they are enforced programmatically. For secret management, always prioritize loading secrets from environment variables and provide clear, actionable warnings if insecure configurations are detected.
