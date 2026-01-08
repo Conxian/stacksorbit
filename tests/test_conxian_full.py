@@ -29,7 +29,8 @@ class TestConxianFullIntegration(unittest.TestCase):
         # Create a mock .env for testing
         self.config_path = os.path.join(self.temp_dir, '.env')
         with open(self.config_path, 'w') as f:
-            f.write("DEPLOYER_PRIVKEY=753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601\n")
+            # Sentinel 🛡️: Replaced hardcoded private key with a correctly formatted, non-functional placeholder for security.
+            f.write("DEPLOYER_PRIVKEY=000000000000000000000000000000000000000000000000000000000000000001\n")
             f.write("SYSTEM_ADDRESS=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM\n") # Testnet addr
             f.write("NETWORK=testnet\n")
             
