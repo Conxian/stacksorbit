@@ -73,13 +73,13 @@ class EnhancedConfigManager:
         if not loaded_from_env:
             for key_name in privkey_names:
                 if self.config.get(key_name) and self.config[key_name] not in ('', 'your_private_key_here'):
-                    if COLORAMA_AVAILABLE:
-                        print(f"{Fore.YELLOW}🛡️ Sentinel Security Warning: {key_name} found in .env file.{Style.RESET_ALL}")
-                        print(f"{Fore.YELLOW}   For enhanced security, please move this secret to an environment variable.{Style.RESET_ALL}")
-                    else:
-                        print(f"🛡️ Sentinel Security Warning: {key_name} found in .env file.")
-                        print("   For enhanced security, please move this secret to an environment variable.")
-                    break # Show warning for the first one found
+                    error_message = (
+                        f"🛡️ Sentinel Security Error: {key_name} found in .env file.\n"
+                        "   Storing secrets in plaintext files is a critical security risk.\n"
+                        "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
+                        "   Example: export DEPLOYER_PRIVKEY='your_private_key_here'"
+                    )
+                    raise ValueError(error_message)
 
 
         # Store the config path for the deployer to use
