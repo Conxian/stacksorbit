@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 import toml
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
 class ConfigManager:
     def __init__(self, base_path):
@@ -15,15 +15,41 @@ class ConfigManager:
         """
         print(f"Scanning for configuration files in: {self.base_path}")
 
-        # Load .env files
+        # Load .env files and environment variables
         env_path = os.path.join(self.base_path, '.env')
+
+        # Sentinel Security Enhancement:
+        # 1. Inspect the .env file for secrets before loading it.
         if os.path.exists(env_path):
+            # Use dotenv_values to get the contents of the .env file as a dict without modifying the environment.
+            file_vars = dotenv_values(dotenv_path=env_path)
+
+            privkey_names = ['DEPLOYER_PRIVKEY', 'STACKS_DEPLOYER_PRIVKEY', 'STACKS_PRIVKEY']
+            is_privkey_in_env = any(os.environ.get(key) for key in privkey_names)
+
+            # If a private key is NOT set in the environment, check if it's in the .env file.
+            if not is_privkey_in_env:
+                for key_name in privkey_names:
+                    # If the key is in the file with a non-placeholder value, it's a security risk.
+                    if file_vars.get(key_name) and file_vars[key_name] not in ('', 'your_private_key_here'):
+                        error_message = (
+                            f"🛡️ Sentinel Security Error: {key_name} found in .env file.\n"
+                            "   Storing secrets in plaintext files is a critical security risk.\n"
+                            "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
+                            "   Example: export DEPLOYER_PRIVKEY='your_private_key_here'"
+                        )
+                        raise ValueError(error_message)
+
+            # 2. If the security check passes, load the .env file into the environment.
+            # This preserves the original behavior for all other variables.
             load_dotenv(dotenv_path=env_path)
-            print(f"Loaded .env file from: {env_path}")
-            # For demonstration, we'll just store a flag that it was loaded
             self.config['env_loaded'] = True
+            print(f"Loaded and validated .env file from: {env_path}")
         else:
             print(f"No .env file found at: {env_path}")
+
+        # 3. Populate self.config from the environment, ensuring env vars take precedence.
+        self.config.update(os.environ)
 
         # Load .toml files (e.g., Clarinet.toml)
         for root, _, files in os.walk(self.base_path):
