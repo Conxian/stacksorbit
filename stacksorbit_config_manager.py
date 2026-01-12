@@ -18,6 +18,19 @@ class ConfigManager:
         # Load .env files
         env_path = os.path.join(self.base_path, '.env')
         if os.path.exists(env_path):
+            # Sentinel Security Enhancement: Check for private key before loading
+            with open(env_path, 'r') as f:
+                for line in f:
+                    if line.strip().startswith('DEPLOYER_PRIVKEY='):
+                        # Check if the key has a value
+                        value = line.split('=', 1)[1].strip()
+                        if value and value != 'your_private_key_here':
+                            raise ValueError(
+                                "🛡️ Sentinel Security Error: DEPLOYER_PRIVKEY found in .env file.\n"
+                                "   Storing secrets in plaintext files is a critical security risk.\n"
+                                "   For your protection, please move this secret to an environment variable."
+                            )
+
             load_dotenv(dotenv_path=env_path)
             print(f"Loaded .env file from: {env_path}")
             # For demonstration, we'll just store a flag that it was loaded
