@@ -1,0 +1,19 @@
+[project]
+name = "stacksorbit"
+authors = ["Anya Chain Labs <dev@anyachainlabs.com>"]
+description = "Ultimate deployment tool for Stacks blockchain"
+telemetry = true
+requirements = []
+
+[contracts.placeholder]
+path = "contracts/placeholder.clar"
+depends_on = []
+
+[devnet]
+name = "devnet"
+
+[testnet]
+name = "testnet"
+
+[mainnet]
+name = "mainnet"
