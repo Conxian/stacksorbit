@@ -40,6 +40,11 @@ class DeploymentMonitor:
         self.contracts_deployed = set()
         self.failed_contracts = set()
 
+        # Bolt ⚡: Add in-memory cache to reduce redundant API calls
+        self.cache = {}
+        self.cache_lock = threading.Lock()
+        self.cache_expiry = 30  # Cache for 30 seconds
+
         # Setup logging
         self.setup_logging()
 
@@ -279,7 +284,17 @@ class DeploymentMonitor:
             return []
 
     def get_recent_transactions(self, address: str, limit: int = 50) -> List[Dict]:
-        """Get recent transactions for an address"""
+        """Get recent transactions for an address, with caching."""
+        cache_key = f"transactions_{address}_{limit}"
+        with self.cache_lock:
+            # Bolt ⚡: Check for cached data first
+            cached = self.cache.get(cache_key)
+            if cached and (time.time() - cached['timestamp']) < self.cache_expiry:
+                self.logger.debug(f"Cache hit for {cache_key}")
+                return cached['data']
+
+        # Bolt ⚡: If cache miss or expired, fetch from API
+        self.logger.debug(f"Cache miss for {cache_key}, fetching from API")
         try:
             response = self.session.get(
                 f"{self.api_url}/v2/accounts/{address}/transactions?limit={limit}",
@@ -287,7 +302,15 @@ class DeploymentMonitor:
             )
             response.raise_for_status()
             data = response.json()
-            return data.get("results", [])
+            results = data.get("results", [])
+
+            # Bolt ⚡: Store new data in cache
+            with self.cache_lock:
+                self.cache[cache_key] = {
+                    'timestamp': time.time(),
+                    'data': results
+                }
+            return results
         except Exception as e:
             self.logger.error(f"Error getting recent transactions: {e}")
             return []
