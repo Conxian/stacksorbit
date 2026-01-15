@@ -75,6 +75,7 @@ class StacksOrbitGUI(App):
 
         with TabbedContent(initial="overview"):
             with TabPane("📊 Dashboard", id="overview"):
+                yield LoadingIndicator()
                 with Grid(id="metrics-grid"):
                     yield Container(Label("Network Status"), Static("N/A", id="network-status"), classes="metric-card")
                     yield Container(Label("Contracts Deployed"), Static("0", id="contract-count"), classes="metric-card")
@@ -117,10 +118,10 @@ class StacksOrbitGUI(App):
         """Initialize the GUI"""
         self.title = "StacksOrbit"
         self.sub_title = "Deployment Dashboard"
-
+        self.query_one(LoadingIndicator).display = False
         self._setup_tables()
         self.set_interval(10.0, self.update_data)
-        self.update_data()
+        self.run_worker(self.update_data())
 
     def _setup_tables(self) -> None:
         """Setup the data tables"""
@@ -130,12 +131,15 @@ class StacksOrbitGUI(App):
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Block")
 
-    def update_data(self) -> None:
+    async def update_data(self) -> None:
         """Update all data in the GUI"""
-        self._update_dashboard()
-        self._load_contracts_and_transactions()
+        loading = self.query_one(LoadingIndicator)
+        loading.display = True
+        await self._update_dashboard()
+        await self._load_contracts_and_transactions()
+        loading.display = False
 
-    def _update_dashboard(self) -> None:
+    async def _update_dashboard(self) -> None:
         """Update the dashboard tab with latest data."""
         try:
             api_status = self.monitor.check_api_status()
@@ -153,7 +157,7 @@ class StacksOrbitGUI(App):
             self.query_one("#network-status").update("[red]Error[/]")
             self.notify(f"API error: {e}", severity="error")
 
-    def _load_contracts_and_transactions(self) -> None:
+    async def _load_contracts_and_transactions(self) -> None:
         """Load deployed contracts and recent transactions."""
         contracts_table = self.query_one("#contracts-table", DataTable)
         transactions_table = self.query_one("#transactions-table", DataTable)
@@ -166,6 +170,8 @@ class StacksOrbitGUI(App):
             return
 
         try:
+            # This is a synchronous call, so we don't need to await it.
+            # If it were async, we'd use `await self.monitor.get_deployed_contracts...`
             deployed_contracts = self.monitor.get_deployed_contracts(self.address)
             self.query_one("#contract-count").update(str(len(deployed_contracts)))
             for contract in deployed_contracts:
@@ -200,7 +206,7 @@ class StacksOrbitGUI(App):
 
     @on(Button.Pressed, "#refresh-btn")
     def action_refresh(self) -> None:
-        self.update_data()
+        self.run_worker(self.update_data())
         self.notify("Data refreshed")
 
     def run_command(self, command: List[str]) -> None:
