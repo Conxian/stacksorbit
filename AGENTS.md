@@ -133,20 +133,18 @@ pip install -e ".[dev,test]"
 
 ### 3.2. Running Tests
 
-The test suite is not fully integrated yet. To run the available tests, you can use the following commands:
+The primary test suite is built with Vitest and the Clarinet SDK. To run the tests, use the following command:
 
 ```bash
-# Run the GUI smoke test
-python tests/test_gui.py
-
-# Run the full integration test (requires a specific local setup)
-python -m unittest tests/test_conxian_full.py
+npm run test:vitest
 ```
 
-To check test coverage:
+This will execute all of the tests in the `js-tests/` directory.
+
+To check test coverage, you can use the following command:
 
 ```bash
-pytest --cov=stacksorbit --cov-report=html
+npx vitest --coverage
 ```
 
 ### 3.3. Code Style
