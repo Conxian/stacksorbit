@@ -55,6 +55,7 @@ class StacksOrbitGUI(App):
         self.network = self.config.get("NETWORK", "testnet")
         self.address = self.config.get('SYSTEM_ADDRESS', 'Not configured')
         self.monitor = DeploymentMonitor(self.network, self.config)
+        self._manual_refresh_in_progress = False
 
     def _load_config(self) -> Dict:
         """Load configuration from file"""
@@ -206,8 +207,28 @@ class StacksOrbitGUI(App):
 
     @on(Button.Pressed, "#refresh-btn")
     def action_refresh(self) -> None:
-        self.run_worker(self.update_data())
-        self.notify("Data refreshed")
+        """Handle manual refresh button press."""
+        if self._manual_refresh_in_progress:
+            return
+        self.run_worker(self._do_refresh())
+
+    async def _do_refresh(self) -> None:
+        """Perform the data refresh and update the UI."""
+        self._manual_refresh_in_progress = True
+        refresh_btn = self.query_one("#refresh-btn", Button)
+        original_label = refresh_btn.label
+        refresh_btn.disabled = True
+        refresh_btn.label = "Refreshing..."
+
+        try:
+            await self.update_data()
+            self.notify("Data refreshed")
+        except Exception as e:
+            self.notify(f"Refresh failed: {e}", severity="error")
+        finally:
+            refresh_btn.disabled = False
+            refresh_btn.label = original_label
+            self._manual_refresh_in_progress = False
 
     def run_command(self, command: List[str]) -> None:
         """Run a CLI command in a separate thread."""
