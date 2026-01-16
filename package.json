@@ -22,6 +22,7 @@
     "test:integration": "python -m pytest tests/integration/ -q",
     "test:gui": "python tests/test_gui.py",
     "test:enhanced": "python test_enhanced_features.py",
+    "test:vitest": "vitest run",
     "lint": "eslint bin/*.js && pylint *.py --exit-zero",
     "format": "prettier --write bin/*.js && black *.py",
     "ci": "npm install && python -m pip install --upgrade pip && python -m pip install -e .[dev,test] && npm run lint && npm test",
@@ -74,9 +75,10 @@
     "next": "^16.0.1-canary.3"
   },
   "devDependencies": {
+    "@stacks/clarinet-sdk": "^3.12.0",
     "eslint": "^8.52.0",
-    "jest": "^29.7.0",
-    "prettier": "^3.0.3"
+    "prettier": "^3.0.3",
+    "vitest": "^1.6.0"
   },
   "python": {
     "version": ">=3.8",

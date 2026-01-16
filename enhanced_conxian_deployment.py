@@ -57,20 +57,29 @@ class EnhancedConfigManager:
                     self.config[key.strip()] = value.strip().strip('"')
 
         # Sentinel Security Enhancement: Prioritize environment variables for secrets
-        deployer_privkey_env = os.environ.get('DEPLOYER_PRIVKEY')
-        if deployer_privkey_env:
-            self.config['DEPLOYER_PRIVKEY'] = deployer_privkey_env
-            if COLORAMA_AVAILABLE:
-                print(f"{Fore.GREEN}🛡️ Sentinel: Loaded DEPLOYER_PRIVKEY from environment variable.{Style.RESET_ALL}")
-            else:
-                print("🛡️ Sentinel: Loaded DEPLOYER_PRIVKEY from environment variable.")
-        elif self.config.get('DEPLOYER_PRIVKEY') and self.config['DEPLOYER_PRIVKEY'] not in ('', 'your_private_key_here'):
-            if COLORAMA_AVAILABLE:
-                print(f"{Fore.YELLOW}🛡️ Sentinel Security Warning: DEPLOYER_PRIVKEY found in .env file.{Style.RESET_ALL}")
-                print(f"{Fore.YELLOW}   For enhanced security, please move this secret to an environment variable.{Style.RESET_ALL}")
-            else:
-                print("🛡️ Sentinel Security Warning: DEPLOYER_PRIVKEY found in .env file.")
-                print("   For enhanced security, please move this secret to an environment variable.")
+        privkey_names = ['DEPLOYER_PRIVKEY', 'STACKS_DEPLOYER_PRIVKEY', 'STACKS_PRIVKEY']
+        loaded_from_env = False
+        for key_name in privkey_names:
+            privkey_env = os.environ.get(key_name)
+            if privkey_env:
+                self.config[key_name] = privkey_env
+                if COLORAMA_AVAILABLE:
+                    print(f"{Fore.GREEN}🛡️ Sentinel: Loaded {key_name} from environment variable.{Style.RESET_ALL}")
+                else:
+                    print(f"🛡️ Sentinel: Loaded {key_name} from environment variable.")
+                loaded_from_env = True
+                break
+
+        if not loaded_from_env:
+            for key_name in privkey_names:
+                if self.config.get(key_name) and self.config[key_name] not in ('', 'your_private_key_here'):
+                    error_message = (
+                        f"🛡️ Sentinel Security Error: {key_name} found in .env file.\n"
+                        "   Storing secrets in plaintext files is a critical security risk.\n"
+                        "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
+                        "   Example: export DEPLOYER_PRIVKEY='your_private_key_here'"
+                    )
+                    raise ValueError(error_message)
 
 
         # Store the config path for the deployer to use
