@@ -8,6 +8,7 @@ import os
 import json
 import time
 import requests
+import functools
 import threading
 import logging
 from datetime import datetime, timedelta
@@ -23,6 +24,37 @@ try:
     USE_COLORS = True
 except ImportError:
     USE_COLORS = False
+
+def cache_api_call(func):
+    """Decorator to cache API calls with a timeout."""
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # Create a cache key from the function name and arguments
+        # Note: This is a simple key generation strategy. For complex arguments,
+        # a more robust method (like hashing a serialized version of args) might be needed.
+        key_args = [str(arg) for arg in args]
+        key_kwargs = [f"{k}={v}" for k, v in sorted(kwargs.items())]
+        cache_key = f"{func.__name__}_{'_'.join(key_args)}_{'_'.join(key_kwargs)}"
+
+        with self.cache_lock:
+            cached_data = self.cache.get(cache_key)
+            if cached_data and (time.time() - cached_data['timestamp']) < self.cache_expiry:
+                self.logger.debug(f"Cache hit for {cache_key}")
+                return cached_data['data']
+
+        self.logger.debug(f"Cache miss for {cache_key}, fetching from API")
+        # Execute the function if no valid cache entry is found
+        result = func(self, *args, **kwargs)
+
+        # Store the new result in the cache
+        with self.cache_lock:
+            self.cache[cache_key] = {
+                'timestamp': time.time(),
+                'data': result
+            }
+        return result
+    return wrapper
+
 
 class DeploymentMonitor:
     """Real-time deployment monitoring with Hiro API integration"""
@@ -193,8 +225,9 @@ class DeploymentMonitor:
         except Exception as e:
             self.logger.error(f"Network health check failed: {e}")
 
+    @cache_api_call
     def check_api_status(self) -> Dict:
-        """Check Hiro API status"""
+        """Check Hiro API status."""
         try:
             response = self.session.get(f"{self.api_url}/v2/info", timeout=10)
             response.raise_for_status()
@@ -208,7 +241,6 @@ class DeploymentMonitor:
                 'burn_block_height': data.get('burn_block_height', 0),
                 'tps': data.get('tps', 0)
             }
-
             self.logger.debug(f"API Status: {status['network_id']} @ {status['block_height']}")
             return status
 
@@ -216,8 +248,9 @@ class DeploymentMonitor:
             self.logger.error(f"API status check failed: {e}")
             return {'status': 'offline', 'error': str(e)}
 
+    @cache_api_call
     def get_account_info(self, address: str) -> Optional[Dict]:
-        """Get comprehensive account information"""
+        """Get comprehensive account information."""
         try:
             response = self.session.get(f"{self.api_url}/v2/accounts/{address}")
             response.raise_for_status()
@@ -267,8 +300,9 @@ class DeploymentMonitor:
         self.logger.warning("⏰ Transaction confirmation timeout")
         return None
 
+    @cache_api_call
     def get_deployed_contracts(self, address: str) -> List[Dict]:
-        """Get list of deployed contracts"""
+        """Get list of deployed contracts."""
         try:
             response = self.session.get(f"{self.api_url}/v2/accounts/{address}/contracts")
             response.raise_for_status()
@@ -276,25 +310,15 @@ class DeploymentMonitor:
 
             contracts = data.get('contracts', [])
             self.logger.info(f"📦 Found {len(contracts)} deployed contracts")
-
             return contracts
 
         except Exception as e:
             self.logger.error(f"Error getting deployed contracts: {e}")
             return []
 
+    @cache_api_call
     def get_recent_transactions(self, address: str, limit: int = 50) -> List[Dict]:
-        """Get recent transactions for an address, with caching."""
-        cache_key = f"transactions_{address}_{limit}"
-        with self.cache_lock:
-            # Bolt ⚡: Check for cached data first
-            cached = self.cache.get(cache_key)
-            if cached and (time.time() - cached['timestamp']) < self.cache_expiry:
-                self.logger.debug(f"Cache hit for {cache_key}")
-                return cached['data']
-
-        # Bolt ⚡: If cache miss or expired, fetch from API
-        self.logger.debug(f"Cache miss for {cache_key}, fetching from API")
+        """Get recent transactions for an address."""
         try:
             response = self.session.get(
                 f"{self.api_url}/v2/accounts/{address}/transactions?limit={limit}",
@@ -302,15 +326,7 @@ class DeploymentMonitor:
             )
             response.raise_for_status()
             data = response.json()
-            results = data.get("results", [])
-
-            # Bolt ⚡: Store new data in cache
-            with self.cache_lock:
-                self.cache[cache_key] = {
-                    'timestamp': time.time(),
-                    'data': results
-                }
-            return results
+            return data.get("results", [])
         except Exception as e:
             self.logger.error(f"Error getting recent transactions: {e}")
             return []
