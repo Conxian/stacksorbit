@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import argparse
+from stacksorbit_secrets import SECRET_KEYS
 
 # Force UTF-8 encoding for stdout on Windows
 if sys.platform == 'win32':
@@ -57,29 +58,18 @@ class EnhancedConfigManager:
                     self.config[key.strip()] = value.strip().strip('"')
 
         # Sentinel Security Enhancement: Prioritize environment variables for secrets
-        privkey_names = ['DEPLOYER_PRIVKEY', 'STACKS_DEPLOYER_PRIVKEY', 'STACKS_PRIVKEY']
-        loaded_from_env = False
-        for key_name in privkey_names:
-            privkey_env = os.environ.get(key_name)
-            if privkey_env:
-                self.config[key_name] = privkey_env
-                if COLORAMA_AVAILABLE:
-                    print(f"{Fore.GREEN}🛡️ Sentinel: Loaded {key_name} from environment variable.{Style.RESET_ALL}")
-                else:
-                    print(f"🛡️ Sentinel: Loaded {key_name} from environment variable.")
-                loaded_from_env = True
-                break
-
-        if not loaded_from_env:
-            for key_name in privkey_names:
-                if self.config.get(key_name) and self.config[key_name] not in ('', 'your_private_key_here'):
-                    error_message = (
-                        f"🛡️ Sentinel Security Error: {key_name} found in .env file.\n"
-                        "   Storing secrets in plaintext files is a critical security risk.\n"
-                        "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
-                        "   Example: export DEPLOYER_PRIVKEY='your_private_key_here'"
-                    )
-                    raise ValueError(error_message)
+        # For each potential secret, check if it exists in the file with a real value.
+        for key in SECRET_KEYS:
+            # A secret is considered present if the key exists in the config and its value is not empty or a placeholder.
+            if self.config.get(key) and self.config[key] not in ('', 'your_private_key_here'):
+                # If a secret is found, raise an error and exit immediately.
+                error_message = (
+                    f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
+                    "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
+                    "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
+                    f"   Example: export {key}='your_secret_value_here'"
+                )
+                raise ValueError(error_message)
 
 
         # Store the config path for the deployer to use

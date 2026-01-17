@@ -1,0 +1,15 @@
+"""
+Centralized list of secret keys for StacksOrbit.
+"""
+
+SECRET_KEYS = [
+    'HIRO_API_KEY',
+    'DEPLOYER_PRIVKEY',
+    'STACKS_DEPLOYER_PRIVKEY',
+    'TESTNET_DEPLOYER_MNEMONIC',
+    'STACKS_PRIVKEY',
+    'SYSTEM_PRIVKEY',
+    'SYSTEM_MNEMONIC',
+    'TESTNET_WALLET1_MNEMONIC',
+    'TESTNET_WALLET2_MNEMONIC'
+]
