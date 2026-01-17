@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import argparse
+from dotenv import dotenv_values
 from stacksorbit_secrets import SECRET_KEYS
 
 # Force UTF-8 encoding for stdout on Windows
@@ -45,24 +46,16 @@ class EnhancedConfigManager:
         self.deployment_history = []
 
     def load_config(self) -> Dict:
-        """Load configuration from .env file, prioritizing environment variables for secrets."""
+        """Load configuration from .env file, prioritizing environment variables."""
         if not self.config_path.exists():
             self._create_default_config()
 
-        # Load from .env file first
-        with open(self.config_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    self.config[key.strip()] = value.strip().strip('"')
+        # Load variables from the .env file first.
+        file_config = dotenv_values(dotenv_path=self.config_path)
 
-        # Sentinel Security Enhancement: Prioritize environment variables for secrets
-        # For each potential secret, check if it exists in the file with a real value.
+        # Sentinel Security Enhancement: Check for secrets in the file.
         for key in SECRET_KEYS:
-            # A secret is considered present if the key exists in the config and its value is not empty or a placeholder.
-            if self.config.get(key) and self.config[key] not in ('', 'your_private_key_here'):
-                # If a secret is found, raise an error and exit immediately.
+            if file_config.get(key) and file_config[key] not in ('', 'your_private_key_here'):
                 error_message = (
                     f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
                     "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
@@ -71,6 +64,13 @@ class EnhancedConfigManager:
                 )
                 raise ValueError(error_message)
 
+        # Create a combined configuration, prioritizing environment variables.
+        # Start with the file config, then overwrite with any existing env vars.
+        combined_config = {}
+        combined_config.update(file_config)
+        combined_config.update({k: v for k, v in os.environ.items() if k in file_config or k in SECRET_KEYS})
+
+        self.config = combined_config
 
         # Store the config path for the deployer to use
         self.config['CONFIG_PATH'] = str(self.config_path)
