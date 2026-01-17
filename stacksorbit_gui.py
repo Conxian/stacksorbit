@@ -133,62 +133,79 @@ class StacksOrbitGUI(App):
         transactions_table.add_columns("TX ID", "Type", "Status", "Block")
 
     async def update_data(self) -> None:
-        """Update all data in the GUI"""
+        """Update all data in the GUI concurrently."""
         loading = self.query_one(LoadingIndicator)
         loading.display = True
-        await self._update_dashboard()
-        await self._load_contracts_and_transactions()
-        loading.display = False
-
-    async def _update_dashboard(self) -> None:
-        """Update the dashboard tab with latest data."""
-        try:
-            api_status = self.monitor.check_api_status()
-            self.query_one("#network-status").update(api_status.get("status", "unknown").upper())
-            self.query_one("#block-height").update(str(api_status.get('block_height', 0)))
-
-            if self.address != 'Not configured':
-                account_info = self.monitor.get_account_info(self.address)
-                if account_info:
-                    balance_raw = account_info.get('balance', 0)
-                    balance_stx = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1_000_000
-                    self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
-                    self.query_one("#nonce").update(str(account_info.get('nonce', 0)))
-        except Exception as e:
-            self.query_one("#network-status").update("[red]Error[/]")
-            self.notify(f"API error: {e}", severity="error")
-
-    async def _load_contracts_and_transactions(self) -> None:
-        """Load deployed contracts and recent transactions."""
         contracts_table = self.query_one("#contracts-table", DataTable)
         transactions_table = self.query_one("#transactions-table", DataTable)
         contracts_table.clear()
         transactions_table.clear()
 
-        if self.address == 'Not configured':
-            contracts_table.add_row("Address not configured in .env file.")
-            transactions_table.add_row("Address not configured in .env file.")
-            return
-
         try:
-            # This is a synchronous call, so we don't need to await it.
-            # If it were async, we'd use `await self.monitor.get_deployed_contracts...`
-            deployed_contracts = self.monitor.get_deployed_contracts(self.address)
-            self.query_one("#contract-count").update(str(len(deployed_contracts)))
-            for contract in deployed_contracts:
-                address, name = contract.get('contract_id', '...').split('.')
-                contracts_table.add_row("✅", name, address, key=contract.get('contract_id'))
+            # ⚡ Bolt: Run synchronous API calls concurrently in threads
+            # This prevents the UI from blocking and speeds up the data refresh
+            # by fetching all data in parallel instead of one by one.
+            api_status_task = asyncio.to_thread(self.monitor.check_api_status)
 
-            transactions = self.monitor.get_recent_transactions(self.address)
-            for tx in transactions:
-                transactions_table.add_row(
-                    tx.get('tx_id', '')[:10] + "...",
-                    tx.get('tx_type', ''),
-                    tx.get('tx_status', ''),
-                    str(tx.get('block_height', ''))
+            if self.address != 'Not configured':
+                account_info_task = asyncio.to_thread(self.monitor.get_account_info, self.address)
+                contracts_task = asyncio.to_thread(self.monitor.get_deployed_contracts, self.address)
+                transactions_task = asyncio.to_thread(self.monitor.get_recent_transactions, self.address)
+
+                api_status, account_info, deployed_contracts, transactions = await asyncio.gather(
+                    api_status_task, account_info_task, contracts_task, transactions_task, return_exceptions=True
                 )
+            else:
+                # If no address, only fetch API status and provide sensible defaults for other data.
+                api_status = await api_status_task
+                account_info, deployed_contracts, transactions = None, [], []
+                contracts_table.add_row("Address not configured in .env file.")
+                transactions_table.add_row("Address not configured in .env file.")
+
+            # Process API status result
+            if isinstance(api_status, Exception):
+                raise api_status # Propagate exception to be caught by the main handler
+            self.query_one("#network-status").update(api_status.get("status", "unknown").upper())
+            self.query_one("#block-height").update(str(api_status.get('block_height', 0)))
+
+            # Process account info result
+            if isinstance(account_info, Exception):
+                raise account_info
+            if account_info:
+                balance_raw = account_info.get('balance', 0)
+                balance_stx = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1_000_000
+                self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
+                self.query_one("#nonce").update(str(account_info.get('nonce', 0)))
+            else:
+                self.query_one("#balance").update("0 STX")
+                self.query_one("#nonce").update("0")
+
+            # Process deployed contracts result
+            if isinstance(deployed_contracts, Exception):
+                raise deployed_contracts
+            self.query_one("#contract-count").update(str(len(deployed_contracts)))
+            if deployed_contracts:
+                for contract in deployed_contracts:
+                    address, name = contract.get('contract_id', '...').split('.')
+                    contracts_table.add_row("✅", name, address, key=contract.get('contract_id'))
+
+            # Process transactions result
+            if isinstance(transactions, Exception):
+                raise transactions
+            if transactions:
+                for tx in transactions:
+                    transactions_table.add_row(
+                        tx.get('tx_id', '')[:10] + "...",
+                        tx.get('tx_type', ''),
+                        tx.get('tx_status', ''),
+                        str(tx.get('block_height', ''))
+                    )
+
         except Exception as e:
-            self.notify(f"Error loading data: {e}", severity="error")
+            self.query_one("#network-status").update("[red]Error[/]")
+            self.notify(f"API error: {e}", severity="error")
+        finally:
+            loading.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
