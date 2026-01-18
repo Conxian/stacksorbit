@@ -59,6 +59,7 @@ logs/
 *.env
 .env.local
 .env.*.local
+*.env
 
 # Build artifacts
 *.pyc
