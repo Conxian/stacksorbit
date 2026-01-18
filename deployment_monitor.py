@@ -331,6 +331,22 @@ class DeploymentMonitor:
             self.logger.error(f"Error getting recent transactions: {e}")
             return []
 
+    @cache_api_call
+    def get_contract_details(self, contract_id: str) -> Optional[Dict]:
+        """Get contract details, including source code."""
+        try:
+            # The contract_id is in the format 'address.name'
+            address, name = contract_id.split('.')
+            url = f"{self.api_url}/v2/contracts/interface/{address}/{name}"
+            response = self.session.get(url)
+            response.raise_for_status()
+            # We are primarily interested in the source code
+            source_data = response.json()
+            return {"source_code": source_data.get("source", "Source not available")}
+        except Exception as e:
+            self.logger.error(f"Error getting contract details for {contract_id}: {e}")
+            return None
+
     def verify_deployment(self, expected_contracts: List[str], address: str) -> Dict:
         """Verify deployment completeness"""
         self.logger.info("🔍 Verifying deployment...")

@@ -208,16 +208,22 @@ class StacksOrbitGUI(App):
             loading.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
+    @on(DataTable.RowSelected, "#contracts-table")
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle contract row selection."""
         contract_id = event.row_key.value
         if contract_id:
-            details = self.monitor.get_contract_details(contract_id)
-            md = self.query_one("#contract-details", Markdown)
-            if details:
-                md.update(f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```")
-            else:
-                md.update("Could not retrieve contract details.")
+            self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
+
+    async def fetch_contract_details(self, contract_id: str) -> None:
+        """Worker to fetch and display contract details."""
+        md = self.query_one("#contract-details", Markdown)
+        md.update("Loading...")
+        details = await self.monitor.get_contract_details(contract_id)
+        if details:
+            md.update(f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```")
+        else:
+            md.update("Could not retrieve contract details.")
 
     def action_toggle_dark(self) -> None:
         self.dark = not self.dark
