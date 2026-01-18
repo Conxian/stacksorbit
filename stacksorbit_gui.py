@@ -55,6 +55,7 @@ class StacksOrbitGUI(App):
         self.network = self.config.get("NETWORK", "testnet")
         self.address = self.config.get('SYSTEM_ADDRESS', 'Not configured')
         self.monitor = DeploymentMonitor(self.network, self.config)
+        self._manual_refresh_in_progress = False
 
     def _load_config(self) -> Dict:
         """Load configuration from file"""
@@ -75,6 +76,7 @@ class StacksOrbitGUI(App):
 
         with TabbedContent(initial="overview"):
             with TabPane("📊 Dashboard", id="overview"):
+                yield LoadingIndicator()
                 with Grid(id="metrics-grid"):
                     yield Container(Label("Network Status"), Static("N/A", id="network-status"), classes="metric-card")
                     yield Container(Label("Contracts Deployed"), Static("0", id="contract-count"), classes="metric-card")
@@ -117,10 +119,10 @@ class StacksOrbitGUI(App):
         """Initialize the GUI"""
         self.title = "StacksOrbit"
         self.sub_title = "Deployment Dashboard"
-
+        self.query_one(LoadingIndicator).display = False
         self._setup_tables()
         self.set_interval(10.0, self.update_data)
-        self.update_data()
+        self.run_worker(self.update_data())
 
     def _setup_tables(self) -> None:
         """Setup the data tables"""
@@ -130,58 +132,80 @@ class StacksOrbitGUI(App):
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Block")
 
-    def update_data(self) -> None:
-        """Update all data in the GUI"""
-        self._update_dashboard()
-        self._load_contracts_and_transactions()
-
-    def _update_dashboard(self) -> None:
-        """Update the dashboard tab with latest data."""
-        try:
-            api_status = self.monitor.check_api_status()
-            self.query_one("#network-status").update(api_status.get("status", "unknown").upper())
-            self.query_one("#block-height").update(str(api_status.get('block_height', 0)))
-
-            if self.address != 'Not configured':
-                account_info = self.monitor.get_account_info(self.address)
-                if account_info:
-                    balance_raw = account_info.get('balance', 0)
-                    balance_stx = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1_000_000
-                    self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
-                    self.query_one("#nonce").update(str(account_info.get('nonce', 0)))
-        except Exception as e:
-            self.query_one("#network-status").update("[red]Error[/]")
-            self.notify(f"API error: {e}", severity="error")
-
-    def _load_contracts_and_transactions(self) -> None:
-        """Load deployed contracts and recent transactions."""
+    async def update_data(self) -> None:
+        """Update all data in the GUI concurrently."""
+        loading = self.query_one(LoadingIndicator)
+        loading.display = True
         contracts_table = self.query_one("#contracts-table", DataTable)
         transactions_table = self.query_one("#transactions-table", DataTable)
         contracts_table.clear()
         transactions_table.clear()
 
-        if self.address == 'Not configured':
-            contracts_table.add_row("Address not configured in .env file.")
-            transactions_table.add_row("Address not configured in .env file.")
-            return
-
         try:
-            deployed_contracts = self.monitor.get_deployed_contracts(self.address)
-            self.query_one("#contract-count").update(str(len(deployed_contracts)))
-            for contract in deployed_contracts:
-                address, name = contract.get('contract_id', '...').split('.')
-                contracts_table.add_row("✅", name, address, key=contract.get('contract_id'))
+            # ⚡ Bolt: Run synchronous API calls concurrently in threads
+            # This prevents the UI from blocking and speeds up the data refresh
+            # by fetching all data in parallel instead of one by one.
+            api_status_task = asyncio.to_thread(self.monitor.check_api_status)
 
-            transactions = self.monitor.get_recent_transactions(self.address)
-            for tx in transactions:
-                transactions_table.add_row(
-                    tx.get('tx_id', '')[:10] + "...",
-                    tx.get('tx_type', ''),
-                    tx.get('tx_status', ''),
-                    str(tx.get('block_height', ''))
+            if self.address != 'Not configured':
+                account_info_task = asyncio.to_thread(self.monitor.get_account_info, self.address)
+                contracts_task = asyncio.to_thread(self.monitor.get_deployed_contracts, self.address)
+                transactions_task = asyncio.to_thread(self.monitor.get_recent_transactions, self.address)
+
+                api_status, account_info, deployed_contracts, transactions = await asyncio.gather(
+                    api_status_task, account_info_task, contracts_task, transactions_task, return_exceptions=True
                 )
+            else:
+                # If no address, only fetch API status and provide sensible defaults for other data.
+                api_status = await api_status_task
+                account_info, deployed_contracts, transactions = None, [], []
+                contracts_table.add_row("Address not configured in .env file.")
+                transactions_table.add_row("Address not configured in .env file.")
+
+            # Process API status result
+            if isinstance(api_status, Exception):
+                raise api_status # Propagate exception to be caught by the main handler
+            self.query_one("#network-status").update(api_status.get("status", "unknown").upper())
+            self.query_one("#block-height").update(str(api_status.get('block_height', 0)))
+
+            # Process account info result
+            if isinstance(account_info, Exception):
+                raise account_info
+            if account_info:
+                balance_raw = account_info.get('balance', 0)
+                balance_stx = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1_000_000
+                self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
+                self.query_one("#nonce").update(str(account_info.get('nonce', 0)))
+            else:
+                self.query_one("#balance").update("0 STX")
+                self.query_one("#nonce").update("0")
+
+            # Process deployed contracts result
+            if isinstance(deployed_contracts, Exception):
+                raise deployed_contracts
+            self.query_one("#contract-count").update(str(len(deployed_contracts)))
+            if deployed_contracts:
+                for contract in deployed_contracts:
+                    address, name = contract.get('contract_id', '...').split('.')
+                    contracts_table.add_row("✅", name, address, key=contract.get('contract_id'))
+
+            # Process transactions result
+            if isinstance(transactions, Exception):
+                raise transactions
+            if transactions:
+                for tx in transactions:
+                    transactions_table.add_row(
+                        tx.get('tx_id', '')[:10] + "...",
+                        tx.get('tx_type', ''),
+                        tx.get('tx_status', ''),
+                        str(tx.get('block_height', ''))
+                    )
+
         except Exception as e:
-            self.notify(f"Error loading data: {e}", severity="error")
+            self.query_one("#network-status").update("[red]Error[/]")
+            self.notify(f"API error: {e}", severity="error")
+        finally:
+            loading.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
@@ -200,8 +224,28 @@ class StacksOrbitGUI(App):
 
     @on(Button.Pressed, "#refresh-btn")
     def action_refresh(self) -> None:
-        self.update_data()
-        self.notify("Data refreshed")
+        """Handle manual refresh button press."""
+        if self._manual_refresh_in_progress:
+            return
+        self.run_worker(self._do_refresh())
+
+    async def _do_refresh(self) -> None:
+        """Perform the data refresh and update the UI."""
+        self._manual_refresh_in_progress = True
+        refresh_btn = self.query_one("#refresh-btn", Button)
+        original_label = refresh_btn.label
+        refresh_btn.disabled = True
+        refresh_btn.label = "Refreshing..."
+
+        try:
+            await self.update_data()
+            self.notify("Data refreshed")
+        except Exception as e:
+            self.notify(f"Refresh failed: {e}", severity="error")
+        finally:
+            refresh_btn.disabled = False
+            refresh_btn.label = original_label
+            self._manual_refresh_in_progress = False
 
     def run_command(self, command: List[str]) -> None:
         """Run a CLI command in a separate thread."""

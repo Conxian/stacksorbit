@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import argparse
+from dotenv import dotenv_values
+from stacksorbit_secrets import SECRET_KEYS
 
 # Force UTF-8 encoding for stdout on Windows
 if sys.platform == 'win32':
@@ -44,43 +46,31 @@ class EnhancedConfigManager:
         self.deployment_history = []
 
     def load_config(self) -> Dict:
-        """Load configuration from .env file, prioritizing environment variables for secrets."""
+        """Load configuration from .env file, prioritizing environment variables."""
         if not self.config_path.exists():
             self._create_default_config()
 
-        # Load from .env file first
-        with open(self.config_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    self.config[key.strip()] = value.strip().strip('"')
+        # Load variables from the .env file first.
+        file_config = dotenv_values(dotenv_path=self.config_path)
 
-        # Sentinel Security Enhancement: Prioritize environment variables for secrets
-        privkey_names = ['DEPLOYER_PRIVKEY', 'STACKS_DEPLOYER_PRIVKEY', 'STACKS_PRIVKEY']
-        loaded_from_env = False
-        for key_name in privkey_names:
-            privkey_env = os.environ.get(key_name)
-            if privkey_env:
-                self.config[key_name] = privkey_env
-                if COLORAMA_AVAILABLE:
-                    print(f"{Fore.GREEN}🛡️ Sentinel: Loaded {key_name} from environment variable.{Style.RESET_ALL}")
-                else:
-                    print(f"🛡️ Sentinel: Loaded {key_name} from environment variable.")
-                loaded_from_env = True
-                break
+        # Sentinel Security Enhancement: Check for secrets in the file.
+        for key in SECRET_KEYS:
+            if file_config.get(key) and file_config[key] not in ('', 'your_private_key_here'):
+                error_message = (
+                    f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
+                    "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
+                    "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
+                    f"   Example: export {key}='your_secret_value_here'"
+                )
+                raise ValueError(error_message)
 
-        if not loaded_from_env:
-            for key_name in privkey_names:
-                if self.config.get(key_name) and self.config[key_name] not in ('', 'your_private_key_here'):
-                    error_message = (
-                        f"🛡️ Sentinel Security Error: {key_name} found in .env file.\n"
-                        "   Storing secrets in plaintext files is a critical security risk.\n"
-                        "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
-                        "   Example: export DEPLOYER_PRIVKEY='your_private_key_here'"
-                    )
-                    raise ValueError(error_message)
+        # Create a combined configuration, prioritizing environment variables.
+        # Start with the file config, then overwrite with any existing env vars.
+        combined_config = {}
+        combined_config.update(file_config)
+        combined_config.update({k: v for k, v in os.environ.items() if k in file_config or k in SECRET_KEYS})
 
+        self.config = combined_config
 
         # Store the config path for the deployer to use
         self.config['CONFIG_PATH'] = str(self.config_path)
@@ -342,7 +332,7 @@ class EnhancedConxianDeployer:
             print(f"[ERROR] Missing required variables: {', '.join(missing)}")
             return False
 
-        print(f"[SUCCESS] DEPLOYER_PRIVKEY: {self.config['DEPLOYER_PRIVKEY'][:10]}...")
+        print(f"[SUCCESS] DEPLOYER_PRIVKEY: <set>")
         print(f"[SUCCESS] SYSTEM_ADDRESS: {self.config['SYSTEM_ADDRESS']}")
         print(f"[SUCCESS] NETWORK: {self.config['NETWORK']}")
         return True

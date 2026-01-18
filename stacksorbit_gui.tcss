@@ -119,3 +119,8 @@ Input {
 Input:focus {
     border: round #007acc;
 }
+
+LoadingIndicator {
+    height: 100%;
+    align: center middle;
+}

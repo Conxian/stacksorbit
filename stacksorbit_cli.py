@@ -672,6 +672,8 @@ class UltimateStacksOrbit:
                 return self.apply_deployment_template(kwargs)
             elif command == 'devnet':
                 return self.run_devnet(kwargs)
+            elif command == 'test':
+                return self.run_comprehensive_tests(kwargs)
             else:
                 self.show_help()
                 return 1
@@ -1135,6 +1137,82 @@ class UltimateStacksOrbit:
 
         return 0
 
+    def run_comprehensive_tests(self, options: Dict) -> int:
+        """Run comprehensive test suite using Hiro SDK"""
+        print(f"{Fore.CYAN}🧪 Running Comprehensive Test Suite with Hiro SDK{Style.RESET_ALL}")
+        print("=" * 60)
+        
+        try:
+            # Import the Hiro-enhanced tester module
+            sys.path.append(str(Path(__file__).parent))
+            from stacksorbit_tester_hiro import StacksOrbitTester
+            
+            tester = StacksOrbitTester(str(self.project_root))
+            
+            # Run specific test types based on options
+            if options.get("clarinet_only"):
+                # Run clarinet check first
+                result = subprocess.run(
+                    ["clarinet", "check"],
+                    cwd=self.project_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+                
+                if result.returncode == 0:
+                    print(f"{Fore.GREEN}✅ Clarinet check passed{Style.RESET_ALL}")
+                    return 0
+                else:
+                    print(f"{Fore.RED}❌ Clarinet check failed{Style.RESET_ALL}")
+                    return 1
+                
+            elif options.get("vitest_only"):
+                suite = options.get("test_suite", "unit")
+                results = tester.run_vitest_tests(suite)
+                for result in results:
+                    tester._print_test_result(result)
+                failed = any(r.status.value == "failed" for r in results)
+                return 1 if failed else 0
+                
+            elif options.get("hiro_only"):
+                results = tester.run_vitest_tests("hiro")
+                for result in results:
+                    tester._print_test_result(result)
+                failed = any(r.status.value == "failed" for r in results)
+                return 1 if failed else 0
+                
+            else:
+                # Run all tests using Hiro SDK
+                all_results = tester.run_all_tests()
+                
+                # Check if any tests failed
+                failed_tests = 0
+                for suite, results in all_results.items():
+                    for result in results:
+                        if result.status.value == "failed":
+                            failed_tests += 1
+                
+                if options.get("test_coverage"):
+                    print(f"\n{Fore.CYAN}📊 Generating Coverage Report...{Style.RESET_ALL}")
+                    try:
+                        subprocess.run(["npm", "run", "coverage"], cwd=self.project_root, check=True)
+                        print(f"{Fore.GREEN}✅ Coverage report generated{Style.RESET_ALL}")
+                    except subprocess.CalledProcessError:
+                        print(f"{Fore.YELLOW}⚠️  Coverage report generation failed{Style.RESET_ALL}")
+                
+                return 1 if failed_tests > 0 else 0
+                
+        except ImportError as e:
+            print(f"{Fore.RED}❌ Failed to import Hiro test module: {e}{Style.RESET_ALL}")
+            return 1
+        except Exception as e:
+            print(f"{Fore.RED}❌ Test execution failed: {e}{Style.RESET_ALL}")
+            if options.get('verbose'):
+                import traceback
+                traceback.print_exc()
+            return 1
+
     def run_devnet(self, options: Dict) -> int:
         """Run local development network"""
         config_manager = EnhancedConfigManager(self.config_path)
@@ -1183,7 +1261,9 @@ class UltimateStacksOrbit:
         print("  dashboard       Launch enhanced monitoring dashboard")
         print("  diagnose        Run comprehensive system diagnosis")
         print("  detect          Auto-detect project and contracts")
+        print("  test            Run comprehensive test suite")
         print("  template        Apply deployment template")
+        print("  devnet          Manage local development network")
         print()
         print("Deployment Options:")
         print("  --category <cat>    Deploy specific category (base, core, tokens, etc.)")
@@ -1203,6 +1283,19 @@ class UltimateStacksOrbit:
         print("  --contracts <list>  Specific contracts to verify")
         print("  --comprehensive     Run comprehensive verification")
         print()
+        print("Testing Options:")
+        print("  --test-suite <type> Test suite to run (unit, integration, e2e, performance, security, all, dex-dimension, governance-dimension, oracle-dimension, risk-dimension)")
+        print("  --clarinet-only     Run only Clarinet contract tests")
+        print("  --vitest-only       Run only Vitest tests")
+        print("  --hiro-only         Run only Hiro SDK integration tests")
+        print("  --test-analysis     Run contract analysis tests")
+        print("  --test-deployment   Run deployment verification tests")
+        print("  --test-coverage     Generate test coverage report")
+        print("  --test-timeout <n>  Test timeout in seconds (default: 300)")
+        print()
+        print("Devnet Options:")
+        print("  --devnet-command <cmd> Local devnet command (start, stop, status)")
+        print()
         print("Examples:")
         print("  # Quick setup")
         print("  stacksorbit setup")
@@ -1212,6 +1305,21 @@ class UltimateStacksOrbit:
         print()
         print("  # Deploy specific category")
         print("  stacksorbit deploy --category core --dry-run")
+        print()
+        print("  # Run comprehensive tests with Hiro SDK")
+        print("  stacksorbit test")
+        print()
+        print("  # Run only Hiro SDK integration tests")
+        print("  stacksorbit test --hiro-only")
+        print()
+        print("  # Run specific dimension tests")
+        print("  stacksorbit test --test-suite dex-dimension")
+        print()
+        print("  # Run only Clarinet contract checks")
+        print("  stacksorbit test --clarinet-only")
+        print()
+        print("  # Run tests with coverage")
+        print("  stacksorbit test --test-coverage")
         print()
         print("  # Monitor in real-time")
         print("  stacksorbit monitor --follow")
@@ -1267,6 +1375,16 @@ def main():
     # Devnet options
     parser.add_argument('--devnet-command', choices=['start', 'stop', 'status'], help='Local development network command')
 
+    # Testing options
+    parser.add_argument("--test-suite", choices=["unit", "integration", "e2e", "performance", "security", "all", "dex-dimension", "governance-dimension", "oracle-dimension", "risk-dimension"], default="all", help="Test suite to run")
+    parser.add_argument("--clarinet-only", action="store_true", help="Run only Clarinet contract tests")
+    parser.add_argument("--vitest-only", action="store_true", help="Run only Vitest tests")
+    parser.add_argument("--hiro-only", action="store_true", help="Run only Hiro SDK integration tests")
+    parser.add_argument("--test-analysis", action="store_true", help="Run contract analysis tests")
+    parser.add_argument("--test-deployment", action="store_true", help="Run deployment verification tests")
+    parser.add_argument("--test-coverage", action="store_true", help="Generate test coverage report")
+    parser.add_argument("--test-timeout", type=int, default=300, help="Test timeout in seconds")
+
     args = parser.parse_args()
 
     try:
@@ -1291,7 +1409,15 @@ def main():
             'comprehensive': args.comprehensive,
             'verbose': args.verbose,
             'devnet_command': args.devnet_command,
-            'directory': args.directory
+            'directory': args.directory,
+            'test_suite': args.test_suite,
+            'clarinet_only': args.clarinet_only,
+            'vitest_only': args.vitest_only,
+            'hiro_only': args.hiro_only,
+            'test_analysis': args.test_analysis,
+            'test_deployment': args.test_deployment,
+            'test_coverage': args.test_coverage,
+            'test_timeout': args.test_timeout
         }
 
         # Execute command

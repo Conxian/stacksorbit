@@ -1,0 +1,10 @@
+[network]
+name = "devnet"
+
+[accounts.deployer]
+mnemonic = "test test test test test test test test test test test junk"
+balance = 1000000000000000
+
+[accounts.wallet_1]
+mnemonic = "test test test test test test test test test test test junk"
+balance = 1000000000000000
