@@ -332,7 +332,7 @@ class EnhancedConxianDeployer:
             print(f"[ERROR] Missing required variables: {', '.join(missing)}")
             return False
 
-        print(f"[SUCCESS] DEPLOYER_PRIVKEY: {self.config['DEPLOYER_PRIVKEY'][:10]}...")
+        print(f"[SUCCESS] DEPLOYER_PRIVKEY: <set>")
         print(f"[SUCCESS] SYSTEM_ADDRESS: {self.config['SYSTEM_ADDRESS']}")
         print(f"[SUCCESS] NETWORK: {self.config['NETWORK']}")
         return True
