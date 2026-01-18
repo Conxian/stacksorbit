@@ -227,24 +227,31 @@ class StacksOrbitGUI(App):
         """Handle manual refresh button press."""
         if self._manual_refresh_in_progress:
             return
+
+        # 🎨 Palette: Provide immediate feedback before starting the worker
+        # This makes the UI feel much more responsive.
+        refresh_btn = self.query_one("#refresh-btn", Button)
+        self._original_btn_label = refresh_btn.label
+        refresh_btn.disabled = True
+        refresh_btn.label = "Refreshing..."
+        self.query_one(LoadingIndicator).display = True
+
         self.run_worker(self._do_refresh())
 
     async def _do_refresh(self) -> None:
         """Perform the data refresh and update the UI."""
         self._manual_refresh_in_progress = True
-        refresh_btn = self.query_one("#refresh-btn", Button)
-        original_label = refresh_btn.label
-        refresh_btn.disabled = True
-        refresh_btn.label = "Refreshing..."
-
         try:
             await self.update_data()
             self.notify("Data refreshed")
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")
         finally:
+            # 🎨 Palette: Always restore the button and hide the indicator
+            refresh_btn = self.query_one("#refresh-btn", Button)
             refresh_btn.disabled = False
-            refresh_btn.label = original_label
+            refresh_btn.label = self._original_btn_label
+            self.query_one(LoadingIndicator).display = False
             self._manual_refresh_in_progress = False
 
     def run_command(self, command: List[str]) -> None:
