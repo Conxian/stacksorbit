@@ -91,6 +91,7 @@ class StacksOrbitGUI(App):
                     yield DataTable(id="contracts-table", zebra_stripes=True)
                     yield Vertical(
                         Label("Contract Details", classes="header"),
+                        LoadingIndicator(),
                         Markdown(id="contract-details"),
                         classes="details-pane"
                     )
@@ -217,13 +218,20 @@ class StacksOrbitGUI(App):
 
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""
-        md = self.query_one("#contract-details", Markdown)
-        md.update("Loading...")
-        details = await self.monitor.get_contract_details(contract_id)
-        if details:
-            md.update(f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```")
-        else:
-            md.update("Could not retrieve contract details.")
+        details_pane = self.query(".details-pane").first()
+        md = details_pane.query_one(Markdown)
+        loader = details_pane.query_one(LoadingIndicator)
+
+        md.update("")
+        loader.display = True
+        try:
+            details = await self.monitor.get_contract_details(contract_id)
+            if details:
+                md.update(f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```")
+            else:
+                md.update("Could not retrieve contract details.")
+        finally:
+            loader.display = False
 
     def action_toggle_dark(self) -> None:
         self.dark = not self.dark
