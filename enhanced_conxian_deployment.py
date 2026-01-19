@@ -141,7 +141,6 @@ CONFIRMATION_TIMEOUT=300
         # Validate address format
         if 'SYSTEM_ADDRESS' in self.config:
             if not self._validate_address(self.config['SYSTEM_ADDRESS']):
-                print(f"DEBUG: Invalid address value: '{self.config['SYSTEM_ADDRESS']}' Length: {len(self.config['SYSTEM_ADDRESS'])}")
                 errors.append("Invalid SYSTEM_ADDRESS format")
 
         # Validate network
