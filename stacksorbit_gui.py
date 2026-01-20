@@ -260,34 +260,57 @@ class StacksOrbitGUI(App):
             self.query_one(LoadingIndicator).display = False
             self._manual_refresh_in_progress = False
 
-    def run_command(self, command: List[str]) -> None:
-        """Run a CLI command in a separate thread."""
+    def run_command(self, command: List[str], button: Button, in_progress_label: str) -> None:
+        """Run a CLI command in a separate thread, with button feedback."""
         log = self.query_one("#deployment-log", Log)
         log.clear()
 
+        precheck_btn = self.query_one("#precheck-btn", Button)
+        deploy_btn = self.query_one("#start-deploy-btn", Button)
+        original_label = button.label
+
+        precheck_btn.disabled = True
+        deploy_btn.disabled = True
+        button.label = in_progress_label
+
         def worker():
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-            for line in iter(process.stdout.readline, ''):
-                self.call_from_thread(log.write, line.strip())
-            process.stdout.close()
-            return_code = process.wait()
-            self.call_from_thread(log.write, f"\n[bold]{'Success' if return_code == 0 else 'Failed'}[/bold]")
+            try:
+                process = subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+                for line in iter(process.stdout.readline, ''):
+                    self.call_from_thread(log.write, line.strip())
+                process.stdout.close()
+                return_code = process.wait()
+                self.call_from_thread(log.write, f"\n[bold]{'Success' if return_code == 0 else 'Failed'}[/bold]")
+            finally:
+                self.call_from_thread(setattr, button, "label", original_label)
+                self.call_from_thread(setattr, precheck_btn, "disabled", False)
+                self.call_from_thread(setattr, deploy_btn, "disabled", False)
 
         thread = threading.Thread(target=worker)
         thread.start()
 
     @on(Button.Pressed, "#precheck-btn")
-    def on_precheck_pressed(self) -> None:
-        self.run_command(["python", "stacksorbit_cli.py", "diagnose"])
+    def on_precheck_pressed(self, event: Button.Pressed) -> None:
+        """Handle pre-check button press."""
+        self.run_command(
+            ["python", "stacksorbit_cli.py", "diagnose"],
+            event.button,
+            in_progress_label="Checking..."
+        )
 
     @on(Button.Pressed, "#start-deploy-btn")
-    def on_start_deploy_pressed(self) -> None:
-        self.run_command(["python", "stacksorbit_cli.py", "deploy"])
+    def on_start_deploy_pressed(self, event: Button.Pressed) -> None:
+        """Handle deploy button press."""
+        self.run_command(
+            ["python", "stacksorbit_cli.py", "deploy"],
+            event.button,
+            in_progress_label="Deploying..."
+        )
 
     @on(Button.Pressed, "#save-config-btn")
     def on_save_config_pressed(self) -> None:
