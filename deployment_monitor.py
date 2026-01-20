@@ -260,6 +260,7 @@ class DeploymentMonitor:
             self.logger.error(f"Error getting account info: {e}")
             return None
 
+    @cache_api_call
     def get_transaction_info(self, tx_id: str) -> Optional[Dict]:
         """Get detailed transaction information"""
         try:
