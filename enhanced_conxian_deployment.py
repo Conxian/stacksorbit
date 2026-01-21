@@ -332,7 +332,7 @@ class EnhancedConxianDeployer:
             return False
 
         print(f"[SUCCESS] DEPLOYER_PRIVKEY: <set>")
-        print(f"[SUCCESS] SYSTEM_ADDRESS: {self.config['SYSTEM_ADDRESS']}")
+        print(f"[SUCCESS] SYSTEM_ADDRESS: <set>")
         print(f"[SUCCESS] NETWORK: {self.config['NETWORK']}")
         return True
 
