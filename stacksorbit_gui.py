@@ -219,7 +219,10 @@ class StacksOrbitGUI(App):
         """Worker to fetch and display contract details."""
         md = self.query_one("#contract-details", Markdown)
         md.update("Loading...")
-        details = await self.monitor.get_contract_details(contract_id)
+        # ⚡ Bolt: Run the synchronous API call in a separate thread
+        # This prevents the network request from blocking the UI worker,
+        # keeping the dashboard responsive while fetching contract source.
+        details = await asyncio.to_thread(self.monitor.get_contract_details, contract_id)
         if details:
             md.update(f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```")
         else:
