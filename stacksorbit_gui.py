@@ -101,6 +101,7 @@ class StacksOrbitGUI(App):
 
             with TabPane("🚀 Deploy", id="deployment"):
                 with Vertical():
+                    yield LoadingIndicator()
                     yield Log(id="deployment-log")
                     with Horizontal():
                         yield Button("🔍 Pre-check", id="precheck-btn", variant="primary")
@@ -120,7 +121,8 @@ class StacksOrbitGUI(App):
         """Initialize the GUI"""
         self.title = "StacksOrbit"
         self.sub_title = "Deployment Dashboard"
-        self.query_one(LoadingIndicator).display = False
+        for indicator in self.query(LoadingIndicator):
+            indicator.display = False
         self._setup_tables()
         self.set_interval(10.0, self.update_data)
         self.run_worker(self.update_data())
@@ -242,8 +244,6 @@ class StacksOrbitGUI(App):
         if self._manual_refresh_in_progress:
             return
 
-        # 🎨 Palette: Provide immediate feedback before starting the worker
-        # This makes the UI feel much more responsive.
         refresh_btn = self.query_one("#refresh-btn", Button)
         self._original_btn_label = refresh_btn.label
         refresh_btn.disabled = True
@@ -261,7 +261,6 @@ class StacksOrbitGUI(App):
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")
         finally:
-            # 🎨 Palette: Always restore the button and hide the indicator
             refresh_btn = self.query_one("#refresh-btn", Button)
             refresh_btn.disabled = False
             refresh_btn.label = self._original_btn_label
@@ -272,6 +271,9 @@ class StacksOrbitGUI(App):
         """Run a CLI command in a separate thread, with button feedback."""
         log = self.query_one("#deployment-log", Log)
         log.clear()
+
+        loading_indicator = self.query("#deployment LoadingIndicator").first()
+        loading_indicator.display = True
 
         precheck_btn = self.query_one("#precheck-btn", Button)
         deploy_btn = self.query_one("#start-deploy-btn", Button)
@@ -298,6 +300,7 @@ class StacksOrbitGUI(App):
                 self.call_from_thread(setattr, button, "label", original_label)
                 self.call_from_thread(setattr, precheck_btn, "disabled", False)
                 self.call_from_thread(setattr, deploy_btn, "disabled", False)
+                self.call_from_thread(setattr, loading_indicator, "display", False)
 
         thread = threading.Thread(target=worker)
         thread.start()
