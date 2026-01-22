@@ -249,7 +249,7 @@ class SetupWizard:
         print(f"   Address: {self.config.get('system_address', 'Not set')}")
 
         if self.config.get('deployer_privkey'):
-            print(f"   Private Key: {self.config['deployer_privkey'][:10]}...")
+            print(f"   Private Key: <set>")
         else:
             print("   Private Key: Not configured (set manually)")
 
