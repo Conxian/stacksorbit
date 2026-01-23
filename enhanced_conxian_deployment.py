@@ -17,6 +17,7 @@ from datetime import datetime
 import argparse
 from dotenv import dotenv_values
 from stacksorbit_secrets import SECRET_KEYS
+from deployment_monitor import DeploymentMonitor
 
 # Force UTF-8 encoding for stdout on Windows
 if sys.platform == 'win32':
@@ -160,81 +161,6 @@ CONFIRMATION_TIMEOUT=300
         # Stacks addresses are typically 40-42 chars depending on encoding
         return address.startswith('S') and len(address) >= 40 and len(address) <= 42
 
-class ConxianHiroMonitor:
-    """Enhanced monitoring using Hiro API"""
-
-    def __init__(self, network: str = 'testnet'):
-        self.network = network
-        self.api_url = self._get_api_url()
-        self.session = requests.Session()
-        self.session.timeout = 30
-
-    def _get_api_url(self) -> str:
-        """Get API URL for network"""
-        urls = {
-            'mainnet': 'https://api.hiro.so',
-            'testnet': 'https://api.testnet.hiro.so',
-            'devnet': 'http://localhost:20443'
-        }
-        return urls.get(self.network, urls['testnet'])
-
-    def check_api_status(self) -> Dict:
-        """Check Hiro API status and network info"""
-        try:
-            response = self.session.get(f"{self.api_url}/v2/info")
-            response.raise_for_status()
-            data = response.json()
-
-            return {
-                'status': 'online',
-                'block_height': data.get('stacks_tip_height', 0),
-                'network_id': data.get('network_id', 'unknown'),
-                'server_version': data.get('server_version', 'unknown'),
-                'tps': data.get('tps', 0)
-            }
-        except Exception as e:
-            return {
-                'status': 'offline',
-                'error': str(e)
-            }
-
-    def get_account_info(self, address: str) -> Optional[Dict]:
-        """Get account information"""
-        try:
-            response = self.session.get(f"{self.api_url}/v2/accounts/{address}")
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"Error getting account info: {e}")
-            return None
-
-    def get_transaction_status(self, tx_id: str) -> Optional[Dict]:
-        """Get transaction status"""
-        try:
-            response = self.session.get(f"{self.api_url}/v2/transactions/{tx_id}")
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"Error getting transaction status: {e}")
-            return None
-
-    def wait_for_confirmation(self, tx_id: str, timeout: int = 300) -> bool:
-        """Wait for transaction confirmation"""
-        start_time = time.time()
-
-        while time.time() - start_time < timeout:
-            tx_info = self.get_transaction_status(tx_id)
-            if tx_info:
-                status = tx_info.get('tx_status', '')
-                if status == 'success':
-                    return True
-                elif status == 'error':
-                    return False
-
-            time.sleep(5)
-
-        return False
-
 class EnhancedConxianDeployer:
     """Enhanced Conxian deployer with full CLI integration"""
 
@@ -244,7 +170,8 @@ class EnhancedConxianDeployer:
         verbose: bool = False,
         run_npm_tests: bool = False,
         npm_test_script: str = 'test',
-        clarinet_check_timeout: int = 300
+        clarinet_check_timeout: int = 300,
+        monitor: Optional[DeploymentMonitor] = None
     ):
         self.config = config
         self.verbose = verbose
@@ -252,7 +179,9 @@ class EnhancedConxianDeployer:
         self.npm_test_script = npm_test_script
         self.clarinet_check_timeout = clarinet_check_timeout
         self.pre_check_results: Dict[str, bool] = {}
-        self.monitor = ConxianHiroMonitor(config.get('NETWORK', 'testnet'))
+        # Bolt ⚡: Use a shared monitor instance to leverage caching
+        # If no monitor is provided, create a new one.
+        self.monitor = monitor or DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
         self.contract_categories = self._load_contract_categories()
 
     def _load_contract_categories(self) -> Dict:

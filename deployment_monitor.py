@@ -301,6 +301,15 @@ class DeploymentMonitor:
         self.logger.warning("⏰ Transaction confirmation timeout")
         return None
 
+    def wait_for_confirmation(self, tx_id: str, timeout: int = 300) -> bool:
+        """Wait for transaction confirmation, returns boolean for compatibility."""
+        tx_info = self.wait_for_transaction(tx_id, timeout)
+        return tx_info is not None and tx_info.get('tx_status') == 'success'
+
+    def get_transaction_status(self, tx_id: str) -> Optional[Dict]:
+        """Alias for get_transaction_info for compatibility."""
+        return self.get_transaction_info(tx_id)
+
     @cache_api_call
     def get_deployed_contracts(self, address: str) -> List[Dict]:
         """Get list of deployed contracts."""
