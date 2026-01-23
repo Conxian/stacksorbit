@@ -924,10 +924,12 @@ class UltimateStacksOrbit:
             diagnosis['issues'].append(str(e))
             diagnosis['scores']['config'] = 0
 
+        # Bolt ⚡: Instantiate monitor once and share it to enable caching.
+        monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
+
         # 2. Network Check
         print("🌐 Network Check...")
         try:
-            monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
             api_status = monitor.check_api_status()
             if api_status['status'] == 'online':
                 print(f"{Fore.GREEN}✅ Network connectivity: {api_status['network_id']}{Style.RESET_ALL}")
@@ -967,7 +969,8 @@ class UltimateStacksOrbit:
         # 4. Contract Analysis
         print("📦 Contract Analysis...")
         try:
-            deployer = EnhancedConxianDeployer(config, options.get('verbose', False))
+            # Bolt ⚡: Pass the shared monitor instance to the deployer.
+            deployer = EnhancedConxianDeployer(config, options.get('verbose', False), monitor=monitor)
             contracts = deployer._get_deployment_list()
             if contracts:
                 print(f"{Fore.GREEN}✅ Found {len(contracts)} contracts{Style.RESET_ALL}")
