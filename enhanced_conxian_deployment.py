@@ -892,8 +892,12 @@ def main():
         print("\n[STOP] Deployment cancelled by user")
         return 1
     except Exception as e:
-        print(f"\n[ERROR] Deployment failed: {e}")
+        # 🛡️ Sentinel: Prevent sensitive information disclosure.
+        # A generic error message is shown to the user.
+        # The detailed exception is only logged in verbose mode.
+        print(f"\n[ERROR] An unexpected error occurred during deployment.")
         if args.verbose:
+            print(f"    Details: {e}")
             import traceback
             traceback.print_exc()
         return 1
