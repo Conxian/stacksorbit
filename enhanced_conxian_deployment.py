@@ -66,7 +66,9 @@ class EnhancedConfigManager:
                 raise ValueError(error_message)
 
         # Create a combined configuration, prioritizing environment variables.
-        # Start with the file config, then overwrite with any existing env vars.
+        # The security check above ensures no secrets are loaded from the file.
+        # This logic correctly allows ALL config values (including non-secrets)
+        # to be overridden by environment variables.
         combined_config = {}
         combined_config.update(file_config)
         combined_config.update({k: v for k, v in os.environ.items() if k in file_config or k in SECRET_KEYS})
