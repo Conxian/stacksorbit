@@ -324,26 +324,34 @@ class StacksOrbitGUI(App):
         )
 
     @on(Button.Pressed, "#save-config-btn")
-    def on_save_config_pressed(self) -> None:
-        """Handle save config button press."""
-        privkey = self.query_one("#privkey-input", Input).value
-        address = self.query_one("#address-input", Input).value
+    async def on_save_config_pressed(self) -> None:
+        """Handle save config button press with user feedback."""
+        save_btn = self.query_one("#save-config-btn", Button)
+        original_label = save_btn.label
+        save_btn.disabled = True
+        save_btn.label = "Saving..."
 
-        # Read existing config
-        config = self._load_config()
-
-        # Update values
-        config['DEPLOYER_PRIVKEY'] = privkey
-        config['SYSTEM_ADDRESS'] = address
-
-        # Write back to file
         try:
-            with open(self.config_path, "w") as f:
-                for key, value in config.items():
-                    f.write(f"{key}={value}\n")
-            self.notify("Configuration saved.", severity="success")
+            privkey = self.query_one("#privkey-input", Input).value
+            address = self.query_one("#address-input", Input).value
+
+            # Synchronous I/O should run in a thread to not block the UI
+            def save_action():
+                config = self._load_config()
+                config['DEPLOYER_PRIVKEY'] = privkey
+                config['SYSTEM_ADDRESS'] = address
+                with open(self.config_path, "w") as f:
+                    for key, value in config.items():
+                        f.write(f"{key}={value}\n")
+
+            await asyncio.to_thread(save_action)
+            self.notify("Configuration saved.", severity="information")
+
         except Exception as e:
             self.notify(f"Error saving config: {e}", severity="error")
+        finally:
+            save_btn.disabled = False
+            save_btn.label = original_label
 
 def main():
     if not GUI_AVAILABLE:
