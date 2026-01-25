@@ -211,8 +211,10 @@ class StacksOrbitGUI(App):
             loading.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
-    @on(DataTable.RowSelected, "#contracts-table")
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        # ⚡ Bolt: This event handler was previously decorated twice, causing it to
+        # fire two times for every click. The redundant decorator was removed to
+        # prevent duplicate API calls and unnecessary processing.
         """Handle contract row selection."""
         contract_id = event.row_key.value
         if contract_id:
