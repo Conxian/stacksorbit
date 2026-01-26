@@ -273,11 +273,17 @@ class DeploymentMonitor:
             return None
 
     def wait_for_transaction(self, tx_id: str, timeout: int = 300) -> Optional[Dict]:
-        """Wait for transaction confirmation"""
+        """Wait for transaction confirmation with exponential backoff."""
         self.logger.info(f"⏳ Waiting for transaction confirmation: {tx_id}")
 
         start_time = time.time()
         last_status = None
+        # Bolt ⚡: Implement exponential backoff for polling.
+        # This reduces the number of API calls for long-running transactions by
+        # starting with a short polling interval and increasing it over time.
+        # This is more efficient than a fixed interval.
+        poll_interval = 2  # Start with a 2-second interval
+        max_poll_interval = 30  # Cap at 30 seconds
 
         while time.time() - start_time < timeout:
             tx_info = self.get_transaction_info(tx_id)
@@ -288,6 +294,7 @@ class DeploymentMonitor:
                 if status != last_status:
                     self.logger.info(f"📊 Transaction status: {status}")
                     last_status = status
+                    poll_interval = 2  # Reset interval on status change
 
                 if status == 'success':
                     self.logger.info("✅ Transaction confirmed successfully!")
@@ -296,7 +303,8 @@ class DeploymentMonitor:
                     self.logger.error(f"❌ Transaction failed: {tx_info.get('tx_result', 'Unknown error')}")
                     return tx_info
 
-            time.sleep(5)
+            time.sleep(poll_interval)
+            poll_interval = min(poll_interval * 2, max_poll_interval)
 
         self.logger.warning("⏰ Transaction confirmation timeout")
         return None
