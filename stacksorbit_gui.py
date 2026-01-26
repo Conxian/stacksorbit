@@ -137,7 +137,7 @@ class StacksOrbitGUI(App):
 
     async def update_data(self) -> None:
         """Update all data in the GUI concurrently."""
-        loading = self.query_one(LoadingIndicator)
+        loading = self.query("#overview LoadingIndicator").first()
         loading.display = True
         contracts_table = self.query_one("#contracts-table", DataTable)
         transactions_table = self.query_one("#transactions-table", DataTable)
@@ -250,7 +250,7 @@ class StacksOrbitGUI(App):
         self._original_btn_label = refresh_btn.label
         refresh_btn.disabled = True
         refresh_btn.label = "Refreshing..."
-        self.query_one(LoadingIndicator).display = True
+        self.query("#overview LoadingIndicator").first().display = True
 
         self.run_worker(self._do_refresh())
 
@@ -266,7 +266,7 @@ class StacksOrbitGUI(App):
             refresh_btn = self.query_one("#refresh-btn", Button)
             refresh_btn.disabled = False
             refresh_btn.label = self._original_btn_label
-            self.query_one(LoadingIndicator).display = False
+            self.query("#overview LoadingIndicator").first().display = False
             self._manual_refresh_in_progress = False
 
     def run_command(self, command: List[str], button: Button, in_progress_label: str) -> None:
