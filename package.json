@@ -78,7 +78,8 @@
     "@stacks/clarinet-sdk": "^3.12.0",
     "eslint": "^8.52.0",
     "prettier": "^3.0.3",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "vitest-environment-clarinet": "^3.0.2"
   },
   "python": {
     "version": ">=3.8",
