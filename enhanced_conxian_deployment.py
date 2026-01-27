@@ -264,7 +264,7 @@ class EnhancedConxianDeployer:
 
         print(f"[SUCCESS] DEPLOYER_PRIVKEY: <set>")
         print(f"[SUCCESS] SYSTEM_ADDRESS: <set>")
-        print(f"[SUCCESS] NETWORK: {self.config['NETWORK']}")
+        print(f"[SUCCESS] NETWORK: <set>")
         return True
 
     def _check_network(self) -> bool:
