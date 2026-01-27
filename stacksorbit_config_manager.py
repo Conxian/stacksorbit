@@ -18,6 +18,7 @@ class ConfigManager:
 
         # Load .env files and environment variables
         env_path = os.path.join(self.base_path, '.env')
+        file_vars = {}
 
         # Sentinel Security Enhancement:
         # 1. Inspect the .env file for secrets before loading it.
@@ -38,16 +39,20 @@ class ConfigManager:
                     )
                     raise ValueError(error_message)
 
-            # 2. If all security checks pass, load the .env file into the environment.
-            # This preserves the original behavior for non-sensitive variables.
-            load_dotenv(dotenv_path=env_path)
             self.config['env_loaded'] = True
             print(f"Loaded and validated .env file from: {env_path}")
         else:
             print(f"No .env file found at: {env_path}")
 
-        # 3. Populate self.config from the environment, ensuring env vars take precedence.
-        self.config.update(os.environ)
+        # 3. Build the config, starting with file variables.
+        self.config.update(file_vars)
+
+        # 4. Selectively load environment variables to override file config.
+        # This uses an allow-list (keys from .env + known secrets) to prevent
+        # leaking unrelated sensitive environment variables into the application config.
+        allowed_keys = set(file_vars.keys()) | set(SECRET_KEYS)
+        env_overrides = {k: v for k, v in os.environ.items() if k in allowed_keys}
+        self.config.update(env_overrides)
 
         # Load .toml files (e.g., Clarinet.toml)
         for root, _, files in os.walk(self.base_path):
