@@ -138,12 +138,17 @@ CONFIRMATION_TIMEOUT=300
 
         # Validate private key format
         if 'DEPLOYER_PRIVKEY' in self.config:
-            if not self._validate_private_key(self.config['DEPLOYER_PRIVKEY']):
+            priv = self.config['DEPLOYER_PRIVKEY']
+            if priv.strip().lower() == 'your_private_key_here':
+                errors.append("DEPLOYER_PRIVKEY uses insecure placeholder value")
+            elif not self._validate_private_key(priv):
                 errors.append("Invalid DEPLOYER_PRIVKEY format")
 
         # Validate address format
         if 'SYSTEM_ADDRESS' in self.config:
-            if not self._validate_address(self.config['SYSTEM_ADDRESS']):
+            addr = self.config['SYSTEM_ADDRESS']
+            net = self.config.get('NETWORK')
+            if not self._validate_address(addr, net):
                 errors.append("Invalid SYSTEM_ADDRESS format")
 
         # Validate network
@@ -155,13 +160,37 @@ CONFIRMATION_TIMEOUT=300
 
     def _validate_private_key(self, privkey: str) -> bool:
         """Validate private key format"""
-        # Accept both 64-char (raw) and 66-char (with 01 suffix) private keys
-        return (len(privkey) == 64 or len(privkey) == 66) and all(c in '0123456789abcdefABCDEF' for c in privkey)
+        if not privkey or not isinstance(privkey, str):
+            return False
+        pk = privkey.strip()
+        if pk.lower() == 'your_private_key_here':
+            return False
+        if len(pk) not in (64, 66):
+            return False
+        # Hex-only characters
+        for c in pk:
+            if c not in '0123456789abcdefABCDEF':
+                return False
+        return True
 
-    def _validate_address(self, address: str) -> bool:
-        """Validate Stacks address format"""
-        # Stacks addresses are typically 40-42 chars depending on encoding
-        return address.startswith('S') and len(address) >= 40 and len(address) <= 42
+    def _validate_address(self, address: str, network: Optional[str] = None) -> bool:
+        """Validate Stacks address format by network and charset"""
+        if not address or not isinstance(address, str):
+            return False
+        addr = address.strip().upper()
+        # Prefix rules: SP for mainnet, ST for testnet/devnet
+        if network == 'mainnet':
+            if not addr.startswith('SP'):
+                return False
+        else:
+            if not addr.startswith('ST'):
+                return False
+        # C32 allowed charset (no 0,1,O,I,L)
+        allowed = set('23456789ABCDEFGHJKMNPQRSTVWXYZ')
+        body = addr[2:]
+        if len(addr) != 41:
+            return False
+        return all(ch in allowed for ch in body)
 
 class EnhancedConxianDeployer:
     """Enhanced Conxian deployer with full CLI integration"""

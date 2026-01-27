@@ -21,6 +21,7 @@ from deployment_monitor import DeploymentMonitor
 from deployment_verifier import DeploymentVerifier
 from stacksorbit_gui import StacksOrbitGUI
 from local_devnet import LocalDevnet
+from stacksorbit_secrets import SECRET_KEYS
 
 try:
     import colorama
@@ -257,7 +258,16 @@ class SetupWizard:
         print("📝 Environment variables set:")
         for line in env_content.split('\n'):
             if line.strip() and not line.startswith('#'):
-                print(f"   {line}")
+                key_val = line.split('=', 1)
+                if len(key_val) == 2:
+                    key, val = key_val
+                    if key in SECRET_KEYS:
+                        masked = f"{key}=<set>"
+                        print(f"   {masked}")
+                    else:
+                        print(f"   {line}")
+                else:
+                    print(f"   {line}")
 
         print()
         response = self._get_user_input("Continue? (y/n): ", ['y', 'n'])
