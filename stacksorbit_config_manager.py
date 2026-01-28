@@ -109,7 +109,10 @@ if __name__ == "__main__":
 
     print("\n--- Loaded Configurations ---")
     for key, value in loaded_configs.items():
-        print(f"{key}: {value}")
+        if key in SECRET_KEYS:
+            print(f"{key}: <set>")
+        else:
+            print(f"{key}: {value}")
 
     # Show summary
     print(f"\n[SUMMARY] Scan Summary:")
