@@ -52,6 +52,9 @@ def cache_api_call(func):
                 'timestamp': time.time(),
                 'data': result
             }
+            # Bolt ⚡: Save cache to disk after updating it.
+            # This makes the cache persistent across CLI runs.
+            self._save_cache()
         return result
     return wrapper
 
@@ -72,13 +75,34 @@ class DeploymentMonitor:
         self.contracts_deployed = set()
         self.failed_contracts = set()
 
-        # Bolt ⚡: Add in-memory cache to reduce redundant API calls
-        self.cache = {}
+        # Bolt ⚡: Use a persistent file-based cache.
+        self.cache_path = Path("logs") / "api_cache.json"
         self.cache_lock = threading.Lock()
-        self.cache_expiry = 30  # Cache for 30 seconds
+        self.cache_expiry = 300  # Cache for 5 minutes
+        self.cache = self._load_cache()
+
 
         # Setup logging
         self.setup_logging()
+
+    def _load_cache(self) -> Dict:
+        """Load API cache from a file."""
+        if self.cache_path.exists():
+            try:
+                with open(self.cache_path, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                self.logger.warning(f"Could not load cache file: {e}")
+        return {}
+
+    def _save_cache(self):
+        """Save API cache to a file."""
+        try:
+            self.cache_path.parent.mkdir(exist_ok=True)
+            with open(self.cache_path, 'w') as f:
+                json.dump(self.cache, f)
+        except IOError as e:
+            self.logger.error(f"Could not save cache file: {e}")
 
     def _get_api_url(self) -> str:
         """Get API URL for network"""
