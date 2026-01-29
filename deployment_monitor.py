@@ -81,6 +81,11 @@ class DeploymentMonitor:
         self.cache_expiry = 300  # Cache for 5 minutes
         self.cache = self._load_cache()
 
+        # Bolt ⚡: Add adaptive polling intervals to reduce API calls during inactivity.
+        self.min_poll_interval = 5  # Start with a 5-second interval
+        self.max_poll_interval = 60  # Cap at 60 seconds
+        self.current_poll_interval = self.min_poll_interval
+
 
         # Setup logging
         self.setup_logging()
@@ -182,29 +187,43 @@ class DeploymentMonitor:
         """Main monitoring loop"""
         while self.is_monitoring:
             try:
-                self._check_for_new_deployments()
+                # Bolt ⚡: Adaptive polling implementation.
+                # The polling interval starts at `min_poll_interval` and doubles
+                # on each check where no new deployment is found, up to `max_poll_interval`.
+                # This significantly reduces the number of API calls during periods of inactivity,
+                # making the monitor more efficient. If a new deployment is found, the interval is reset.
+                found_new = self._check_for_new_deployments()
                 self._check_network_health()
 
                 if callback:
                     callback(self.get_monitoring_status())
 
-                time.sleep(10)  # Check every 10 seconds
+                if found_new:
+                    self.current_poll_interval = self.min_poll_interval
+                    self.logger.debug("Resetting poll interval after finding new deployment.")
+                else:
+                    self.current_poll_interval = min(
+                        self.current_poll_interval * 2, self.max_poll_interval
+                    )
+                    self.logger.debug(f"Increasing poll interval to {self.current_poll_interval}s.")
+
+                time.sleep(self.current_poll_interval)
 
             except Exception as e:
                 self.logger.error(f"Monitoring error: {e}")
                 time.sleep(30)  # Wait longer on errors
 
-    def _check_for_new_deployments(self):
+    def _check_for_new_deployments(self) -> bool:
         """Check for new contract deployments"""
         address = self.config.get('SYSTEM_ADDRESS')
         if not address:
-            return
+            return False
 
         try:
             # Get account info
             account_info = self.get_account_info(address)
             if not account_info:
-                return
+                return False
 
             nonce_raw = account_info.get('nonce', 0)
             current_nonce = int(nonce_raw, 16) if isinstance(nonce_raw, str) and nonce_raw.startswith('0x') else int(nonce_raw)
@@ -213,9 +232,12 @@ class DeploymentMonitor:
             if current_nonce > len(self.deployment_history):
                 self.logger.info(f"📦 New deployment detected! Nonce: {current_nonce}")
                 self._analyze_new_deployment(current_nonce)
+                return True
 
         except Exception as e:
             self.logger.error(f"Error checking deployments: {e}")
+
+        return False
 
     def _analyze_new_deployment(self, nonce: int):
         """Analyze new deployment transaction"""
