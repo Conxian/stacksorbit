@@ -108,8 +108,12 @@ if __name__ == "__main__":
     loaded_configs = config_manager.scan_and_load_configs()
 
     print("\n--- Loaded Configurations ---")
+    SENSITIVE_SUBSTRINGS = ['KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'MNEMONIC']
     for key, value in loaded_configs.items():
-        if key in SECRET_KEYS:
+        # Redact if the key is a known secret or contains a sensitive substring.
+        is_sensitive = key in SECRET_KEYS or any(sub in key.upper() for sub in SENSITIVE_SUBSTRINGS)
+        if is_sensitive:
+            # For sensitive keys, print a placeholder to avoid leaking the value.
             print(f"{key}: <set>")
         else:
             print(f"{key}: {value}")
