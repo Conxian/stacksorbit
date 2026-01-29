@@ -23,10 +23,16 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [x] Create `/chainhooks` directory.
     *   [x] Define Chainhook predicates for contract events.
     *   [x] Implement multi-network monitoring (Devnet, Testnet, Mainnet).
-*   **Phase 3: Contract Registry**
-    *   [ ] Create a contract registry in this PRD to track deployments across all networks.
+*   **Phase 3: Contract Registry (In Progress)**
+    *   [x] Create a contract registry in this PRD to track deployments across all networks.
 
-## 4. Session Log
+## 4. Contract Registry
+
+| Contract | Devnet | Testnet | Mainnet |
+| :--- | :--- | :--- | :--- |
+| `placeholder` | `ST1PQHQ...placeholder` | `ST00000...placeholder` | `SP2J1BC...placeholder` |
+
+## 5. Session Log
 
 ### Session 1: Initialization & Alignment
 
@@ -51,5 +57,15 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
 *   **Objective:** Standardize the toolchain and improve configuration robustness.
 *   **Changes:**
     *   Improved `stacksorbit_gui.py` configuration loader to handle quoted values and whitespace correctly.
-    *   Verified all system tests pass locally.
+    *   Created `stacksorbit.py` wrapper to fix package installation and sanity tests.
+    *   Verified all system tests (including sanity) pass locally.
+*   **Status:** Complete.
+
+### Session 4: Chainhook Standardization & Registry
+
+*   **Objective:** Finalize Chainhook predicates and initialize the contract registry.
+*   **Changes:**
+    *   Standardized `chainhooks/testnet.json`.
+    *   Created the Contract Registry section in `PRD.md`.
+    *   Marked Phase 3 as in-progress.
 *   **Status:** Complete.

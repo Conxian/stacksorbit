@@ -6,8 +6,8 @@
   },
   "then": {
     "http_post": {
-      "url": "https://example.com/webhook",
-      "authorization_header": "Bearer <YOUR_SECRET_TOKEN>"
+      "url": "https://api.testnet.stacksorbit.com/webhook",
+      "authorization_header": "Bearer ${TESTNET_WEBHOOK_TOKEN}"
     }
   }
 }
