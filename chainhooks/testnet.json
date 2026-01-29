@@ -1,0 +1,13 @@
+{
+  "if": {
+    "scope": "contract_call",
+    "contract_identifier": "ST000000000000000000002Q6VF78.placeholder",
+    "method": "get-owner"
+  },
+  "then": {
+    "http_post": {
+      "url": "https://api.testnet.stacksorbit.com/webhook",
+      "authorization_header": "Bearer ${TESTNET_WEBHOOK_TOKEN}"
+    }
+  }
+}

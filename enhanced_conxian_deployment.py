@@ -185,8 +185,8 @@ CONFIRMATION_TIMEOUT=300
         else:
             if not addr.startswith('ST'):
                 return False
-        # C32 allowed charset (no 0,1,O,I,L)
-        allowed = set('23456789ABCDEFGHJKMNPQRSTVWXYZ')
+        # C32 allowed charset (I, L, O, U are excluded)
+        allowed = set('0123456789ABCDEFGHJKMNPQRSTVWXYZ')
         body = addr[2:]
         if len(addr) != 41:
             return False

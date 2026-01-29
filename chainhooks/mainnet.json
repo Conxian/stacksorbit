@@ -1,0 +1,13 @@
+{
+  "if": {
+    "scope": "contract_call",
+    "contract_identifier": "SP2J1BCZK8Q0CP3W4R1XX9TMKJ1N1S8QZ7K0B5N8.placeholder",
+    "method": "get-owner"
+  },
+  "then": {
+    "http_post": {
+      "url": "https://api.stacksorbit.com/webhook",
+      "authorization_header": "Bearer ${MAINNET_WEBHOOK_TOKEN}"
+    }
+  }
+}

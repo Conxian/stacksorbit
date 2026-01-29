@@ -61,13 +61,17 @@ class StacksOrbitGUI(App):
         """Load configuration from file"""
         config = {}
         try:
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path, 'r', encoding='utf-8') as f:
                 for line in f:
+                    line = line.strip()
                     if '=' in line and not line.startswith('#'):
-                        key, value = line.strip().split('=', 1)
-                        config[key] = value
+                        key, value = line.split('=', 1)
+                        config[key.strip()] = value.strip().strip('"').strip("'")
         except FileNotFoundError:
-            self.notify(f"Config file {self.config_path} not found", severity="error")
+            # app.notify might not be available yet in __init__
+            print(f"Config file {self.config_path} not found")
+        except Exception as e:
+            print(f"Error loading config: {e}")
         return config
 
     def compose(self) -> ComposeResult:
