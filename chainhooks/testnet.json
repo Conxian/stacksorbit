@@ -1,7 +1,7 @@
 {
   "if": {
     "scope": "contract_call",
-    "contract_identifier": "SP000000000000000000002Q6VF78.placeholder",
+    "contract_identifier": "ST000000000000000000002Q6VF78.placeholder",
     "method": "get-owner"
   },
   "then": {

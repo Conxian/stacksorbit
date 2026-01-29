@@ -14,15 +14,15 @@ StacksOrbit is a comprehensive deployment and management tool for the Stacks blo
 
 The primary goal is to refactor the project to use a modern, streamlined toolchain that leverages the Clarinet SDK for development and testing, and Chainhooks for multi-network event monitoring.
 
-*   **Phase 1: Vitest Integration (In Progress)**
+*   **Phase 1: Vitest Integration (Complete)**
     *   [x] Initialize `PRD.md`.
     *   [x] Update `package.json` with `vitest-environment-clarinet`.
-    *   [x] Create `vitest.config.ts`.
-    *   [ ] Migrate existing tests to Vitest.
-*   **Phase 2: Chainhook Integration**
-    *   [ ] Create `/chainhooks` directory.
-    *   [ ] Define Chainhook predicates for contract events.
-    *   [ ] Implement multi-network monitoring (Devnet, Testnet, Mainnet).
+    *   [x] Create `vitest.config.mts`.
+    *   [x] Migrate existing tests to Vitest.
+*   **Phase 2: Chainhook Integration (Complete)**
+    *   [x] Create `/chainhooks` directory.
+    *   [x] Define Chainhook predicates for contract events.
+    *   [x] Implement multi-network monitoring (Devnet, Testnet, Mainnet).
 *   **Phase 3: Contract Registry**
     *   [ ] Create a contract registry in this PRD to track deployments across all networks.
 
@@ -33,4 +33,15 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
 *   **Objective:** Establish the project's foundation by creating the PRD, updating dependencies, and configuring Vitest.
 *   **Changes:**
     *   Created `PRD.md`.
-*   **Status:** In progress.
+    *   Configured Vitest with Clarinet SDK.
+    *   Migrated initial placeholder tests.
+*   **Status:** Complete.
+
+### Session 2: Chainhook Expansion & Security Hardening
+
+*   **Objective:** Expand Chainhook support for multi-network monitoring and fix configuration validation bugs.
+*   **Changes:**
+    *   Standardized Vitest config as `.mts` for ESM compatibility.
+    *   Created network-specific Chainhook predicates (`devnet.json`, `testnet.json`, `mainnet.json`).
+    *   Fixed C32 address validation to include '0' and '1', resolving common devnet address failures.
+*   **Status:** Complete.

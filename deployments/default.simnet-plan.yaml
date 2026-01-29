@@ -36,4 +36,4 @@ plan:
             emulated-sender: ST3N7D4F8TDBNPAN7W6CJ5RGF5DAW5MGHNEGTCR6R
             path: contracts/placeholder.clar
             clarity-version: 1
-      epoch: "2.1"
+      epoch: "2.05"
