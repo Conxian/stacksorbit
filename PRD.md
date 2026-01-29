@@ -41,7 +41,7 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
 
 *   **Objective:** Expand Chainhook support for multi-network monitoring and fix configuration validation bugs.
 *   **Changes:**
-    *   Standardized Vitest config as `.mts` for ESM compatibility.
+    *   Standardized Vitest config by removing legacy `.js` files and confirming `.mts` for ESM compatibility.
     *   Created network-specific Chainhook predicates (`devnet.json`, `testnet.json`, `mainnet.json`).
     *   Fixed C32 address validation to include '0' and '1', resolving common devnet address failures.
 *   **Status:** Complete.
