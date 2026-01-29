@@ -1,0 +1,13 @@
+{
+  "if": {
+    "scope": "contract_call",
+    "contract_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.placeholder",
+    "method": "get-owner"
+  },
+  "then": {
+    "http_post": {
+      "url": "http://localhost:3000/webhook",
+      "authorization_header": "Bearer dev-token"
+    }
+  }
+}
