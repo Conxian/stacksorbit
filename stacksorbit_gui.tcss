@@ -89,6 +89,11 @@ Button.primary {
     color: white;
 }
 
+Button.success {
+    background: #28a745; /* Green */
+    color: white;
+}
+
 DataTable {
     background: #151516;
     border: heavy #2a2a2c;

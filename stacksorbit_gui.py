@@ -326,34 +326,41 @@ class StacksOrbitGUI(App):
         )
 
     @on(Button.Pressed, "#save-config-btn")
-    def on_save_config_pressed(self) -> None:
-        """Handle save config button press."""
+    async def on_save_config_pressed(self) -> None:
+        """Handle save config button press with visual feedback."""
         save_btn = self.query_one("#save-config-btn", Button)
         original_label = save_btn.label
         save_btn.disabled = True
         save_btn.label = "Saving..."
 
-        try:
+        # 🎨 Palette: This function handles the file I/O.
+        # By running it in a thread, we prevent the UI from freezing.
+        def _save_config_io():
             privkey = self.query_one("#privkey-input", Input).value
             address = self.query_one("#address-input", Input).value
-
-            # Read existing config
             config = self._load_config()
-
-            # Update values
             config['DEPLOYER_PRIVKEY'] = privkey
             config['SYSTEM_ADDRESS'] = address
-
-            # Write back to file
             with open(self.config_path, "w") as f:
                 for key, value in config.items():
                     f.write(f"{key}={value}\n")
+
+        try:
+            await asyncio.to_thread(_save_config_io)
             self.notify("Configuration saved.", severity="success")
+
+            # 🎨 Palette: Provide clear, temporary success feedback on the button.
+            # This makes the result of the action immediately obvious to the user.
+            save_btn.label = "✅ Saved!"
+            save_btn.add_class("success")
+            await asyncio.sleep(2)  # Show success state for 2 seconds
+
         except Exception as e:
             self.notify(f"Error saving config: {e}", severity="error")
         finally:
             save_btn.disabled = False
             save_btn.label = original_label
+            save_btn.remove_class("success")
 
 def main():
     if not GUI_AVAILABLE:
