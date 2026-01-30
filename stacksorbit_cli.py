@@ -651,6 +651,12 @@ class UltimateStacksOrbit:
         # Load deployment templates
         self.templates = self._load_templates()
 
+        # Bolt ⚡: Instantiate a shared monitor to enable caching across commands.
+        # This avoids redundant API calls when running multiple commands in a session.
+        config_manager = EnhancedConfigManager(self.config_path)
+        config = config_manager.load_config()
+        self.monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
+
     def _load_templates(self) -> Dict:
         """Load deployment templates"""
         template_file = Path(__file__).parent / self.templates_path
@@ -755,7 +761,8 @@ class UltimateStacksOrbit:
             options.get('verbose', False),
             run_npm_tests=run_npm_tests,
             npm_test_script=npm_test_script,
-            clarinet_check_timeout=clarinet_check_timeout
+            clarinet_check_timeout=clarinet_check_timeout,
+            monitor=self.monitor
         )
 
         # Run pre-deployment checks
@@ -805,22 +812,16 @@ class UltimateStacksOrbit:
         """Run enhanced monitoring"""
         print(f"{Fore.CYAN}📊 Enhanced Monitoring Mode{Style.RESET_ALL}")
 
-        # Load configuration
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
-
-        monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
-
         # Show API status
-        api_status = monitor.check_api_status()
+        api_status = self.monitor.check_api_status()
         print(f"🌐 API Status: {api_status['status']}")
         print(f"   Network: {api_status.get('network_id', 'unknown')}")
         print(f"   Block Height: {api_status.get('block_height', 0)}")
 
-        address = config.get('SYSTEM_ADDRESS')
+        address = self.monitor.config.get('SYSTEM_ADDRESS')
         if address:
             print(f"\n👤 Account Status:")
-            account_info = monitor.get_account_info(address)
+            account_info = self.monitor.get_account_info(address)
             if account_info:
                 balance_raw = account_info.get('balance', 0)
                 balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000
@@ -934,13 +935,10 @@ class UltimateStacksOrbit:
             diagnosis['issues'].append(str(e))
             diagnosis['scores']['config'] = 0
 
-        # Bolt ⚡: Instantiate monitor once and share it to enable caching.
-        monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
-
         # 2. Network Check
         print("🌐 Network Check...")
         try:
-            api_status = monitor.check_api_status()
+            api_status = self.monitor.check_api_status()
             if api_status['status'] == 'online':
                 print(f"{Fore.GREEN}✅ Network connectivity: {api_status['network_id']}{Style.RESET_ALL}")
                 diagnosis['scores']['network'] = 100
@@ -958,7 +956,7 @@ class UltimateStacksOrbit:
         if address:
             print("👤 Account Check...")
             try:
-                account_info = monitor.get_account_info(address)
+                account_info = self.monitor.get_account_info(address)
                 if account_info:
                     balance_raw = account_info.get('balance', 0)
                     balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000
@@ -980,7 +978,7 @@ class UltimateStacksOrbit:
         print("📦 Contract Analysis...")
         try:
             # Bolt ⚡: Pass the shared monitor instance to the deployer.
-            deployer = EnhancedConxianDeployer(config, options.get('verbose', False), monitor=monitor)
+            deployer = EnhancedConxianDeployer(config, options.get('verbose', False), monitor=self.monitor)
             contracts = deployer._get_deployment_list()
             if contracts:
                 print(f"{Fore.GREEN}✅ Found {len(contracts)} contracts{Style.RESET_ALL}")
