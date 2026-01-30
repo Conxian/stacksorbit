@@ -114,7 +114,9 @@ class StacksOrbitGUI(App):
             with TabPane("⚙️ Settings", id="settings"):
                 with VerticalScroll():
                     yield Label("Private Key:")
-                    yield Input(placeholder="Your private key", value=self.config.get("DEPLOYER_PRIVKEY", ""), id="privkey-input", password=True)
+                    with Horizontal(classes="input-group"):
+                        yield Input(placeholder="Your private key", value=self.config.get("DEPLOYER_PRIVKEY", ""), id="privkey-input", password=True)
+                        yield Switch(id="show-privkey")
                     yield Label("Stacks Address:")
                     yield Input(placeholder="Your STX address", value=self.config.get("SYSTEM_ADDRESS", ""), id="address-input")
                     yield Button("💾 Save", id="save-config-btn", variant="primary")
@@ -328,6 +330,11 @@ class StacksOrbitGUI(App):
             event.button,
             in_progress_label="Deploying..."
         )
+
+    @on(Switch.Changed, "#show-privkey")
+    def on_show_privkey_changed(self, event: Switch.Changed) -> None:
+        """Toggle private key visibility."""
+        self.query_one("#privkey-input", Input).password = not event.value
 
     @on(Button.Pressed, "#save-config-btn")
     async def on_save_config_pressed(self) -> None:

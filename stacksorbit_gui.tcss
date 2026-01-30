@@ -125,6 +125,20 @@ Input:focus {
     border: round #007acc;
 }
 
+.input-group {
+    layout: horizontal;
+    align: center middle;
+}
+
+.input-group Input {
+    width: 1fr;
+    margin-right: 1;
+}
+
+.input-group Switch {
+    width: auto;
+}
+
 LoadingIndicator {
     height: 100%;
     align: center middle;
