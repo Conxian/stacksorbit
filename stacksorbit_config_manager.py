@@ -5,6 +5,35 @@ import toml
 from dotenv import load_dotenv, dotenv_values
 from stacksorbit_secrets import SECRET_KEYS
 
+# --- Helper function for redaction ---
+SENSITIVE_SUBSTRINGS = ['KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'MNEMONIC']
+
+def redact_sensitive_info(config_item, parent_key=''):
+    """
+    Recursively traverses a configuration dictionary or list to redact sensitive information.
+    """
+    if isinstance(config_item, dict):
+        # For dictionaries, iterate through items and redact if necessary.
+        return {key: redact_sensitive_info(value, key) for key, value in config_item.items()}
+    elif isinstance(config_item, list):
+        # For lists, apply redaction to each item.
+        return [redact_sensitive_info(item) for item in config_item]
+    else:
+        # Check if the parent key is a known secret or contains a sensitive substring.
+        is_sensitive = parent_key in SECRET_KEYS or any(sub in parent_key.upper() for sub in SENSITIVE_SUBSTRINGS)
+        if is_sensitive and config_item is not None:
+            # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
+            if isinstance(config_item, str) and config_item != '':
+                return "<redacted>"
+            elif isinstance(config_item, (int, float)):
+                 return 0
+            elif isinstance(config_item, bool):
+                 return False
+
+        # Return the original value if it's not sensitive.
+        return config_item
+
+
 class ConfigManager:
     def __init__(self, base_path):
         self.base_path = base_path
@@ -107,16 +136,23 @@ if __name__ == "__main__":
     config_manager = ConfigManager(target_dir)
     loaded_configs = config_manager.scan_and_load_configs()
 
-    print("\n--- Loaded Configurations ---")
-    SENSITIVE_SUBSTRINGS = ['KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'MNEMONIC']
-    for key, value in loaded_configs.items():
-        # Redact if the key is a known secret or contains a sensitive substring.
-        is_sensitive = key in SECRET_KEYS or any(sub in key.upper() for sub in SENSITIVE_SUBSTRINGS)
-        if is_sensitive:
-            # For sensitive keys, print a placeholder to avoid leaking the value.
-            print(f"{key}: <set>")
-        else:
-            print(f"{key}: {value}")
+    # Redact sensitive information before printing.
+    redacted_configs = redact_sensitive_info(loaded_configs)
+
+
+    print("\n--- Loaded Configurations (Redacted) ---")
+    # Pretty print the redacted configuration using a helper function
+    # to handle nested dictionaries with proper indentation.
+    def pretty_print_config(config, indent=0):
+        for key, value in config.items():
+            prefix = ' ' * indent
+            if isinstance(value, dict):
+                print(f"{prefix}{key}:")
+                pretty_print_config(value, indent + 2)
+            else:
+                print(f"{prefix}{key}: {value}")
+
+    pretty_print_config(redacted_configs)
 
     # Show summary
     print(f"\n[SUMMARY] Scan Summary:")
