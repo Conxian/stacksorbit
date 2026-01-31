@@ -450,11 +450,12 @@ class StacksOrbitGUI(App):
             # Update non-sensitive configuration
             config["SYSTEM_ADDRESS"] = p_address
 
-            with open(self.config_path, "w") as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 for key, value in config.items():
                     # 🛡️ Sentinel: Security Enforcer.
                     # We explicitly skip any known secrets before saving to disk.
-                    # This ensures that secrets are only handled in-memory or via environment variables.
+                    # This ensures that secrets are only handled in-memory or
+                    # via environment variables.
                     if key not in SECRET_KEYS:
                         f.write(f"{key}={value}\n")
 
@@ -465,7 +466,8 @@ class StacksOrbitGUI(App):
             if is_secret_provided:
                 # 🛡️ Sentinel: Inform the user that secrets are not saved to disk.
                 self.notify(
-                    "🛡️ Security: Configuration saved (excluding private keys). Use environment variables for secrets.",
+                    "🛡️ Security: Configuration saved (excluding private keys). "
+                    "Use environment variables for secrets.",
                     severity="warning",
                     timeout=10,
                 )
