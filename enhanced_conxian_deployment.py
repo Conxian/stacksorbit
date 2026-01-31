@@ -20,12 +20,13 @@ from stacksorbit_secrets import SECRET_KEYS
 from deployment_monitor import DeploymentMonitor
 
 # Force UTF-8 encoding for stdout on Windows
-if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8')
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # Enhanced imports for monitoring
 try:
     import psutil
+
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
@@ -33,10 +34,12 @@ except ImportError:
 try:
     import colorama
     from colorama import Fore, Style
+
     colorama.init()
     COLORAMA_AVAILABLE = True
 except ImportError:
     COLORAMA_AVAILABLE = False
+
 
 class EnhancedConfigManager:
     """Enhanced configuration manager with persistence and validation"""
@@ -56,7 +59,10 @@ class EnhancedConfigManager:
 
         # Sentinel Security Enhancement: Check for secrets in the file.
         for key in SECRET_KEYS:
-            if file_config.get(key) and file_config[key] not in ('', 'your_private_key_here'):
+            if file_config.get(key) and file_config[key] not in (
+                "",
+                "your_private_key_here",
+            ):
                 error_message = (
                     f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
                     "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
@@ -71,18 +77,27 @@ class EnhancedConfigManager:
         # to be overridden by environment variables.
         combined_config = {}
         combined_config.update(file_config)
-        combined_config.update({k: v for k, v in os.environ.items() if k in file_config or k in SECRET_KEYS})
+        combined_config.update(
+            {
+                k: v
+                for k, v in os.environ.items()
+                if k in file_config or k in SECRET_KEYS
+            }
+        )
 
         self.config = combined_config
 
         # Store the config path for the deployer to use
-        self.config['CONFIG_PATH'] = str(self.config_path)
+        self.config["CONFIG_PATH"] = str(self.config_path)
 
         # Normalize keys for compatibility
-        if 'STACKS_DEPLOYER_PRIVKEY' in self.config and 'DEPLOYER_PRIVKEY' not in self.config:
-            self.config['DEPLOYER_PRIVKEY'] = self.config['STACKS_DEPLOYER_PRIVKEY']
-        elif 'STACKS_PRIVKEY' in self.config and 'DEPLOYER_PRIVKEY' not in self.config:
-            self.config['DEPLOYER_PRIVKEY'] = self.config['STACKS_PRIVKEY']
+        if (
+            "STACKS_DEPLOYER_PRIVKEY" in self.config
+            and "DEPLOYER_PRIVKEY" not in self.config
+        ):
+            self.config["DEPLOYER_PRIVKEY"] = self.config["STACKS_DEPLOYER_PRIVKEY"]
+        elif "STACKS_PRIVKEY" in self.config and "DEPLOYER_PRIVKEY" not in self.config:
+            self.config["DEPLOYER_PRIVKEY"] = self.config["STACKS_PRIVKEY"]
 
         return self.config
 
@@ -118,12 +133,12 @@ CONFIRMATION_TIMEOUT=300
 """
 
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             f.write(default_config)
 
     def save_config(self, config: Dict):
         """Save configuration to file"""
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             for key, value in config.items():
                 f.write(f"{key}={value}\n")
 
@@ -131,29 +146,29 @@ CONFIRMATION_TIMEOUT=300
         """Validate configuration and return (is_valid, errors)"""
         errors = []
 
-        required = ['DEPLOYER_PRIVKEY', 'SYSTEM_ADDRESS', 'NETWORK']
+        required = ["DEPLOYER_PRIVKEY", "SYSTEM_ADDRESS", "NETWORK"]
         for req in required:
             if req not in self.config or not self.config[req]:
                 errors.append(f"Missing required configuration: {req}")
 
         # Validate private key format
-        if 'DEPLOYER_PRIVKEY' in self.config:
-            priv = self.config['DEPLOYER_PRIVKEY']
-            if priv.strip().lower() == 'your_private_key_here':
+        if "DEPLOYER_PRIVKEY" in self.config:
+            priv = self.config["DEPLOYER_PRIVKEY"]
+            if priv.strip().lower() == "your_private_key_here":
                 errors.append("DEPLOYER_PRIVKEY uses insecure placeholder value")
             elif not self._validate_private_key(priv):
                 errors.append("Invalid DEPLOYER_PRIVKEY format")
 
         # Validate address format
-        if 'SYSTEM_ADDRESS' in self.config:
-            addr = self.config['SYSTEM_ADDRESS']
-            net = self.config.get('NETWORK')
+        if "SYSTEM_ADDRESS" in self.config:
+            addr = self.config["SYSTEM_ADDRESS"]
+            net = self.config.get("NETWORK")
             if not self._validate_address(addr, net):
                 errors.append("Invalid SYSTEM_ADDRESS format")
 
         # Validate network
-        if 'NETWORK' in self.config:
-            if self.config['NETWORK'] not in ['devnet', 'testnet', 'mainnet']:
+        if "NETWORK" in self.config:
+            if self.config["NETWORK"] not in ["devnet", "testnet", "mainnet"]:
                 errors.append("Invalid NETWORK. Must be devnet, testnet, or mainnet")
 
         return len(errors) == 0, errors
@@ -163,13 +178,13 @@ CONFIRMATION_TIMEOUT=300
         if not privkey or not isinstance(privkey, str):
             return False
         pk = privkey.strip()
-        if pk.lower() == 'your_private_key_here':
+        if pk.lower() == "your_private_key_here":
             return False
         if len(pk) not in (64, 66):
             return False
         # Hex-only characters
         for c in pk:
-            if c not in '0123456789abcdefABCDEF':
+            if c not in "0123456789abcdefABCDEF":
                 return False
         return True
 
@@ -179,18 +194,19 @@ CONFIRMATION_TIMEOUT=300
             return False
         addr = address.strip().upper()
         # Prefix rules: SP for mainnet, ST for testnet/devnet
-        if network == 'mainnet':
-            if not addr.startswith('SP'):
+        if network == "mainnet":
+            if not addr.startswith("SP"):
                 return False
         else:
-            if not addr.startswith('ST'):
+            if not addr.startswith("ST"):
                 return False
         # C32 allowed charset (I, L, O, U are excluded)
-        allowed = set('0123456789ABCDEFGHJKMNPQRSTVWXYZ')
+        allowed = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
         body = addr[2:]
         if len(addr) != 41:
             return False
         return all(ch in allowed for ch in body)
+
 
 class EnhancedConxianDeployer:
     """Enhanced Conxian deployer with full CLI integration"""
@@ -200,9 +216,9 @@ class EnhancedConxianDeployer:
         config: Dict,
         verbose: bool = False,
         run_npm_tests: bool = False,
-        npm_test_script: str = 'test',
+        npm_test_script: str = "test",
         clarinet_check_timeout: int = 300,
-        monitor: Optional[DeploymentMonitor] = None
+        monitor: Optional[DeploymentMonitor] = None,
     ):
         self.config = config
         self.verbose = verbose
@@ -212,37 +228,68 @@ class EnhancedConxianDeployer:
         self.pre_check_results: Dict[str, bool] = {}
         # Bolt ⚡: Use a shared monitor instance to leverage caching
         # If no monitor is provided, create a new one.
-        self.monitor = monitor or DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
+        self.monitor = monitor or DeploymentMonitor(
+            config.get("NETWORK", "testnet"), config
+        )
         self.contract_categories = self._load_contract_categories()
 
     def _load_contract_categories(self) -> Dict:
         """Load contract categories from configuration (Generic + Conxian)"""
         return {
             # Generic Categories
-            'traits': ['trait', 'interface', 'standard', 'sip-'],
-            'libs': ['utils', 'lib', 'math', 'constant', 'err'],
-            'tokens': ['token', 'ft', 'nft', 'coin'],
-            'defi': ['swap', 'pool', 'dex', 'vault', 'pair', 'liquidity', 'staking', 'farm'],
-            'oracle': ['oracle', 'price', 'feed'],
-            'dao': ['governance', 'dao', 'proposal', 'voting', 'timelock'],
-            'storage': ['store', 'registry', 'db', 'list'],
-            
+            "traits": ["trait", "interface", "standard", "sip-"],
+            "libs": ["utils", "lib", "math", "constant", "err"],
+            "tokens": ["token", "ft", "nft", "coin"],
+            "defi": [
+                "swap",
+                "pool",
+                "dex",
+                "vault",
+                "pair",
+                "liquidity",
+                "staking",
+                "farm",
+            ],
+            "oracle": ["oracle", "price", "feed"],
+            "dao": ["governance", "dao", "proposal", "voting", "timelock"],
+            "storage": ["store", "registry", "db", "list"],
             # Conxian Specific (kept for backward compatibility)
-            'core': ['all-traits', 'utils-encoding', 'utils-utils', 'lib-error-codes'],
-            'conxian_tokens': ['cxd-token', 'cxlp-token', 'cxvg-token', 'cxtr-token', 'cxs-token'],
-            'conxian_governance': ['governance-token', 'proposal-engine', 'timelock-controller'],
-            'conxian_dex': ['dex-factory', 'dex-router', 'dex-pool', 'dex-vault', 'fee-manager'],
-            'conxian_dimensional': ['dim-registry', 'dim-metrics', 'position-nft', 'dimensional-core'],
-            'conxian_oracle': ['oracle-aggregator', 'btc-adapter'],
-            'conxian_security': ['circuit-breaker', 'pausable', 'mev-protector'],
-            'conxian_monitoring': ['analytics-aggregator', 'monitoring-dashboard']
+            "core": ["all-traits", "utils-encoding", "utils-utils", "lib-error-codes"],
+            "conxian_tokens": [
+                "cxd-token",
+                "cxlp-token",
+                "cxvg-token",
+                "cxtr-token",
+                "cxs-token",
+            ],
+            "conxian_governance": [
+                "governance-token",
+                "proposal-engine",
+                "timelock-controller",
+            ],
+            "conxian_dex": [
+                "dex-factory",
+                "dex-router",
+                "dex-pool",
+                "dex-vault",
+                "fee-manager",
+            ],
+            "conxian_dimensional": [
+                "dim-registry",
+                "dim-metrics",
+                "position-nft",
+                "dimensional-core",
+            ],
+            "conxian_oracle": ["oracle-aggregator", "btc-adapter"],
+            "conxian_security": ["circuit-breaker", "pausable", "mev-protector"],
+            "conxian_monitoring": ["analytics-aggregator", "monitoring-dashboard"],
         }
 
     def _get_project_dir(self) -> Path:
-        if self.config.get('PROJECT_ROOT'):
-            return Path(self.config.get('PROJECT_ROOT'))
+        if self.config.get("PROJECT_ROOT"):
+            return Path(self.config.get("PROJECT_ROOT"))
 
-        config_path = Path(self.config.get('CONFIG_PATH', '.env'))
+        config_path = Path(self.config.get("CONFIG_PATH", ".env"))
         return config_path.parent
 
     def run_pre_checks(self) -> bool:
@@ -250,19 +297,21 @@ class EnhancedConxianDeployer:
         print(f"\n[INFO] Running Pre-Deployment Checks\n")
 
         checks = [
-            ('Environment', self._check_environment),
-            ('Network', self._check_network),
-            ('Compilation', self._check_compilation)
+            ("Environment", self._check_environment),
+            ("Network", self._check_network),
+            ("Compilation", self._check_compilation),
         ]
 
         if self.run_npm_tests:
-            checks.append(('NPM Tests', self._check_npm_tests))
+            checks.append(("NPM Tests", self._check_npm_tests))
 
-        checks.extend([
-            ('Account Balance', self._check_balance),
-            ('Deployment Mode', self._check_deployment_mode),
-            ('System Alignment', self._check_system_alignment)
-        ])
+        checks.extend(
+            [
+                ("Account Balance", self._check_balance),
+                ("Deployment Mode", self._check_deployment_mode),
+                ("System Alignment", self._check_system_alignment),
+            ]
+        )
 
         all_passed = True
         self.pre_check_results = {}
@@ -277,14 +326,16 @@ class EnhancedConxianDeployer:
                 print(f"[ERROR] {check_name} check failed: {e}")
                 all_passed = False
 
-        print(f"\n{'[SUCCESS]' if all_passed else '[ERROR]'} Overall Status: {'READY' if all_passed else 'ISSUES FOUND'}")
+        print(
+            f"\n{'[SUCCESS]' if all_passed else '[ERROR]'} Overall Status: {'READY' if all_passed else 'ISSUES FOUND'}"
+        )
         return all_passed
 
     def _check_environment(self) -> bool:
         """Check environment configuration"""
         print("Checking environment variables...")
 
-        required = ['DEPLOYER_PRIVKEY', 'SYSTEM_ADDRESS', 'NETWORK']
+        required = ["DEPLOYER_PRIVKEY", "SYSTEM_ADDRESS", "NETWORK"]
         missing = [req for req in required if not self.config.get(req)]
 
         if missing:
@@ -301,12 +352,14 @@ class EnhancedConxianDeployer:
         print("Checking network connectivity...")
 
         api_status = self.monitor.check_api_status()
-        if api_status['status'] == 'online':
+        if api_status["status"] == "online":
             print(f"[SUCCESS] Connected to {api_status['network_id']}")
             print(f"[SUCCESS] Block height: {api_status['block_height']}")
             return True
         else:
-            print(f"[ERROR] Network check failed: {api_status.get('error', 'Unknown error')}")
+            print(
+                f"[ERROR] Network check failed: {api_status.get('error', 'Unknown error')}"
+            )
             return False
 
     def _check_compilation(self) -> bool:
@@ -319,14 +372,14 @@ class EnhancedConxianDeployer:
         try:
             stdin_input = "y\n" * 10
             result = subprocess.run(
-                ['clarinet', 'check'],
+                ["clarinet", "check"],
                 cwd=str(project_dir),
                 capture_output=True,
                 text=True,
                 input=stdin_input,
-                timeout=timeout
+                timeout=timeout,
             )
-            output = ((result.stdout or '') + (result.stderr or '')).strip()
+            output = ((result.stdout or "") + (result.stderr or "")).strip()
 
             if result.returncode == 0:
                 print("[SUCCESS] All contracts compile successfully")
@@ -345,7 +398,7 @@ class EnhancedConxianDeployer:
         except subprocess.TimeoutExpired as e:
             print(f"[ERROR] Clarinet check timed out after {timeout} seconds")
             if self.verbose:
-                out = ((e.stdout or '') + (e.stderr or '')).strip()
+                out = ((e.stdout or "") + (e.stderr or "")).strip()
                 if out:
                     print(out)
             return False
@@ -361,18 +414,18 @@ class EnhancedConxianDeployer:
         print("Running npm tests...")
 
         project_dir = self._get_project_dir()
-        package_json = project_dir / 'package.json'
+        package_json = project_dir / "package.json"
         if not package_json.exists():
             print("[INFO] package.json not found - skipping npm tests")
             return True
 
-        script = self.npm_test_script or 'test'
-        if script == 'test':
-            command = ['npm', 'test']
+        script = self.npm_test_script or "test"
+        if script == "test":
+            command = ["npm", "test"]
         else:
-            command = ['npm', 'run', script]
+            command = ["npm", "run", script]
 
-        timeout = int(self.config.get('NPM_TEST_TIMEOUT', 1800))
+        timeout = int(self.config.get("NPM_TEST_TIMEOUT", 1800))
 
         try:
             result = subprocess.run(
@@ -380,7 +433,7 @@ class EnhancedConxianDeployer:
                 cwd=str(project_dir),
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
             )
 
             if result.returncode == 0:
@@ -388,7 +441,7 @@ class EnhancedConxianDeployer:
                 return True
 
             print(f"[ERROR] npm tests failed (script: {script})")
-            output = ((result.stdout or '') + (result.stderr or '')).strip()
+            output = ((result.stdout or "") + (result.stderr or "")).strip()
             if output:
                 if self.verbose:
                     print(output)
@@ -399,7 +452,9 @@ class EnhancedConxianDeployer:
             return False
 
         except subprocess.TimeoutExpired:
-            print(f"[ERROR] npm tests timed out after {timeout} seconds (script: {script})")
+            print(
+                f"[ERROR] npm tests timed out after {timeout} seconds (script: {script})"
+            )
             return False
         except FileNotFoundError:
             print("[ERROR] npm not found (is Node.js installed and on PATH?)")
@@ -412,15 +467,21 @@ class EnhancedConxianDeployer:
         """Check account balance"""
         print("Checking account balance...")
 
-        account_info = self.monitor.get_account_info(self.config['SYSTEM_ADDRESS'])
+        account_info = self.monitor.get_account_info(self.config["SYSTEM_ADDRESS"])
         if account_info:
-            balance_raw = account_info.get('balance', 0)
-            balance = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1000000  # Convert to STX
+            balance_raw = account_info.get("balance", 0)
+            balance = (
+                int(balance_raw, 16)
+                if isinstance(balance_raw, str) and balance_raw.startswith("0x")
+                else int(balance_raw)
+            ) / 1000000  # Convert to STX
             min_balance = 10  # Minimum 10 STX for deployment
 
             print(f"[SUCCESS] Current balance: {balance} STX")
             if balance < min_balance:
-                print(f"[WARNING] Low balance: {balance} STX (minimum {min_balance} STX recommended)")
+                print(
+                    f"[WARNING] Low balance: {balance} STX (minimum {min_balance} STX recommended)"
+                )
                 return False
             return True
         else:
@@ -431,20 +492,24 @@ class EnhancedConxianDeployer:
         """Check deployment mode"""
         print("Checking deployment mode...")
 
-        account_info = self.monitor.get_account_info(self.config['SYSTEM_ADDRESS'])
+        account_info = self.monitor.get_account_info(self.config["SYSTEM_ADDRESS"])
         if account_info:
-            nonce_raw = account_info.get('nonce', 0)
-            nonce = int(nonce_raw, 16) if isinstance(nonce_raw, str) and nonce_raw.startswith('0x') else int(nonce_raw)
+            nonce_raw = account_info.get("nonce", 0)
+            nonce = (
+                int(nonce_raw, 16)
+                if isinstance(nonce_raw, str) and nonce_raw.startswith("0x")
+                else int(nonce_raw)
+            )
             if nonce > 0:
                 print(f"[INFO] Upgrade mode (nonce: {nonce})")
-                self.config['DEPLOYMENT_MODE'] = 'upgrade'
+                self.config["DEPLOYMENT_MODE"] = "upgrade"
             else:
                 print("[INFO] Full deployment mode")
-                self.config['DEPLOYMENT_MODE'] = 'full'
+                self.config["DEPLOYMENT_MODE"] = "full"
         else:
             print("[INFO] Assuming full deployment mode")
-            self.config['DEPLOYMENT_MODE'] = 'full'
-        
+            self.config["DEPLOYMENT_MODE"] = "full"
+
         return True
 
     def _check_system_alignment(self) -> bool:
@@ -454,17 +519,17 @@ class EnhancedConxianDeployer:
         try:
             # Get expected contracts
             expected_contracts = self._get_deployment_list()
-            expected_names = {c['name'] for c in expected_contracts}
+            expected_names = {c["name"] for c in expected_contracts}
 
             # Get currently deployed contracts
-            account_info = self.monitor.get_account_info(self.config['SYSTEM_ADDRESS'])
+            account_info = self.monitor.get_account_info(self.config["SYSTEM_ADDRESS"])
             if not account_info:
                 print("[WARNING] Could not check system alignment - no account info")
                 return True
 
             # Get deployed contracts from the account
             deployed_contracts = self._get_deployed_contracts()
-            deployed_names = {c['name'] for c in deployed_contracts}
+            deployed_names = {c["name"] for c in deployed_contracts}
 
             # Analyze alignment
             missing_contracts = expected_names - deployed_names
@@ -472,7 +537,9 @@ class EnhancedConxianDeployer:
 
             # Report alignment status
             if not missing_contracts and not extra_contracts:
-                print(f"[SUCCESS] System alignment perfect - all {len(expected_names)} contracts deployed")
+                print(
+                    f"[SUCCESS] System alignment perfect - all {len(expected_names)} contracts deployed"
+                )
                 return True
             else:
                 print(f"[INFO] System alignment analysis:")
@@ -491,11 +558,12 @@ class EnhancedConxianDeployer:
 
                 # Store alignment data for deployment decisions
                 self.system_alignment = {
-                    'expected': expected_names,
-                    'deployed': deployed_names,
-                    'missing': missing_contracts,
-                    'extra': extra_contracts,
-                    'aligned': len(missing_contracts) == 0 and len(extra_contracts) == 0
+                    "expected": expected_names,
+                    "deployed": deployed_names,
+                    "missing": missing_contracts,
+                    "extra": extra_contracts,
+                    "aligned": len(missing_contracts) == 0
+                    and len(extra_contracts) == 0,
                 }
 
                 return True  # Don't fail the check, just report
@@ -516,25 +584,29 @@ class EnhancedConxianDeployer:
             # For now, we'll simulate based on deployment history
             history_path = Path("deployment") / "history.json"
             if history_path.exists():
-                with open(history_path, 'r') as f:
+                with open(history_path, "r") as f:
                     history = json.load(f)
 
                 # Get the latest deployment
                 if history:
                     latest = history[-1]
-                    for contract in latest.get('results', {}).get('successful', []):
-                        deployed.append({
-                            'name': contract['name'],
-                            'tx_id': contract.get('tx_id', ''),
-                            'deployed_at': latest.get('timestamp', '')
-                        })
+                    for contract in latest.get("results", {}).get("successful", []):
+                        deployed.append(
+                            {
+                                "name": contract["name"],
+                                "tx_id": contract.get("tx_id", ""),
+                                "deployed_at": latest.get("timestamp", ""),
+                            }
+                        )
 
         except Exception as e:
             print(f"Warning: Could not read deployment history: {e}")
 
         return deployed
 
-    def deploy_conxian(self, category: Optional[str] = None, dry_run: bool = False) -> Dict:
+    def deploy_conxian(
+        self, category: Optional[str] = None, dry_run: bool = False
+    ) -> Dict:
         """Deploy Conxian contracts with enhanced monitoring"""
         print(f"\n[INFO] Conxian Protocol Deployment")
         print("=" * 60)
@@ -546,18 +618,22 @@ class EnhancedConxianDeployer:
         contracts = self._get_deployment_list(category)
 
         # Apply system alignment if available
-        if hasattr(self, 'system_alignment') and self.system_alignment:
-            if self.system_alignment['missing']:
-                print(f"[INFO] Found {len(self.system_alignment['missing'])} missing contracts from previous deployment")
+        if hasattr(self, "system_alignment") and self.system_alignment:
+            if self.system_alignment["missing"]:
+                print(
+                    f"[INFO] Found {len(self.system_alignment['missing'])} missing contracts from previous deployment"
+                )
                 print(f"[INFO] Will prioritize missing contracts in deployment")
 
         if not contracts:
             print("[ERROR] No contracts found to deploy")
-            return {'success': False, 'error': 'No contracts found'}
+            return {"success": False, "error": "No contracts found"}
 
-        print(f"[INFO] Deploying {len(contracts)} contracts in {self.config.get('DEPLOYMENT_MODE', 'full')} mode\n")
+        print(
+            f"[INFO] Deploying {len(contracts)} contracts in {self.config.get('DEPLOYMENT_MODE', 'full')} mode\n"
+        )
 
-        results = {'successful': [], 'failed': [], 'skipped': []}
+        results = {"successful": [], "failed": [], "skipped": []}
 
         # Deploy contracts in dependency order
         for i, contract in enumerate(contracts, 1):
@@ -568,22 +644,27 @@ class EnhancedConxianDeployer:
                 if tx_id:
                     # Monitor transaction
                     confirmed = self.monitor.wait_for_confirmation(
-                        tx_id,
-                        int(self.config.get('CONFIRMATION_TIMEOUT', 300))
+                        tx_id, int(self.config.get("CONFIRMATION_TIMEOUT", 300))
                     )
 
                     if confirmed:
                         print(f"[SUCCESS] {contract['name']} deployed successfully")
-                        results['successful'].append({'name': contract['name'], 'tx_id': tx_id})
+                        results["successful"].append(
+                            {"name": contract["name"], "tx_id": tx_id}
+                        )
                     else:
                         print(f"[TIMEOUT] {contract['name']} deployment timed out")
-                        results['failed'].append({'name': contract['name'], 'error': 'timeout'})
+                        results["failed"].append(
+                            {"name": contract["name"], "error": "timeout"}
+                        )
                 else:
-                    results['failed'].append({'name': contract['name'], 'error': 'deployment failed'})
+                    results["failed"].append(
+                        {"name": contract["name"], "error": "deployment failed"}
+                    )
 
             except Exception as e:
                 print(f"[ERROR] {contract['name']} failed: {e}")
-                results['failed'].append({'name': contract['name'], 'error': str(e)})
+                results["failed"].append({"name": contract["name"], "error": str(e)})
 
             # Small delay between deployments
             time.sleep(2)
@@ -598,12 +679,14 @@ class EnhancedConxianDeployer:
         print(f"\n[INFO] DRY RUN MODE")
         print("=" * 60)
 
-        if getattr(self, 'pre_check_results', None):
-            failed_checks = [name for name, ok in self.pre_check_results.items() if not ok]
+        if getattr(self, "pre_check_results", None):
+            failed_checks = [
+                name for name, ok in self.pre_check_results.items() if not ok
+            ]
             if failed_checks:
                 print("[INFO] Pre-Deployment Checks Summary (issues detected):")
                 for check_name, ok in self.pre_check_results.items():
-                    status = 'PASS' if ok else 'FAIL'
+                    status = "PASS" if ok else "FAIL"
                     print(f"   {status}: {check_name}")
                 print()
 
@@ -613,11 +696,11 @@ class EnhancedConxianDeployer:
         print("[INFO] Deployment Plan:\n")
 
         # Show system alignment if available
-        if hasattr(self, 'system_alignment') and self.system_alignment:
-            if self.system_alignment['missing']:
+        if hasattr(self, "system_alignment") and self.system_alignment:
+            if self.system_alignment["missing"]:
                 print(f"[INFO] Missing contracts that will be deployed:")
-                for contract in sorted(self.system_alignment['missing']):
-                    if any(contract in c['name'] for c in contracts):
+                for contract in sorted(self.system_alignment["missing"]):
+                    if any(contract in c["name"] for c in contracts):
                         print(f"   + {contract}")
                 print()
 
@@ -636,17 +719,22 @@ class EnhancedConxianDeployer:
         print(f"   Deployment mode: {self.config.get('DEPLOYMENT_MODE', 'full')}")
         print(f"   Network: {self.config.get('NETWORK', 'testnet')}")
 
-        return {'success': True, 'dry_run': True, 'contracts': len(contracts), 'gas_estimate': total_gas}
+        return {
+            "success": True,
+            "dry_run": True,
+            "contracts": len(contracts),
+            "gas_estimate": total_gas,
+        }
 
     def _get_deployment_list(self, category: Optional[str] = None) -> List[Dict]:
         """Get list of contracts to deploy"""
         contracts = []
 
         # Get the project directory
-        if self.config.get('PROJECT_ROOT'):
-            project_dir = Path(self.config.get('PROJECT_ROOT'))
+        if self.config.get("PROJECT_ROOT"):
+            project_dir = Path(self.config.get("PROJECT_ROOT"))
         else:
-            config_path = Path(self.config.get('CONFIG_PATH', '.env'))
+            config_path = Path(self.config.get("CONFIG_PATH", ".env"))
             project_dir = config_path.parent
 
         # Try Clarinet.toml first in the project directory
@@ -660,7 +748,11 @@ class EnhancedConxianDeployer:
         # Filter by category if specified
         if category and category in self.contract_categories:
             category_contracts = self.contract_categories[category]
-            contracts = [c for c in contracts if any(cat in c['name'] for cat in category_contracts)]
+            contracts = [
+                c
+                for c in contracts
+                if any(cat in c["name"] for cat in category_contracts)
+            ]
 
         # Sort by dependency order
         return self._sort_by_dependencies(contracts)
@@ -670,51 +762,61 @@ class EnhancedConxianDeployer:
         contracts = []
 
         try:
-            with open(clarinet_path, 'r') as f:
+            with open(clarinet_path, "r") as f:
                 lines = f.readlines()
 
             current_contract = None
             current_data = {}
-            
+
             # Custom simple parser for TOML-like structure (robust enough for Clarinet.toml)
             for line in lines:
                 line = line.strip()
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
                 # Match [contracts.name]
-                if line.startswith('[contracts.') and line.endswith(']'):
+                if line.startswith("[contracts.") and line.endswith("]"):
                     # Save previous contract
                     if current_contract:
-                        current_data['name'] = current_contract
-                        current_data['full_path'] = str(clarinet_path.parent / current_data['path']) if 'path' in current_data else ''
+                        current_data["name"] = current_contract
+                        current_data["full_path"] = (
+                            str(clarinet_path.parent / current_data["path"])
+                            if "path" in current_data
+                            else ""
+                        )
                         contracts.append(current_data)
-                    
+
                     # Start new contract
                     current_contract = line[11:-1]
-                    current_data = {'depends_on': []}
+                    current_data = {"depends_on": []}
                     continue
 
                 # Match key = value
-                if '=' in line and current_contract:
-                    key, value = [p.strip() for p in line.split('=', 1)]
-                    
+                if "=" in line and current_contract:
+                    key, value = [p.strip() for p in line.split("=", 1)]
+
                     # Handle path
-                    if key == 'path':
-                        current_data['path'] = value.strip('"\'')
-                    
+                    if key == "path":
+                        current_data["path"] = value.strip("\"'")
+
                     # Handle depends_on = ["a", "b"]
-                    elif key == 'depends_on':
+                    elif key == "depends_on":
                         # Simple array parsing: ["a", "b"] -> [a, b]
-                        deps_str = value.strip('[]')
+                        deps_str = value.strip("[]")
                         if deps_str:
-                            deps = [d.strip().strip('"\'') for d in deps_str.split(',')]
-                            current_data['depends_on'] = [d for d in deps if d] # Filter empty
+                            deps = [d.strip().strip("\"'") for d in deps_str.split(",")]
+                            current_data["depends_on"] = [
+                                d for d in deps if d
+                            ]  # Filter empty
 
             # Add last contract
             if current_contract:
-                current_data['name'] = current_contract
-                current_data['full_path'] = str(clarinet_path.parent / current_data['path']) if 'path' in current_data else ''
+                current_data["name"] = current_contract
+                current_data["full_path"] = (
+                    str(clarinet_path.parent / current_data["path"])
+                    if "path" in current_data
+                    else ""
+                )
                 contracts.append(current_data)
 
         except Exception as e:
@@ -731,44 +833,46 @@ class EnhancedConxianDeployer:
         if contracts_dir.exists():
             for clar_file in contracts_dir.rglob("*.clar"):
                 contract_name = clar_file.stem
-                contracts.append({
-                    'name': contract_name,
-                    'path': str(clar_file.relative_to(project_dir)),
-                    'full_path': str(clar_file)
-                })
+                contracts.append(
+                    {
+                        "name": contract_name,
+                        "path": str(clar_file.relative_to(project_dir)),
+                        "full_path": str(clar_file),
+                    }
+                )
 
         return contracts
 
     def _sort_by_dependencies(self, contracts: List[Dict]) -> List[Dict]:
         """Sort contracts using topological sort based on dependencies"""
-        
+
         # Build dependency graph
-        contract_map = {c['name']: c for c in contracts}
-        graph = {c['name']: set() for c in contracts}
-        
+        contract_map = {c["name"]: c for c in contracts}
+        graph = {c["name"]: set() for c in contracts}
+
         for contract in contracts:
-            name = contract['name']
+            name = contract["name"]
             # Add explicit dependencies
-            for dep in contract.get('depends_on', []):
+            for dep in contract.get("depends_on", []):
                 if dep in contract_map:
                     graph[name].add(dep)
-            
+
             # implicit trait dependencies (fallback if not explicit)
-            if 'trait' in name:
+            if "trait" in name:
                 # Traits usually have no deps or depend on other traits
-                pass 
-        
+                pass
+
         # Topological Sort (Kahn's Algorithm modified for simple DFS)
         visited = set()
         temp_mark = set()
         sorted_list = []
-        
+
         def visit(n):
             if n in temp_mark:
-                 # Circular dependency detected, break cycle by just returning
-                 # (In strict mode we'd raise error, but here we want best-effort)
-                 print(f"[WARNING] Circular dependency detected involving {n}")
-                 return
+                # Circular dependency detected, break cycle by just returning
+                # (In strict mode we'd raise error, but here we want best-effort)
+                print(f"[WARNING] Circular dependency detected involving {n}")
+                return
             if n not in visited:
                 temp_mark.add(n)
                 for m in graph.get(n, []):
@@ -782,14 +886,14 @@ class EnhancedConxianDeployer:
         for name in sorted(graph.keys()):
             if name not in visited:
                 visit(name)
-                
+
         # Result is list of names in dependency order
         # Map back to contract objects
         ordered_contracts = []
         for name in sorted_list:
             if name in contract_map:
                 ordered_contracts.append(contract_map[name])
-                
+
         return ordered_contracts
 
     def _deploy_single_contract(self, contract: Dict) -> Optional[str]:
@@ -813,11 +917,11 @@ class EnhancedConxianDeployer:
         base_gas = 1.0  # 1 STX base
         complexity_multiplier = 1.0
 
-        if 'dex' in contract['name']:
+        if "dex" in contract["name"]:
             complexity_multiplier = 2.0
-        elif 'dimensional' in contract['name']:
+        elif "dimensional" in contract["name"]:
             complexity_multiplier = 1.5
-        elif 'oracle' in contract['name']:
+        elif "oracle" in contract["name"]:
             complexity_multiplier = 1.3
 
         return base_gas * complexity_multiplier
@@ -826,15 +930,17 @@ class EnhancedConxianDeployer:
         """Save deployment results to file"""
         timestamp = datetime.now().isoformat()
         deployment_data = {
-            'timestamp': timestamp,
-            'network': self.config.get('NETWORK', 'testnet'),
-            'deployer': self.config.get('SYSTEM_ADDRESS', ''),
-            'results': results,
-            'config': {
-                'mode': self.config.get('DEPLOYMENT_MODE', 'full'),
-                'batch_size': self.config.get('BATCH_SIZE', 5),
-                'total_contracts': len(results['successful']) + len(results['failed']) + len(results['skipped'])
-            }
+            "timestamp": timestamp,
+            "network": self.config.get("NETWORK", "testnet"),
+            "deployer": self.config.get("SYSTEM_ADDRESS", ""),
+            "results": results,
+            "config": {
+                "mode": self.config.get("DEPLOYMENT_MODE", "full"),
+                "batch_size": self.config.get("BATCH_SIZE", 5),
+                "total_contracts": len(results["successful"])
+                + len(results["failed"])
+                + len(results["skipped"]),
+            },
         }
 
         # Save to deployment history
@@ -843,26 +949,44 @@ class EnhancedConxianDeployer:
 
         history = []
         if history_path.exists():
-            with open(history_path, 'r') as f:
+            with open(history_path, "r") as f:
                 history = json.load(f)
 
         history.append(deployment_data)
 
-        with open(history_path, 'w') as f:
+        with open(history_path, "w") as f:
             json.dump(history, f, indent=2)
 
         print(f"[INFO] Deployment results saved to {history_path}")
 
+
 def main():
     """Main CLI function"""
-    parser = argparse.ArgumentParser(description='Enhanced Conxian Deployment Tool')
-    parser.add_argument('--config', default='.env', help='Configuration file path')
-    parser.add_argument('--network', choices=['devnet', 'testnet', 'mainnet'], default='testnet')
-    parser.add_argument('--category', choices=['core', 'tokens', 'dex', 'dimensional', 'oracle', 'security', 'monitoring', 'self-run', 'self-managed'])
-    parser.add_argument('--dry-run', action='store_true', help='Perform dry run')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
-    parser.add_argument('--batch-size', type=int, default=5, help='Contracts per batch')
-    parser.add_argument('--parallel', action='store_true', help='Parallel deployment (experimental)')
+    parser = argparse.ArgumentParser(description="Enhanced Conxian Deployment Tool")
+    parser.add_argument("--config", default=".env", help="Configuration file path")
+    parser.add_argument(
+        "--network", choices=["devnet", "testnet", "mainnet"], default="testnet"
+    )
+    parser.add_argument(
+        "--category",
+        choices=[
+            "core",
+            "tokens",
+            "dex",
+            "dimensional",
+            "oracle",
+            "security",
+            "monitoring",
+            "self-run",
+            "self-managed",
+        ],
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Perform dry run")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument("--batch-size", type=int, default=5, help="Contracts per batch")
+    parser.add_argument(
+        "--parallel", action="store_true", help="Parallel deployment (experimental)"
+    )
 
     args = parser.parse_args()
 
@@ -873,7 +997,7 @@ def main():
 
         # Override network if specified
         if args.network:
-            config['NETWORK'] = args.network
+            config["NETWORK"] = args.network
 
         # Validate configuration
         is_valid, errors = config_manager.validate_config()
@@ -889,14 +1013,13 @@ def main():
         # Run pre-checks unless in dry-run mode
         if not args.dry_run:
             if not deployer.run_pre_checks():
-                print("\n[ERROR] Pre-deployment checks failed. Use --dry-run to continue anyway.")
+                print(
+                    "\n[ERROR] Pre-deployment checks failed. Use --dry-run to continue anyway."
+                )
                 return 1
 
         # Execute deployment
-        results = deployer.deploy_conxian(
-            category=args.category,
-            dry_run=args.dry_run
-        )
+        results = deployer.deploy_conxian(category=args.category, dry_run=args.dry_run)
 
         if args.dry_run:
             print("\n[INFO] Dry run completed successfully")
@@ -908,9 +1031,9 @@ def main():
         print(f"[ERROR] Failed: {len(results['failed'])}")
         print(f"[SKIP] Skipped: {len(results['skipped'])}")
 
-        if results['failed']:
+        if results["failed"]:
             print("\n[ERROR] Failed contracts:")
-            for failed in results['failed']:
+            for failed in results["failed"]:
                 print(f"   - {failed['name']}: {failed['error']}")
             return 1
 
@@ -930,8 +1053,10 @@ def main():
         if args.verbose:
             print(f"    Details: {e}")
             import traceback
+
             traceback.print_exc()
         return 1
+
 
 if __name__ == "__main__":
     exit(main())

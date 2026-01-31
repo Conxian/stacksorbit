@@ -6,29 +6,34 @@ from dotenv import load_dotenv, dotenv_values
 from stacksorbit_secrets import SECRET_KEYS
 
 # --- Helper function for redaction ---
-SENSITIVE_SUBSTRINGS = ['KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'MNEMONIC']
+SENSITIVE_SUBSTRINGS = ["KEY", "SECRET", "TOKEN", "PASSWORD", "MNEMONIC"]
 
-def redact_sensitive_info(config_item, parent_key=''):
+
+def redact_sensitive_info(config_item, parent_key=""):
     """
     Recursively traverses a configuration dictionary or list to redact sensitive information.
     """
     if isinstance(config_item, dict):
         # For dictionaries, iterate through items and redact if necessary.
-        return {key: redact_sensitive_info(value, key) for key, value in config_item.items()}
+        return {
+            key: redact_sensitive_info(value, key) for key, value in config_item.items()
+        }
     elif isinstance(config_item, list):
         # For lists, apply redaction to each item.
         return [redact_sensitive_info(item) for item in config_item]
     else:
         # Check if the parent key is a known secret or contains a sensitive substring.
-        is_sensitive = parent_key in SECRET_KEYS or any(sub in parent_key.upper() for sub in SENSITIVE_SUBSTRINGS)
+        is_sensitive = parent_key in SECRET_KEYS or any(
+            sub in parent_key.upper() for sub in SENSITIVE_SUBSTRINGS
+        )
         if is_sensitive and config_item is not None:
             # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
-            if isinstance(config_item, str) and config_item != '':
+            if isinstance(config_item, str) and config_item != "":
                 return "<redacted>"
             elif isinstance(config_item, (int, float)):
-                 return 0
+                return 0
             elif isinstance(config_item, bool):
-                 return False
+                return False
 
         # Return the original value if it's not sensitive.
         return config_item
@@ -46,7 +51,7 @@ class ConfigManager:
         print(f"Scanning for configuration files in: {self.base_path}")
 
         # Load .env files and environment variables
-        env_path = os.path.join(self.base_path, '.env')
+        env_path = os.path.join(self.base_path, ".env")
         file_vars = {}
 
         # Sentinel Security Enhancement:
@@ -58,7 +63,10 @@ class ConfigManager:
             # For each potential secret, check if it exists in the file with a real value.
             for key in SECRET_KEYS:
                 # A secret is considered present if the key exists and its value is not empty or a placeholder.
-                if file_vars.get(key) and file_vars[key] not in ('', 'your_private_key_here'):
+                if file_vars.get(key) and file_vars[key] not in (
+                    "",
+                    "your_private_key_here",
+                ):
                     # If a secret is found, raise an error and exit immediately.
                     error_message = (
                         f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
@@ -68,7 +76,7 @@ class ConfigManager:
                     )
                     raise ValueError(error_message)
 
-            self.config['env_loaded'] = True
+            self.config["env_loaded"] = True
             print(f"Loaded and validated .env file from: {env_path}")
         else:
             print(f"No .env file found at: {env_path}")
@@ -86,12 +94,12 @@ class ConfigManager:
         # Load .toml files (e.g., Clarinet.toml)
         for root, _, files in os.walk(self.base_path):
             for file in files:
-                if file == 'Clarinet.toml':
+                if file == "Clarinet.toml":
                     toml_path = os.path.join(root, file)
                     try:
-                        with open(toml_path, 'r', encoding='utf-8') as f:
+                        with open(toml_path, "r", encoding="utf-8") as f:
                             toml_config = toml.load(f)
-                        self.config['Clarinet.toml'] = toml_config
+                        self.config["Clarinet.toml"] = toml_config
                         print(f"Loaded Clarinet.toml from: {toml_path}")
                     except Exception as e:
                         print(f"Error loading {file} from {toml_path}: {e}")
@@ -100,11 +108,20 @@ class ConfigManager:
     def get_config(self):
         return self.config
 
+
 if __name__ == "__main__":
     # Set up argument parser
-    parser = argparse.ArgumentParser(description='StackOrbit Configuration Manager - scans target directory for config files')
-    parser.add_argument('target', nargs='?', help='Target directory to scan (default: current directory)')
-    parser.add_argument('--target-dir', help='Alternative way to specify target directory')
+    parser = argparse.ArgumentParser(
+        description="StackOrbit Configuration Manager - scans target directory for config files"
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        help="Target directory to scan (default: current directory)",
+    )
+    parser.add_argument(
+        "--target-dir", help="Alternative way to specify target directory"
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -139,13 +156,13 @@ if __name__ == "__main__":
     # Redact sensitive information before printing.
     redacted_configs = redact_sensitive_info(loaded_configs)
 
-
     print("\n--- Loaded Configurations (Redacted) ---")
+
     # Pretty print the redacted configuration using a helper function
     # to handle nested dictionaries with proper indentation.
     def pretty_print_config(config, indent=0):
         for key, value in config.items():
-            prefix = ' ' * indent
+            prefix = " " * indent
             if isinstance(value, dict):
                 print(f"{prefix}{key}:")
                 pretty_print_config(value, indent + 2)
@@ -158,16 +175,18 @@ if __name__ == "__main__":
     print(f"\n[SUMMARY] Scan Summary:")
     print(f"   Directory scanned: {target_dir}")
     print(f"   .env files found: {1 if loaded_configs.get('env_loaded') else 0}")
-    print(f"   Clarinet.toml files found: {1 if 'Clarinet.toml' in loaded_configs else 0}")
+    print(
+        f"   Clarinet.toml files found: {1 if 'Clarinet.toml' in loaded_configs else 0}"
+    )
     print(f"   Total config files: {len(loaded_configs)}")
 
-    if 'Clarinet.toml' in loaded_configs:
-        clarinet_config = loaded_configs['Clarinet.toml']
-        if 'contracts' in clarinet_config:
-            contract_count = len(clarinet_config['contracts'])
+    if "Clarinet.toml" in loaded_configs:
+        clarinet_config = loaded_configs["Clarinet.toml"]
+        if "contracts" in clarinet_config:
+            contract_count = len(clarinet_config["contracts"])
             print(f"   Contracts in Clarinet.toml: {contract_count}")
-        if 'project' in clarinet_config:
-            project_name = clarinet_config['project'].get('name', 'Unknown')
+        if "project" in clarinet_config:
+            project_name = clarinet_config["project"].get("name", "Unknown")
             print(f"   Project name: {project_name}")
 
     print(f"\n[SUCCESS] Configuration scan complete!")

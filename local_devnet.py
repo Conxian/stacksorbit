@@ -15,6 +15,7 @@ try:
 except ImportError:
     psutil = None
 
+
 class LocalDevnet:
     """A simple interface for managing a local Stacks development network"""
 
@@ -64,9 +65,9 @@ class LocalDevnet:
                 proc.terminate()
                 proc.wait()
             else:
-                os.kill(pid, 15) # SIGTERM
+                os.kill(pid, 15)  # SIGTERM
         except (ProcessLookupError, psutil.NoSuchProcess):
-             print(f"Process with pid {pid} not found.")
+            print(f"Process with pid {pid} not found.")
 
         self.pid_file.unlink()
         print("Local development network stopped.")

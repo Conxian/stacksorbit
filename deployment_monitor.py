@@ -20,13 +20,16 @@ import argparse
 try:
     import colorama
     from colorama import Fore, Style
+
     colorama.init()
     USE_COLORS = True
 except ImportError:
     USE_COLORS = False
 
+
 def cache_api_call(func):
     """Decorator to cache API calls with a timeout."""
+
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         # Create a cache key from the function name and arguments
@@ -38,9 +41,12 @@ def cache_api_call(func):
 
         with self.cache_lock:
             cached_data = self.cache.get(cache_key)
-            if cached_data and (time.time() - cached_data['timestamp']) < self.cache_expiry:
+            if (
+                cached_data
+                and (time.time() - cached_data["timestamp"]) < self.cache_expiry
+            ):
                 self.logger.debug(f"Cache hit for {cache_key}")
-                return cached_data['data']
+                return cached_data["data"]
 
         self.logger.debug(f"Cache miss for {cache_key}, fetching from API")
         # Execute the function if no valid cache entry is found
@@ -48,21 +54,19 @@ def cache_api_call(func):
 
         # Store the new result in the cache
         with self.cache_lock:
-            self.cache[cache_key] = {
-                'timestamp': time.time(),
-                'data': result
-            }
+            self.cache[cache_key] = {"timestamp": time.time(), "data": result}
             # Bolt ⚡: Save cache to disk after updating it.
             # This makes the cache persistent across CLI runs.
             self._save_cache()
         return result
+
     return wrapper
 
 
 class DeploymentMonitor:
     """Real-time deployment monitoring with Hiro API integration"""
 
-    def __init__(self, network: str = 'testnet', config: Dict = None):
+    def __init__(self, network: str = "testnet", config: Dict = None):
         self.network = network
         self.config = config or {}
         self.api_url = self._get_api_url()
@@ -86,7 +90,6 @@ class DeploymentMonitor:
         self.max_poll_interval = 60  # Cap at 60 seconds
         self.current_poll_interval = self.min_poll_interval
 
-
         # Setup logging
         self.setup_logging()
 
@@ -94,7 +97,7 @@ class DeploymentMonitor:
         """Load API cache from a file."""
         if self.cache_path.exists():
             try:
-                with open(self.cache_path, 'r') as f:
+                with open(self.cache_path, "r") as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError) as e:
                 self.logger.warning(f"Could not load cache file: {e}")
@@ -104,7 +107,7 @@ class DeploymentMonitor:
         """Save API cache to a file."""
         try:
             self.cache_path.parent.mkdir(exist_ok=True)
-            with open(self.cache_path, 'w') as f:
+            with open(self.cache_path, "w") as f:
                 json.dump(self.cache, f)
         except IOError as e:
             self.logger.error(f"Could not save cache file: {e}")
@@ -112,22 +115,22 @@ class DeploymentMonitor:
     def _get_api_url(self) -> str:
         """Get API URL for network"""
         urls = {
-            'mainnet': 'https://api.hiro.so',
-            'testnet': 'https://api.testnet.hiro.so',
-            'devnet': 'http://localhost:20443'
+            "mainnet": "https://api.hiro.so",
+            "testnet": "https://api.testnet.hiro.so",
+            "devnet": "http://localhost:20443",
         }
-        return urls.get(self.network, urls['testnet'])
+        return urls.get(self.network, urls["testnet"])
 
     def setup_logging(self):
         """Setup comprehensive logging"""
-        log_level = getattr(logging, self.config.get('LOG_LEVEL', 'INFO').upper())
+        log_level = getattr(logging, self.config.get("LOG_LEVEL", "INFO").upper())
 
         # Create logs directory
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
 
         # Setup main logger
-        self.logger = logging.getLogger('conxian_deployment')
+        self.logger = logging.getLogger("conxian_deployment")
         self.logger.setLevel(log_level)
 
         # Remove existing handlers
@@ -135,12 +138,14 @@ class DeploymentMonitor:
             self.logger.removeHandler(handler)
 
         # File handler
-        if self.config.get('SAVE_LOGS', 'true').lower() == 'true':
-            log_file = log_dir / f"deployment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        if self.config.get("SAVE_LOGS", "true").lower() == "true":
+            log_file = (
+                log_dir / f"deployment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            )
             file_handler = logging.FileHandler(log_file)
             file_handler.setLevel(log_level)
             file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
             file_handler.setFormatter(file_formatter)
             self.logger.addHandler(file_handler)
@@ -150,6 +155,7 @@ class DeploymentMonitor:
         console_handler.setLevel(log_level)
 
         if USE_COLORS:
+
             class ColoredFormatter(logging.Formatter):
                 def format(self, record):
                     message = super().format(record)
@@ -161,9 +167,9 @@ class DeploymentMonitor:
                         return f"{Fore.GREEN}{message}{Style.RESET_ALL}"
                     return message
 
-            console_formatter = ColoredFormatter('%(levelname)s: %(message)s')
+            console_formatter = ColoredFormatter("%(levelname)s: %(message)s")
         else:
-            console_formatter = logging.Formatter('%(levelname)s: %(message)s')
+            console_formatter = logging.Formatter("%(levelname)s: %(message)s")
 
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
@@ -177,7 +183,9 @@ class DeploymentMonitor:
         self.check_api_status()
 
         # Start monitoring thread
-        monitor_thread = threading.Thread(target=self._monitoring_loop, args=(callback,))
+        monitor_thread = threading.Thread(
+            target=self._monitoring_loop, args=(callback,)
+        )
         monitor_thread.daemon = True
         monitor_thread.start()
 
@@ -200,12 +208,16 @@ class DeploymentMonitor:
 
                 if found_new:
                     self.current_poll_interval = self.min_poll_interval
-                    self.logger.debug("Resetting poll interval after finding new deployment.")
+                    self.logger.debug(
+                        "Resetting poll interval after finding new deployment."
+                    )
                 else:
                     self.current_poll_interval = min(
                         self.current_poll_interval * 2, self.max_poll_interval
                     )
-                    self.logger.debug(f"Increasing poll interval to {self.current_poll_interval}s.")
+                    self.logger.debug(
+                        f"Increasing poll interval to {self.current_poll_interval}s."
+                    )
 
                 time.sleep(self.current_poll_interval)
 
@@ -215,7 +227,7 @@ class DeploymentMonitor:
 
     def _check_for_new_deployments(self) -> bool:
         """Check for new contract deployments"""
-        address = self.config.get('SYSTEM_ADDRESS')
+        address = self.config.get("SYSTEM_ADDRESS")
         if not address:
             return False
 
@@ -225,8 +237,12 @@ class DeploymentMonitor:
             if not account_info:
                 return False
 
-            nonce_raw = account_info.get('nonce', 0)
-            current_nonce = int(nonce_raw, 16) if isinstance(nonce_raw, str) and nonce_raw.startswith('0x') else int(nonce_raw)
+            nonce_raw = account_info.get("nonce", 0)
+            current_nonce = (
+                int(nonce_raw, 16)
+                if isinstance(nonce_raw, str) and nonce_raw.startswith("0x")
+                else int(nonce_raw)
+            )
 
             # Check if we have new transactions
             if current_nonce > len(self.deployment_history):
@@ -241,7 +257,7 @@ class DeploymentMonitor:
 
     def _analyze_new_deployment(self, nonce: int):
         """Analyze new deployment transaction"""
-        address = self.config.get('SYSTEM_ADDRESS')
+        address = self.config.get("SYSTEM_ADDRESS")
         if not address:
             return
 
@@ -249,10 +265,10 @@ class DeploymentMonitor:
             # This would typically involve analyzing the transaction
             # For now, we'll just log the deployment
             deployment_info = {
-                'timestamp': datetime.now().isoformat(),
-                'nonce': nonce,
-                'network': self.network,
-                'address': address
+                "timestamp": datetime.now().isoformat(),
+                "nonce": nonce,
+                "network": self.network,
+                "address": address,
             }
 
             self.deployment_history.append(deployment_info)
@@ -265,8 +281,10 @@ class DeploymentMonitor:
         """Check network health and performance"""
         try:
             api_status = self.check_api_status()
-            if api_status['status'] != 'online':
-                self.logger.warning(f"🌐 Network connectivity issue: {api_status.get('error', 'Unknown')}")
+            if api_status["status"] != "online":
+                self.logger.warning(
+                    f"🌐 Network connectivity issue: {api_status.get('error', 'Unknown')}"
+                )
 
         except Exception as e:
             self.logger.error(f"Network health check failed: {e}")
@@ -280,19 +298,21 @@ class DeploymentMonitor:
             data = response.json()
 
             status = {
-                'status': 'online',
-                'block_height': data.get('stacks_tip_height', 0),
-                'network_id': data.get('network_id', 'unknown'),
-                'server_version': data.get('server_version', 'unknown'),
-                'burn_block_height': data.get('burn_block_height', 0),
-                'tps': data.get('tps', 0)
+                "status": "online",
+                "block_height": data.get("stacks_tip_height", 0),
+                "network_id": data.get("network_id", "unknown"),
+                "server_version": data.get("server_version", "unknown"),
+                "burn_block_height": data.get("burn_block_height", 0),
+                "tps": data.get("tps", 0),
             }
-            self.logger.debug(f"API Status: {status['network_id']} @ {status['block_height']}")
+            self.logger.debug(
+                f"API Status: {status['network_id']} @ {status['block_height']}"
+            )
             return status
 
         except Exception as e:
             self.logger.error(f"API status check failed: {e}")
-            return {'status': 'offline', 'error': str(e)}
+            return {"status": "offline", "error": str(e)}
 
     @cache_api_call
     def get_account_info(self, address: str) -> Optional[Dict]:
@@ -335,18 +355,20 @@ class DeploymentMonitor:
             tx_info = self.get_transaction_info(tx_id)
 
             if tx_info:
-                status = tx_info.get('tx_status', 'unknown')
+                status = tx_info.get("tx_status", "unknown")
 
                 if status != last_status:
                     self.logger.info(f"📊 Transaction status: {status}")
                     last_status = status
                     poll_interval = 2  # Reset interval on status change
 
-                if status == 'success':
+                if status == "success":
                     self.logger.info("✅ Transaction confirmed successfully!")
                     return tx_info
-                elif status == 'error':
-                    self.logger.error(f"❌ Transaction failed: {tx_info.get('tx_result', 'Unknown error')}")
+                elif status == "error":
+                    self.logger.error(
+                        f"❌ Transaction failed: {tx_info.get('tx_result', 'Unknown error')}"
+                    )
                     return tx_info
 
             time.sleep(poll_interval)
@@ -358,7 +380,7 @@ class DeploymentMonitor:
     def wait_for_confirmation(self, tx_id: str, timeout: int = 300) -> bool:
         """Wait for transaction confirmation, returns boolean for compatibility."""
         tx_info = self.wait_for_transaction(tx_id, timeout)
-        return tx_info is not None and tx_info.get('tx_status') == 'success'
+        return tx_info is not None and tx_info.get("tx_status") == "success"
 
     def get_transaction_status(self, tx_id: str) -> Optional[Dict]:
         """Alias for get_transaction_info for compatibility."""
@@ -368,11 +390,13 @@ class DeploymentMonitor:
     def get_deployed_contracts(self, address: str) -> List[Dict]:
         """Get list of deployed contracts."""
         try:
-            response = self.session.get(f"{self.api_url}/v2/accounts/{address}/contracts")
+            response = self.session.get(
+                f"{self.api_url}/v2/accounts/{address}/contracts"
+            )
             response.raise_for_status()
             data = response.json()
 
-            contracts = data.get('contracts', [])
+            contracts = data.get("contracts", [])
             self.logger.info(f"📦 Found {len(contracts)} deployed contracts")
             return contracts
 
@@ -400,7 +424,7 @@ class DeploymentMonitor:
         """Get contract details, including source code."""
         try:
             # The contract_id is in the format 'address.name'
-            address, name = contract_id.split('.')
+            address, name = contract_id.split(".")
             url = f"{self.api_url}/v2/contracts/interface/{address}/{name}"
             response = self.session.get(url)
             response.raise_for_status()
@@ -416,36 +440,38 @@ class DeploymentMonitor:
         self.logger.info("🔍 Verifying deployment...")
 
         deployed_contracts = self.get_deployed_contracts(address)
-        deployed_names = [c.get('contract_id', '').split('.')[-1] for c in deployed_contracts]
+        deployed_names = [
+            c.get("contract_id", "").split(".")[-1] for c in deployed_contracts
+        ]
 
         verification = {
-            'timestamp': datetime.now().isoformat(),
-            'network': self.network,
-            'address': address,
-            'expected': expected_contracts,
-            'deployed': deployed_names,
-            'verified': [],
-            'missing': [],
-            'extra': []
+            "timestamp": datetime.now().isoformat(),
+            "network": self.network,
+            "address": address,
+            "expected": expected_contracts,
+            "deployed": deployed_names,
+            "verified": [],
+            "missing": [],
+            "extra": [],
         }
 
         # Check expected contracts
         for contract in expected_contracts:
             if contract in deployed_names:
-                verification['verified'].append(contract)
+                verification["verified"].append(contract)
                 self.logger.info(f"✅ {contract}")
             else:
-                verification['missing'].append(contract)
+                verification["missing"].append(contract)
                 self.logger.error(f"❌ {contract} (missing)")
 
         # Check for unexpected contracts
         for deployed in deployed_names:
             if deployed not in expected_contracts:
-                verification['extra'].append(deployed)
+                verification["extra"].append(deployed)
                 self.logger.warning(f"⚠️  {deployed} (unexpected)")
 
         # Summary
-        verification['success'] = len(verification['missing']) == 0
+        verification["success"] = len(verification["missing"]) == 0
 
         self.logger.info("📊 Verification Summary:")
         self.logger.info(f"   Expected: {len(verification['expected'])}")
@@ -459,7 +485,7 @@ class DeploymentMonitor:
         """Get current monitoring status"""
         api_status = self.check_api_status()
 
-        address = self.config.get('SYSTEM_ADDRESS')
+        address = self.config.get("SYSTEM_ADDRESS")
         account_info = None
         deployed_contracts = []
 
@@ -468,12 +494,12 @@ class DeploymentMonitor:
             deployed_contracts = self.get_deployed_contracts(address)
 
         return {
-            'monitoring_active': self.is_monitoring,
-            'api_status': api_status,
-            'account_info': account_info,
-            'deployed_contracts': len(deployed_contracts),
-            'deployment_history': len(self.deployment_history),
-            'timestamp': datetime.now().isoformat()
+            "monitoring_active": self.is_monitoring,
+            "api_status": api_status,
+            "account_info": account_info,
+            "deployed_contracts": len(deployed_contracts),
+            "deployment_history": len(self.deployment_history),
+            "timestamp": datetime.now().isoformat(),
         }
 
     def stop_monitoring(self):
@@ -487,16 +513,16 @@ class DeploymentMonitor:
     def save_monitoring_summary(self):
         """Save monitoring summary to file"""
         summary = {
-            'end_time': datetime.now().isoformat(),
-            'network': self.network,
-            'total_deployments': len(self.deployment_history),
-            'contracts_deployed': len(self.contracts_deployed),
-            'failed_contracts': len(self.failed_contracts),
-            'monitoring_duration': 'unknown'  # Would need start time tracking
+            "end_time": datetime.now().isoformat(),
+            "network": self.network,
+            "total_deployments": len(self.deployment_history),
+            "contracts_deployed": len(self.contracts_deployed),
+            "failed_contracts": len(self.failed_contracts),
+            "monitoring_duration": "unknown",  # Would need start time tracking
         }
 
         summary_path = Path("logs") / "monitoring_summary.json"
-        with open(summary_path, 'w') as f:
+        with open(summary_path, "w") as f:
             json.dump(summary, f, indent=2)
 
         self.logger.info(f"💾 Monitoring summary saved to {summary_path}")
@@ -512,25 +538,42 @@ class DeploymentMonitor:
         print(f"   Estimated: {total_estimated_cost:,.2f} STX (for ~20 contracts)")
 
         if available_stx < 1.0:
-            print(f"   {Fore.RED}⚠️  WARNING: Insufficient funds for deployment!{Style.RESET_ALL}")
-            print(f"   {Fore.YELLOW}💡 Add STX to your wallet before deploying{Style.RESET_ALL}")
+            print(
+                f"   {Fore.RED}⚠️  WARNING: Insufficient funds for deployment!{Style.RESET_ALL}"
+            )
+            print(
+                f"   {Fore.YELLOW}💡 Add STX to your wallet before deploying{Style.RESET_ALL}"
+            )
         elif available_stx < total_estimated_cost:
-            print(f"   {Fore.YELLOW}⚠️  WARNING: Limited funds for full deployment{Style.RESET_ALL}")
-            print(f"   {Fore.YELLOW}💡 Consider adding more STX or deploying fewer contracts{Style.RESET_ALL}")
+            print(
+                f"   {Fore.YELLOW}⚠️  WARNING: Limited funds for full deployment{Style.RESET_ALL}"
+            )
+            print(
+                f"   {Fore.YELLOW}💡 Consider adding more STX or deploying fewer contracts{Style.RESET_ALL}"
+            )
         else:
             print(f"   {Fore.GREEN}✅ Sufficient funds for deployment{Style.RESET_ALL}")
             print(f"   {Fore.GREEN}💡 Ready to deploy!{Style.RESET_ALL}")
 
+
 def main():
     """Main monitoring CLI function"""
-    parser = argparse.ArgumentParser(description='Conxian Deployment Monitor')
-    parser.add_argument('--config', default='.env', help='Configuration file path')
-    parser.add_argument('--network', choices=['devnet', 'testnet', 'mainnet'], default='testnet')
-    parser.add_argument('--address', help='Address to monitor')
-    parser.add_argument('--verify', nargs='*', help='Contracts to verify (space-separated)')
-    parser.add_argument('--follow', action='store_true', help='Follow deployment in real-time')
-    parser.add_argument('--timeout', type=int, default=300, help='Monitoring timeout in seconds')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+    parser = argparse.ArgumentParser(description="Conxian Deployment Monitor")
+    parser.add_argument("--config", default=".env", help="Configuration file path")
+    parser.add_argument(
+        "--network", choices=["devnet", "testnet", "mainnet"], default="testnet"
+    )
+    parser.add_argument("--address", help="Address to monitor")
+    parser.add_argument(
+        "--verify", nargs="*", help="Contracts to verify (space-separated)"
+    )
+    parser.add_argument(
+        "--follow", action="store_true", help="Follow deployment in real-time"
+    )
+    parser.add_argument(
+        "--timeout", type=int, default=300, help="Monitoring timeout in seconds"
+    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
 
     args = parser.parse_args()
 
@@ -538,32 +581,31 @@ def main():
         # Load configuration
         config = {}
         if Path(args.config).exists():
-            with open(args.config, 'r') as f:
+            with open(args.config, "r") as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, value = line.split('=', 1)
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
                         config[key.strip()] = value.strip().strip('"')
 
         # Override with command line arguments
         if args.network:
-            config['NETWORK'] = args.network
+            config["NETWORK"] = args.network
         if args.address:
-            config['SYSTEM_ADDRESS'] = args.address
+            config["SYSTEM_ADDRESS"] = args.address
 
         # Initialize monitor
         monitor = DeploymentMonitor(
-            network=config.get('NETWORK', 'testnet'),
-            config=config
+            network=config.get("NETWORK", "testnet"), config=config
         )
 
         if args.verbose:
-            config['LOG_LEVEL'] = 'DEBUG'
+            config["LOG_LEVEL"] = "DEBUG"
 
         # Run specific monitoring tasks
         if args.verify:
             # Verification mode
-            address = config.get('SYSTEM_ADDRESS')
+            address = config.get("SYSTEM_ADDRESS")
             if not address:
                 print("❌ No address specified for verification")
                 return 1
@@ -571,7 +613,7 @@ def main():
             print("🔍 Running deployment verification...")
             verification = monitor.verify_deployment(args.verify, address)
 
-            if verification['success']:
+            if verification["success"]:
                 print("✅ All expected contracts are deployed")
                 return 0
             else:
@@ -605,31 +647,52 @@ def main():
             print(f"   Network: {api_status.get('network_id', 'unknown')}")
             print(f"   Block Height: {api_status.get('block_height', 0)}")
 
-            address = config.get('SYSTEM_ADDRESS')
+            address = config.get("SYSTEM_ADDRESS")
             if address:
                 print(f"\n👤 Account Status:")
                 account_info = monitor.get_account_info(address)
                 if account_info:
-                    balance_raw = account_info.get('balance', 0)
-                    balance_microstx = int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)
+                    balance_raw = account_info.get("balance", 0)
+                    balance_microstx = (
+                        int(balance_raw, 16)
+                        if isinstance(balance_raw, str) and balance_raw.startswith("0x")
+                        else int(balance_raw)
+                    )
                     balance_stx = balance_microstx / 1000000
-                    
-                    locked_raw = account_info.get('locked', 0)
-                    locked_balance = (int(locked_raw, 16) if isinstance(locked_raw, str) and locked_raw.startswith('0x') else int(locked_raw)) / 1000000
+
+                    locked_raw = account_info.get("locked", 0)
+                    locked_balance = (
+                        int(locked_raw, 16)
+                        if isinstance(locked_raw, str) and locked_raw.startswith("0x")
+                        else int(locked_raw)
+                    ) / 1000000
                     available_stx = balance_stx - locked_balance
-                    nonce_raw = account_info.get('nonce', 0)
-                    nonce = int(nonce_raw, 16) if isinstance(nonce_raw, str) and nonce_raw.startswith('0x') else int(nonce_raw)
+                    nonce_raw = account_info.get("nonce", 0)
+                    nonce = (
+                        int(nonce_raw, 16)
+                        if isinstance(nonce_raw, str) and nonce_raw.startswith("0x")
+                        else int(nonce_raw)
+                    )
 
                     # Helper function to get recent transactions
                     def get_recent_transactions(address, limit=10):
-                        recent_transactions = monitor.get_recent_transactions(address, limit)
+                        recent_transactions = monitor.get_recent_transactions(
+                            address, limit
+                        )
                         return recent_transactions
-                    print(f"   Balance: {Fore.GREEN}{balance_stx:,.6f} STX{Style.RESET_ALL}")
+
+                    print(
+                        f"   Balance: {Fore.GREEN}{balance_stx:,.6f} STX{Style.RESET_ALL}"
+                    )
 
                     if locked_balance > 0:
-                        print(f"   Locked: {Fore.YELLOW}{locked_balance:,.6f} STX{Style.RESET_ALL}")
+                        print(
+                            f"   Locked: {Fore.YELLOW}{locked_balance:,.6f} STX{Style.RESET_ALL}"
+                        )
 
-                    print(f"   Available: {Fore.BLUE}{available_stx:,.6f} STX{Style.RESET_ALL}")
+                    print(
+                        f"   Available: {Fore.BLUE}{available_stx:,.6f} STX{Style.RESET_ALL}"
+                    )
                     print(f"   Nonce: {nonce}")
 
                     # Show deployment cost warnings
@@ -649,8 +712,10 @@ def main():
         print(f"❌ Monitoring failed: {e}")
         if args.verbose:
             import traceback
+
             traceback.print_exc()
         return 1
+
 
 if __name__ == "__main__":
     exit(main())
