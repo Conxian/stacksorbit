@@ -13,13 +13,11 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
-import psutil
 
 # Import all enhanced modules
 from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
 from deployment_monitor import DeploymentMonitor
 from deployment_verifier import DeploymentVerifier
-from stacksorbit_gui import StacksOrbitGUI
 from local_devnet import LocalDevnet
 from stacksorbit_secrets import SECRET_KEYS
 
@@ -627,6 +625,9 @@ class SetupWizard:
 
     def _check_disk_space(self) -> bool:
         """Check if there is enough disk space to install stacks-core"""
+        # Bolt ⚡: Lazy load psutil as it's only needed for disk space checks.
+        import psutil
+
         required_space = 5 * 1024 * 1024 * 1024  # 5GB
         free_space = psutil.disk_usage('/').free
         if free_space < required_space:
@@ -651,11 +652,19 @@ class UltimateStacksOrbit:
         # Load deployment templates
         self.templates = self._load_templates()
 
-        # Bolt ⚡: Instantiate a shared monitor to enable caching across commands.
-        # This avoids redundant API calls when running multiple commands in a session.
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
-        self.monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
+        # Bolt ⚡: DeploymentMonitor is now lazily initialized via the monitor property.
+        self._monitor = None
+
+    @property
+    def monitor(self) -> DeploymentMonitor:
+        """Lazily initialize and return the shared DeploymentMonitor."""
+        if self._monitor is None:
+            # Bolt ⚡: Instantiate a shared monitor to enable caching across commands.
+            # Lazy initialization avoids the overhead for commands that don't need it.
+            config_manager = EnhancedConfigManager(self.config_path)
+            config = config_manager.load_config()
+            self._monitor = DeploymentMonitor(config.get('NETWORK', 'testnet'), config)
+        return self._monitor
 
     def _load_templates(self) -> Dict:
         """Load deployment templates"""
@@ -829,7 +838,7 @@ class UltimateStacksOrbit:
                 print(f"   Nonce: {account_info.get('nonce', 0)}")
 
             print(f"\n📦 Deployed Contracts:")
-            contracts = monitor.get_deployed_contracts(address)
+            contracts = self.monitor.get_deployed_contracts(address)
             print(f"   Count: {len(contracts)}")
 
             if contracts:
@@ -841,15 +850,15 @@ class UltimateStacksOrbit:
             print(f"\n🔄 Starting real-time monitoring...")
             print("📝 Press Ctrl+C to stop")
 
-            monitor_thread = monitor.start_monitoring()
+            monitor_thread = self.monitor.start_monitoring()
 
             try:
-                while monitor.is_monitoring:
+                while self.monitor.is_monitoring:
                     time.sleep(1)
             except KeyboardInterrupt:
                 pass
 
-            monitor.stop_monitoring()
+            self.monitor.stop_monitoring()
             print("✅ Monitoring stopped")
 
         return 0
@@ -896,6 +905,10 @@ class UltimateStacksOrbit:
     def run_enhanced_dashboard(self, options: Dict) -> int:
         """Run enhanced dashboard"""
         print(f"{Fore.CYAN}📊 Launching StacksOrbit GUI...{Style.RESET_ALL}")
+
+        # Bolt ⚡: Lazy load StacksOrbitGUI to speed up CLI startup time.
+        # This module imports heavy libraries like textual and rich.
+        from stacksorbit_gui import StacksOrbitGUI
 
         app = StacksOrbitGUI()
         app.run()
