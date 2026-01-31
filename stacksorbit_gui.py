@@ -4,35 +4,39 @@ StacksOrbit GUI - A modern, feature-rich dashboard for Stacks blockchain deploym
 """
 
 import asyncio
-import json
-import time
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-from datetime import datetime
 import subprocess
 import threading
+from typing import Dict, List
 
 try:
     from textual.app import App, ComposeResult
     from textual.widgets import (
-        Header, Footer, DataTable, Static, Button, ProgressBar,
-        Tabs, TabPane, TabbedContent, Label, Input, TextArea,
-        Log, Sparkline, Switch, Select, LoadingIndicator, Markdown
+        Header,
+        Footer,
+        DataTable,
+        Static,
+        Button,
+        TabPane,
+        TabbedContent,
+        Label,
+        Input,
+        Log,
+        Switch,
+        LoadingIndicator,
+        Markdown,
     )
     from textual.containers import Container, Horizontal, Vertical, VerticalScroll, Grid
     from textual.reactive import reactive
     from textual.binding import Binding
     from textual import on
-    from rich.text import Text
-    import psutil
+
     GUI_AVAILABLE = True
 except ImportError as e:
     print(f"Import error: {e}")
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
-from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
-from deployment_verifier import DeploymentVerifier
+
 
 class StacksOrbitGUI(App):
     """A Textual dashboard for StacksOrbit."""
@@ -53,7 +57,7 @@ class StacksOrbitGUI(App):
         self.config_path = config_path
         self.config = self._load_config()
         self.network = self.config.get("NETWORK", "testnet")
-        self.address = self.config.get('SYSTEM_ADDRESS', 'Not configured')
+        self.address = self.config.get("SYSTEM_ADDRESS", "Not configured")
         self.monitor = DeploymentMonitor(self.network, self.config)
         self._manual_refresh_in_progress = False
 
@@ -61,11 +65,11 @@ class StacksOrbitGUI(App):
         """Load configuration from file"""
         config = {}
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
-                    if '=' in line and not line.startswith('#'):
-                        key, value = line.split('=', 1)
+                    if "=" in line and not line.startswith("#"):
+                        key, value = line.split("=", 1)
                         config[key.strip()] = value.strip().strip('"').strip("'")
         except FileNotFoundError:
             # app.notify might not be available yet in __init__
@@ -82,13 +86,35 @@ class StacksOrbitGUI(App):
             with TabPane("📊 Dashboard", id="overview"):
                 yield LoadingIndicator()
                 with Grid(id="metrics-grid"):
-                    yield Container(Label("Network Status"), Static("N/A", id="network-status"), classes="metric-card")
-                    yield Container(Label("Contracts Deployed"), Static("0", id="contract-count"), classes="metric-card")
-                    yield Container(Label("Balance"), Static("0 STX", id="balance"), classes="metric-card")
-                    yield Container(Label("Nonce"), Static("0", id="nonce"), classes="metric-card")
-                    yield Container(Label("Block Height"), Static("0", id="block-height"), classes="metric-card")
+                    yield Container(
+                        Label("Network Status"),
+                        Static("N/A", id="network-status"),
+                        classes="metric-card",
+                    )
+                    yield Container(
+                        Label("Contracts Deployed"),
+                        Static("0", id="contract-count"),
+                        classes="metric-card",
+                    )
+                    yield Container(
+                        Label("Balance"),
+                        Static("0 STX", id="balance"),
+                        classes="metric-card",
+                    )
+                    yield Container(
+                        Label("Nonce"), Static("0", id="nonce"), classes="metric-card"
+                    )
+                    yield Container(
+                        Label("Block Height"),
+                        Static("0", id="block-height"),
+                        classes="metric-card",
+                    )
                 with Horizontal(id="overview-buttons"):
-                    yield Button("🔄 Refresh", id="refresh-btn", tooltip="Refresh all dashboard data")
+                    yield Button(
+                        "🔄 Refresh",
+                        id="refresh-btn",
+                        tooltip="Refresh all dashboard data",
+                    )
 
             with TabPane("📄 Contracts", id="contracts"):
                 with Horizontal():
@@ -96,8 +122,11 @@ class StacksOrbitGUI(App):
                     yield Vertical(
                         Label("Contract Details", classes="header"),
                         LoadingIndicator(),
-                        Markdown("Select a contract from the table to view its source code.", id="contract-details"),
-                        classes="details-pane"
+                        Markdown(
+                            "Select a contract from the table to view its source code.",
+                            id="contract-details",
+                        ),
+                        classes="details-pane",
                     )
 
             with TabPane("📜 Transactions", id="transactions"):
@@ -108,19 +137,45 @@ class StacksOrbitGUI(App):
                     yield LoadingIndicator()
                     yield Log(id="deployment-log")
                     with Horizontal():
-                        yield Button("🔍 Pre-check", id="precheck-btn", variant="primary", tooltip="Run diagnostic checks before deployment")
-                        yield Button("🚀 Deploy", id="start-deploy-btn", variant="primary", tooltip="Start the deployment process")
+                        yield Button(
+                            "🔍 Pre-check",
+                            id="precheck-btn",
+                            variant="primary",
+                            tooltip="Run diagnostic checks before deployment",
+                        )
+                        yield Button(
+                            "🚀 Deploy",
+                            id="start-deploy-btn",
+                            variant="primary",
+                            tooltip="Start the deployment process",
+                        )
 
             with TabPane("⚙️ Settings", id="settings"):
                 with VerticalScroll():
                     yield Label("Private Key:")
                     with Horizontal(classes="input-group"):
-                        yield Input(placeholder="Your private key", value=self.config.get("DEPLOYER_PRIVKEY", ""), id="privkey-input", password=True)
+                        yield Input(
+                            placeholder="Your private key",
+                            value=self.config.get("DEPLOYER_PRIVKEY", ""),
+                            id="privkey-input",
+                            password=True,
+                        )
                         yield Label("Show", classes="switch-label")
-                        yield Switch(id="show-privkey", tooltip="Toggle private key visibility")
+                        yield Switch(
+                            id="show-privkey", tooltip="Toggle private key visibility"
+                        )
                     yield Label("Stacks Address:")
-                    yield Input(placeholder="Your STX address", value=self.config.get("SYSTEM_ADDRESS", ""), id="address-input")
-                    yield Button("💾 Save", id="save-config-btn", variant="primary", tooltip="Save settings to .env file")
+                    yield Input(
+                        placeholder="Your STX address",
+                        value=self.config.get("SYSTEM_ADDRESS", ""),
+                        id="address-input",
+                    )
+                    yield Button(
+                        "💾 Save",
+                        id="save-config-btn",
+                        variant="primary",
+                        tooltip="Save settings to .env file",
+                    )
 
         yield Footer()
 
@@ -157,13 +212,25 @@ class StacksOrbitGUI(App):
             # by fetching all data in parallel instead of one by one.
             api_status_task = asyncio.to_thread(self.monitor.check_api_status)
 
-            if self.address != 'Not configured':
-                account_info_task = asyncio.to_thread(self.monitor.get_account_info, self.address)
-                contracts_task = asyncio.to_thread(self.monitor.get_deployed_contracts, self.address)
-                transactions_task = asyncio.to_thread(self.monitor.get_recent_transactions, self.address)
+            if self.address != "Not configured":
+                account_info_task = asyncio.to_thread(
+                    self.monitor.get_account_info, self.address
+                )
+                contracts_task = asyncio.to_thread(
+                    self.monitor.get_deployed_contracts, self.address
+                )
+                transactions_task = asyncio.to_thread(
+                    self.monitor.get_recent_transactions, self.address
+                )
 
-                api_status, account_info, deployed_contracts, transactions = await asyncio.gather(
-                    api_status_task, account_info_task, contracts_task, transactions_task, return_exceptions=True
+                api_status, account_info, deployed_contracts, transactions = (
+                    await asyncio.gather(
+                        api_status_task,
+                        account_info_task,
+                        contracts_task,
+                        transactions_task,
+                        return_exceptions=True,
+                    )
                 )
             else:
                 # If no address, only fetch API status and provide sensible defaults for other data.
@@ -174,18 +241,26 @@ class StacksOrbitGUI(App):
 
             # Process API status result
             if isinstance(api_status, Exception):
-                raise api_status # Propagate exception to be caught by the main handler
-            self.query_one("#network-status").update(api_status.get("status", "unknown").upper())
-            self.query_one("#block-height").update(str(api_status.get('block_height', 0)))
+                raise api_status  # Propagate exception to be caught by the main handler
+            self.query_one("#network-status").update(
+                api_status.get("status", "unknown").upper()
+            )
+            self.query_one("#block-height").update(
+                str(api_status.get("block_height", 0))
+            )
 
             # Process account info result
             if isinstance(account_info, Exception):
                 raise account_info
             if account_info:
-                balance_raw = account_info.get('balance', 0)
-                balance_stx = (int(balance_raw, 16) if isinstance(balance_raw, str) and balance_raw.startswith('0x') else int(balance_raw)) / 1_000_000
+                balance_raw = account_info.get("balance", 0)
+                balance_stx = (
+                    int(balance_raw, 16)
+                    if isinstance(balance_raw, str) and balance_raw.startswith("0x")
+                    else int(balance_raw)
+                ) / 1_000_000
                 self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
-                self.query_one("#nonce").update(str(account_info.get('nonce', 0)))
+                self.query_one("#nonce").update(str(account_info.get("nonce", 0)))
             else:
                 self.query_one("#balance").update("0 STX")
                 self.query_one("#nonce").update("0")
@@ -196,8 +271,10 @@ class StacksOrbitGUI(App):
             self.query_one("#contract-count").update(str(len(deployed_contracts)))
             if deployed_contracts:
                 for contract in deployed_contracts:
-                    address, name = contract.get('contract_id', '...').split('.')
-                    contracts_table.add_row("✅", name, address, key=contract.get('contract_id'))
+                    address, name = contract.get("contract_id", "...").split(".")
+                    contracts_table.add_row(
+                        "✅", name, address, key=contract.get("contract_id")
+                    )
 
             # Process transactions result
             if isinstance(transactions, Exception):
@@ -205,10 +282,10 @@ class StacksOrbitGUI(App):
             if transactions:
                 for tx in transactions:
                     transactions_table.add_row(
-                        tx.get('tx_id', '')[:10] + "...",
-                        tx.get('tx_type', ''),
-                        tx.get('tx_status', ''),
-                        str(tx.get('block_height', ''))
+                        tx.get("tx_id", "")[:10] + "...",
+                        tx.get("tx_type", ""),
+                        tx.get("tx_status", ""),
+                        str(tx.get("block_height", "")),
                     )
 
         except Exception as e:
@@ -238,7 +315,9 @@ class StacksOrbitGUI(App):
         try:
             details = await self.monitor.get_contract_details(contract_id)
             if details:
-                md.update(f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```")
+                md.update(
+                    f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```"
+                )
             else:
                 md.update("Could not retrieve contract details.")
         finally:
@@ -276,7 +355,9 @@ class StacksOrbitGUI(App):
             self.query("#overview LoadingIndicator").first().display = False
             self._manual_refresh_in_progress = False
 
-    def run_command(self, command: List[str], button: Button, in_progress_label: str) -> None:
+    def run_command(
+        self, command: List[str], button: Button, in_progress_label: str
+    ) -> None:
         """Run a CLI command in a separate thread, with button feedback."""
         log = self.query_one("#deployment-log", Log)
         log.clear()
@@ -300,11 +381,14 @@ class StacksOrbitGUI(App):
                     stderr=subprocess.STDOUT,
                     text=True,
                 )
-                for line in iter(process.stdout.readline, ''):
+                for line in iter(process.stdout.readline, ""):
                     self.call_from_thread(log.write, line.strip())
                 process.stdout.close()
                 return_code = process.wait()
-                self.call_from_thread(log.write, f"\n[bold]{'Success' if return_code == 0 else 'Failed'}[/bold]")
+                self.call_from_thread(
+                    log.write,
+                    f"\n[bold]{'Success' if return_code == 0 else 'Failed'}[/bold]",
+                )
             finally:
                 self.call_from_thread(setattr, button, "label", original_label)
                 self.call_from_thread(setattr, precheck_btn, "disabled", False)
@@ -320,7 +404,7 @@ class StacksOrbitGUI(App):
         self.run_command(
             ["python", "stacksorbit_cli.py", "diagnose"],
             event.button,
-            in_progress_label="Checking..."
+            in_progress_label="Checking...",
         )
 
     @on(Button.Pressed, "#start-deploy-btn")
@@ -329,7 +413,7 @@ class StacksOrbitGUI(App):
         self.run_command(
             ["python", "stacksorbit_cli.py", "deploy"],
             event.button,
-            in_progress_label="Deploying..."
+            in_progress_label="Deploying...",
         )
 
     @on(Switch.Changed, "#show-privkey")
@@ -351,8 +435,8 @@ class StacksOrbitGUI(App):
             privkey = self.query_one("#privkey-input", Input).value
             address = self.query_one("#address-input", Input).value
             config = self._load_config()
-            config['DEPLOYER_PRIVKEY'] = privkey
-            config['SYSTEM_ADDRESS'] = address
+            config["DEPLOYER_PRIVKEY"] = privkey
+            config["SYSTEM_ADDRESS"] = address
             with open(self.config_path, "w") as f:
                 for key, value in config.items():
                     f.write(f"{key}={value}\n")
@@ -374,13 +458,17 @@ class StacksOrbitGUI(App):
             save_btn.label = original_label
             save_btn.remove_class("success")
 
+
 def main():
     if not GUI_AVAILABLE:
-        print("GUI dependencies not available. Install with: pip install textual rich psutil")
+        print(
+            "GUI dependencies not available. Install with: pip install textual rich psutil"
+        )
         return
 
     app = StacksOrbitGUI()
     app.run()
+
 
 if __name__ == "__main__":
     main()
