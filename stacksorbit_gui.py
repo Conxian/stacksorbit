@@ -36,6 +36,7 @@ except ImportError as e:
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
+from stacksorbit_secrets import SECRET_KEYS
 
 
 class StacksOrbitGUI(App):
@@ -426,30 +427,55 @@ class StacksOrbitGUI(App):
         """Handle save config button press with visual feedback."""
         save_btn = self.query_one("#save-config-btn", Button)
         original_label = save_btn.label
+
+        # 🛡️ Sentinel: Collect values in the main thread for thread safety.
+        # We also identify if the user is attempting to save a real secret.
+        privkey_val = self.query_one("#privkey-input", Input).value
+        address_val = self.query_one("#address-input", Input).value
+
+        # Check if the private key is a real secret (not empty or placeholder)
+        is_secret_provided = (
+            privkey_val.strip() != ""
+            and privkey_val.strip().lower() != "your_private_key_here"
+        )
+
         save_btn.disabled = True
         save_btn.label = "Saving..."
 
         # 🎨 Palette: This function handles the file I/O.
         # By running it in a thread, we prevent the UI from freezing.
-        def _save_config_io():
-            privkey = self.query_one("#privkey-input", Input).value
-            address = self.query_one("#address-input", Input).value
+        def _save_config_io(p_address: str):
             config = self._load_config()
-            config["DEPLOYER_PRIVKEY"] = privkey
-            config["SYSTEM_ADDRESS"] = address
+
+            # Update non-sensitive configuration
+            config["SYSTEM_ADDRESS"] = p_address
+
             with open(self.config_path, "w") as f:
                 for key, value in config.items():
-                    f.write(f"{key}={value}\n")
+                    # 🛡️ Sentinel: Security Enforcer.
+                    # We explicitly skip any known secrets before saving to disk.
+                    # This ensures that secrets are only handled in-memory or via environment variables.
+                    if key not in SECRET_KEYS:
+                        f.write(f"{key}={value}\n")
 
         try:
-            await asyncio.to_thread(_save_config_io)
-            self.notify("Configuration saved.", severity="success")
+            # 🛡️ Sentinel: Only save non-sensitive settings to the file.
+            await asyncio.to_thread(_save_config_io, address_val)
+
+            if is_secret_provided:
+                # 🛡️ Sentinel: Inform the user that secrets are not saved to disk.
+                self.notify(
+                    "🛡️ Security: Configuration saved (excluding private keys). Use environment variables for secrets.",
+                    severity="warning",
+                    timeout=10,
+                )
+            else:
+                self.notify("Configuration saved.", severity="success")
 
             # 🎨 Palette: Provide clear, temporary success feedback on the button.
-            # This makes the result of the action immediately obvious to the user.
             save_btn.label = "✅ Saved!"
             save_btn.add_class("success")
-            await asyncio.sleep(2)  # Show success state for 2 seconds
+            await asyncio.sleep(2)
 
         except Exception as e:
             self.notify(f"Error saving config: {e}", severity="error")
