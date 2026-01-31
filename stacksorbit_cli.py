@@ -838,7 +838,7 @@ class UltimateStacksOrbit:
                 print(f"   Nonce: {account_info.get('nonce', 0)}")
 
             print(f"\n📦 Deployed Contracts:")
-            contracts = monitor.get_deployed_contracts(address)
+            contracts = self.monitor.get_deployed_contracts(address)
             print(f"   Count: {len(contracts)}")
 
             if contracts:
@@ -850,15 +850,15 @@ class UltimateStacksOrbit:
             print(f"\n🔄 Starting real-time monitoring...")
             print("📝 Press Ctrl+C to stop")
 
-            monitor_thread = monitor.start_monitoring()
+            monitor_thread = self.monitor.start_monitoring()
 
             try:
-                while monitor.is_monitoring:
+                while self.monitor.is_monitoring:
                     time.sleep(1)
             except KeyboardInterrupt:
                 pass
 
-            monitor.stop_monitoring()
+            self.monitor.stop_monitoring()
             print("✅ Monitoring stopped")
 
         return 0
