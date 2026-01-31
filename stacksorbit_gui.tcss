@@ -84,6 +84,11 @@ Button:hover {
     background: #303032;
 }
 
+Button:focus {
+    border: round #007acc;
+    background: #303032;
+}
+
 Button.primary {
     background: #007acc;
     color: white;
@@ -137,6 +142,11 @@ Input:focus {
 
 .input-group Switch {
     width: auto;
+}
+
+.switch-label {
+    margin: 1 1 0 2;
+    color: #a0a0a0;
 }
 
 LoadingIndicator {

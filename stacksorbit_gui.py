@@ -88,7 +88,7 @@ class StacksOrbitGUI(App):
                     yield Container(Label("Nonce"), Static("0", id="nonce"), classes="metric-card")
                     yield Container(Label("Block Height"), Static("0", id="block-height"), classes="metric-card")
                 with Horizontal(id="overview-buttons"):
-                    yield Button("🔄 Refresh", id="refresh-btn")
+                    yield Button("🔄 Refresh", id="refresh-btn", tooltip="Refresh all dashboard data")
 
             with TabPane("📄 Contracts", id="contracts"):
                 with Horizontal():
@@ -96,7 +96,7 @@ class StacksOrbitGUI(App):
                     yield Vertical(
                         Label("Contract Details", classes="header"),
                         LoadingIndicator(),
-                        Markdown(id="contract-details"),
+                        Markdown("Select a contract from the table to view its source code.", id="contract-details"),
                         classes="details-pane"
                     )
 
@@ -108,18 +108,19 @@ class StacksOrbitGUI(App):
                     yield LoadingIndicator()
                     yield Log(id="deployment-log")
                     with Horizontal():
-                        yield Button("🔍 Pre-check", id="precheck-btn", variant="primary")
-                        yield Button("🚀 Deploy", id="start-deploy-btn", variant="primary")
+                        yield Button("🔍 Pre-check", id="precheck-btn", variant="primary", tooltip="Run diagnostic checks before deployment")
+                        yield Button("🚀 Deploy", id="start-deploy-btn", variant="primary", tooltip="Start the deployment process")
 
             with TabPane("⚙️ Settings", id="settings"):
                 with VerticalScroll():
                     yield Label("Private Key:")
                     with Horizontal(classes="input-group"):
                         yield Input(placeholder="Your private key", value=self.config.get("DEPLOYER_PRIVKEY", ""), id="privkey-input", password=True)
-                        yield Switch(id="show-privkey")
+                        yield Label("Show", classes="switch-label")
+                        yield Switch(id="show-privkey", tooltip="Toggle private key visibility")
                     yield Label("Stacks Address:")
                     yield Input(placeholder="Your STX address", value=self.config.get("SYSTEM_ADDRESS", ""), id="address-input")
-                    yield Button("💾 Save", id="save-config-btn", variant="primary")
+                    yield Button("💾 Save", id="save-config-btn", variant="primary", tooltip="Save settings to .env file")
 
         yield Footer()
 
