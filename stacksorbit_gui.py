@@ -150,6 +150,11 @@ class StacksOrbitGUI(App):
                             variant="primary",
                             tooltip="Start the deployment process",
                         )
+                        yield Button(
+                            "🗑️ Clear",
+                            id="clear-log-btn",
+                            tooltip="Clear the deployment log",
+                        )
 
             with TabPane("⚙️ Settings", id="settings"):
                 with VerticalScroll():
@@ -416,6 +421,11 @@ class StacksOrbitGUI(App):
             event.button,
             in_progress_label="Deploying...",
         )
+
+    @on(Button.Pressed, "#clear-log-btn")
+    def on_clear_log_pressed(self) -> None:
+        """Handle clear log button press."""
+        self.query_one("#deployment-log", Log).clear()
 
     @on(Switch.Changed, "#show-privkey")
     def on_show_privkey_changed(self, event: Switch.Changed) -> None:
