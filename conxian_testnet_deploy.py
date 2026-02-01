@@ -489,11 +489,14 @@ Examples:
         print("\n🛑 Operation cancelled by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        # 🛡️ Sentinel: Prevent sensitive information disclosure.
         if args.verbose:
+            print(f"\n❌ Error: {e}")
             import traceback
 
             traceback.print_exc()
+        else:
+            print("\n❌ An unexpected error occurred (use --verbose for details)")
         sys.exit(1)
 
 

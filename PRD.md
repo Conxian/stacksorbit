@@ -75,6 +75,7 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
 *   **Objective:** Enhance the security posture of the application by securing secret persistence and preventing sensitive information disclosure in error messages.
 *   **Changes:**
     *   Hardened `EnhancedConfigManager.save_config` to filter out `SECRET_KEYS` when persisting configuration to disk.
-    *   Implemented error masking in `stacksorbit_cli.py` and `enhanced_conxian_deployment.py` to prevent leaking internal details in standard output.
+    *   Implemented comprehensive error masking across `stacksorbit_cli.py`, `enhanced_conxian_deployment.py`, `deployment_verifier.py`, `conxian_testnet_deploy.py`, `deployment_monitor.py`, and `stacksorbit_gui.py` to prevent leaking internal details.
+    *   Added regression tests for secure secret persistence in `tests/unit/test_sentinel_config.py`.
     *   Updated the Sentinel security journal with new learnings regarding secret persistence.
 *   **Status:** Complete.
