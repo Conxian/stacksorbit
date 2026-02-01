@@ -13,14 +13,8 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
-import psutil
-
-# Import all enhanced modules
-from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
-from deployment_monitor import DeploymentMonitor
-from deployment_verifier import DeploymentVerifier
-from stacksorbit_gui import StacksOrbitGUI
-from local_devnet import LocalDevnet
+# Bolt ⚡: Moved heavy imports inside methods to minimize CLI startup latency.
+# Standard library imports remain at the top.
 from stacksorbit_secrets import SECRET_KEYS
 
 try:
@@ -724,6 +718,8 @@ class SetupWizard:
 
     def _check_disk_space(self) -> bool:
         """Check if there is enough disk space to install stacks-core"""
+        import psutil
+
         required_space = 5 * 1024 * 1024 * 1024  # 5GB
         free_space = psutil.disk_usage("/").free
         if free_space < required_space:
@@ -751,15 +747,32 @@ class UltimateStacksOrbit:
         self.project_root = Path.cwd()
         self.config_path = ".env"
         self.templates_path = "deployment_templates.json"
+        self._config = None
+        self._monitor = None
 
         # Load deployment templates
         self.templates = self._load_templates()
 
-        # Bolt ⚡: Instantiate a shared monitor to enable caching across commands.
-        # This avoids redundant API calls when running multiple commands in a session.
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
-        self.monitor = DeploymentMonitor(config.get("NETWORK", "testnet"), config)
+    @property
+    def config(self) -> Dict:
+        """Bolt ⚡: Lazily load configuration to improve startup performance."""
+        if self._config is None:
+            from enhanced_conxian_deployment import EnhancedConfigManager
+
+            config_manager = EnhancedConfigManager(self.config_path)
+            self._config = config_manager.load_config()
+        return self._config
+
+    @property
+    def monitor(self) -> "DeploymentMonitor":
+        """Bolt ⚡: Lazily initialize shared monitor to avoid unnecessary overhead."""
+        if self._monitor is None:
+            from deployment_monitor import DeploymentMonitor
+
+            self._monitor = DeploymentMonitor(
+                self.config.get("NETWORK", "testnet"), self.config
+            )
+        return self._monitor
 
     def _load_templates(self) -> Dict:
         """Load deployment templates"""
@@ -843,6 +856,8 @@ class UltimateStacksOrbit:
         """Run enhanced deployment with all features"""
         print(f"{Fore.CYAN}🚀 Enhanced Deployment Mode{Style.RESET_ALL}")
 
+        from enhanced_conxian_deployment import EnhancedConfigManager
+
         # Load configuration
         config_manager = EnhancedConfigManager(self.config_path)
         config = config_manager.load_config()
@@ -860,6 +875,8 @@ class UltimateStacksOrbit:
             return 1
 
         # Initialize deployer
+        from enhanced_conxian_deployment import EnhancedConxianDeployer
+
         run_npm_tests = bool(options.get("run_npm_tests")) or bool(
             options.get("dry_run")
         )
@@ -951,7 +968,7 @@ class UltimateStacksOrbit:
                 print(f"   Nonce: {account_info.get('nonce', 0)}")
 
             print(f"\n📦 Deployed Contracts:")
-            contracts = monitor.get_deployed_contracts(address)
+            contracts = self.monitor.get_deployed_contracts(address)
             print(f"   Count: {len(contracts)}")
 
             if contracts:
@@ -963,15 +980,15 @@ class UltimateStacksOrbit:
             print(f"\n🔄 Starting real-time monitoring...")
             print("📝 Press Ctrl+C to stop")
 
-            monitor_thread = monitor.start_monitoring()
+            monitor_thread = self.monitor.start_monitoring()
 
             try:
-                while monitor.is_monitoring:
+                while self.monitor.is_monitoring:
                     time.sleep(1)
             except KeyboardInterrupt:
                 pass
 
-            monitor.stop_monitoring()
+            self.monitor.stop_monitoring()
             print("✅ Monitoring stopped")
 
         return 0
@@ -979,6 +996,8 @@ class UltimateStacksOrbit:
     def run_enhanced_verification(self, options: Dict) -> int:
         """Run enhanced verification"""
         print(f"{Fore.CYAN}🔍 Enhanced Verification Mode{Style.RESET_ALL}")
+
+        from enhanced_conxian_deployment import EnhancedConfigManager
 
         # Load configuration
         config_manager = EnhancedConfigManager(self.config_path)
@@ -1004,6 +1023,8 @@ class UltimateStacksOrbit:
             return 1
 
         # Initialize verifier
+        from deployment_verifier import DeploymentVerifier
+
         verifier = DeploymentVerifier(
             network=config.get("NETWORK", "testnet"), config=config
         )
@@ -1021,6 +1042,8 @@ class UltimateStacksOrbit:
         """Run enhanced dashboard"""
         print(f"{Fore.CYAN}📊 Launching StacksOrbit GUI...{Style.RESET_ALL}")
 
+        from stacksorbit_gui import StacksOrbitGUI
+
         app = StacksOrbitGUI()
         app.run()
 
@@ -1030,6 +1053,8 @@ class UltimateStacksOrbit:
         """Run comprehensive system diagnosis"""
         print(f"{Fore.CYAN}🔍 Comprehensive System Diagnosis{Style.RESET_ALL}")
         print("=" * 60)
+
+        from enhanced_conxian_deployment import EnhancedConfigManager
 
         # Load configuration
         config_manager = EnhancedConfigManager(self.config_path)
@@ -1117,6 +1142,8 @@ class UltimateStacksOrbit:
         # 4. Contract Analysis
         print("📦 Contract Analysis...")
         try:
+            from enhanced_conxian_deployment import EnhancedConxianDeployer
+
             # Bolt ⚡: Pass the shared monitor instance to the deployer.
             deployer = EnhancedConxianDeployer(
                 config, options.get("verbose", False), monitor=self.monitor
@@ -1256,6 +1283,8 @@ class UltimateStacksOrbit:
 
     def apply_deployment_template(self, options: Dict) -> int:
         """Apply deployment template"""
+        from enhanced_conxian_deployment import EnhancedConfigManager
+
         template_name = options.get("name")
         if not template_name:
             print(f"{Fore.RED}❌ Template name required{Style.RESET_ALL}")
@@ -1394,6 +1423,9 @@ class UltimateStacksOrbit:
 
     def run_devnet(self, options: Dict) -> int:
         """Run local development network"""
+        from enhanced_conxian_deployment import EnhancedConfigManager
+        from local_devnet import LocalDevnet
+
         config_manager = EnhancedConfigManager(self.config_path)
         config = config_manager.load_config()
         stacks_core_path = Path(
