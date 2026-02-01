@@ -140,7 +140,11 @@ CONFIRMATION_TIMEOUT=300
         """Save configuration to file"""
         with open(self.config_path, "w") as f:
             for key, value in config.items():
-                f.write(f"{key}={value}\n")
+                # 🛡️ Sentinel: Security Enforcer.
+                # Explicitly skip any known secrets before saving to disk.
+                # This prevents accidental persistence of secrets to plaintext files.
+                if key not in SECRET_KEYS:
+                    f.write(f"{key}={value}\n")
 
     def validate_config(self) -> Tuple[bool, List[str]]:
         """Validate configuration and return (is_valid, errors)"""
@@ -323,7 +327,11 @@ class EnhancedConxianDeployer:
                     all_passed = False
             except Exception as e:
                 self.pre_check_results[check_name] = False
-                print(f"[ERROR] {check_name} check failed: {e}")
+                # 🛡️ Sentinel: Prevent sensitive information disclosure.
+                if self.verbose:
+                    print(f"[ERROR] {check_name} check failed: {e}")
+                else:
+                    print(f"[ERROR] {check_name} check failed (use --verbose for details)")
                 all_passed = False
 
         print(

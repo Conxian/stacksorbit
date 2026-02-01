@@ -802,8 +802,12 @@ class UltimateStacksOrbit:
             print(f"\n{Fore.YELLOW}🛑 Operation cancelled by user{Style.RESET_ALL}")
             return 1
         except Exception as e:
-            print(f"\n{Fore.RED}❌ Error: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            # A generic error message is shown to the user by default.
+            # Detailed error information is only visible in verbose mode.
+            print(f"\n{Fore.RED}❌ An unexpected error occurred.{Style.RESET_ALL}")
             if kwargs.get("verbose"):
+                print(f"   Error details: {e}")
                 import traceback
 
                 traceback.print_exc()
@@ -1385,8 +1389,10 @@ class UltimateStacksOrbit:
             )
             return 1
         except Exception as e:
-            print(f"{Fore.RED}❌ Test execution failed: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            print(f"{Fore.RED}❌ Test execution failed.{Style.RESET_ALL}")
             if options.get("verbose"):
+                print(f"   Error details: {e}")
                 import traceback
 
                 traceback.print_exc()
