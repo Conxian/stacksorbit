@@ -24,6 +24,9 @@ class DeploymentVerifier:
     def __init__(self, network: str = "testnet", config: Dict = None):
         self.network = network
         self.config = config or {}
+        self.verbose = self.config.get("VERBOSE", False) or self.config.get(
+            "verbose", False
+        )
         self.monitor = DeploymentMonitor(network, config)
 
         # Verification results
@@ -75,7 +78,11 @@ class DeploymentVerifier:
                     print(f"✅ {check_name} passed")
 
             except Exception as e:
-                print(f"❌ {check_name} error: {e}")
+                # 🛡️ Sentinel: Prevent sensitive information disclosure.
+                if self.verbose:
+                    print(f"❌ {check_name} error: {e}")
+                else:
+                    print(f"❌ {check_name} error (use --verbose for details)")
                 self.verification_results["checks"][check_name] = {
                     "passed": False,
                     "error": str(e),
@@ -290,7 +297,9 @@ class DeploymentVerifier:
                         print(f"⚠️  {contract_name}: Interface not accessible")
 
                 except Exception as e:
-                    print(f"⚠️  {contract_name}: Error checking interface: {e}")
+                    # 🛡️ Sentinel: Prevent sensitive information disclosure.
+                    if self.verbose:
+                        print(f"⚠️  {contract_name}: Error checking interface: {e}")
 
         passed = len(working) > 0  # At least some contracts should be working
 
@@ -404,7 +413,10 @@ def load_expected_contracts() -> List[str]:
             contracts = [match for match in contract_matches]
 
         except Exception as e:
-            print(f"Warning: Could not parse Clarinet.toml: {e}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            # In library functions, we might not have a verbose flag easily,
+            # but we can try to be quiet and provide a generic warning.
+            print("Warning: Could not parse Clarinet.toml (use --verbose for details)")
 
     return contracts
 
@@ -470,11 +482,14 @@ def main():
         print("\n🛑 Verification cancelled by user")
         return 1
     except Exception as e:
-        print(f"❌ Verification failed: {e}")
+        # 🛡️ Sentinel: Prevent sensitive information disclosure.
         if args.verbose:
+            print(f"❌ Verification failed: {e}")
             import traceback
 
             traceback.print_exc()
+        else:
+            print("❌ Verification failed (use --verbose for details)")
         return 1
 
 

@@ -76,7 +76,8 @@ class StacksOrbitGUI(App):
             # app.notify might not be available yet in __init__
             print(f"Config file {self.config_path} not found")
         except Exception as e:
-            print(f"Error loading config: {e}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            print("Error loading configuration from file.")
         return config
 
     def compose(self) -> ComposeResult:

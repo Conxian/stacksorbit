@@ -709,11 +709,14 @@ def main():
         print("\n🛑 Monitoring cancelled by user")
         return 1
     except Exception as e:
-        print(f"❌ Monitoring failed: {e}")
+        # 🛡️ Sentinel: Prevent sensitive information disclosure.
         if args.verbose:
+            print(f"❌ Monitoring failed: {e}")
             import traceback
 
             traceback.print_exc()
+        else:
+            print("❌ Monitoring failed (use --verbose for details)")
         return 1
 
 

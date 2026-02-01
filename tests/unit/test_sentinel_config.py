@@ -28,5 +28,25 @@ class TestSentinelConfig(unittest.TestCase):
         self.assertIn("Sentinel Security Error", str(context.exception))
         self.assertIn("SYSTEM_PRIVKEY", str(context.exception))
 
+    def test_save_config_should_filter_secrets(self):
+        config_manager = EnhancedConfigManager(config_path=self.config_path)
+        config_to_save = {
+            "NETWORK": "testnet",
+            "SYSTEM_ADDRESS": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+            "DEPLOYER_PRIVKEY": "0000000000000000000000000000000000000000000000000000000000000001",
+            "SOME_API_TOKEN": "sensitive_token_value"
+        }
+
+        config_manager.save_config(config_to_save)
+
+        # Read the file back and verify sensitive keys are not there
+        with open(self.config_path, "r") as f:
+            content = f.read()
+
+        self.assertIn("NETWORK=testnet", content)
+        self.assertIn("SYSTEM_ADDRESS=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM", content)
+        self.assertNotIn("DEPLOYER_PRIVKEY", content)
+        self.assertNotIn("SOME_API_TOKEN", content)
+
 if __name__ == '__main__':
     unittest.main()

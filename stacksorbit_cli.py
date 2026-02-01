@@ -815,8 +815,12 @@ class UltimateStacksOrbit:
             print(f"\n{Fore.YELLOW}🛑 Operation cancelled by user{Style.RESET_ALL}")
             return 1
         except Exception as e:
-            print(f"\n{Fore.RED}❌ Error: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            # A generic error message is shown to the user by default.
+            # Detailed error information is only visible in verbose mode.
+            print(f"\n{Fore.RED}❌ An unexpected error occurred (use --verbose for details).{Style.RESET_ALL}")
             if kwargs.get("verbose"):
+                print(f"   Error details: {e}")
                 import traceback
 
                 traceback.print_exc()
@@ -1080,7 +1084,11 @@ class UltimateStacksOrbit:
                 diagnosis["issues"].extend(errors)
                 diagnosis["scores"]["config"] = 0
         except Exception as e:
-            print(f"{Fore.RED}❌ Configuration error: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if options.get("verbose"):
+                print(f"{Fore.RED}❌ Configuration error: {e}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}❌ Configuration error (use --verbose for details){Style.RESET_ALL}")
             diagnosis["issues"].append(str(e))
             diagnosis["scores"]["config"] = 0
 
@@ -1102,7 +1110,11 @@ class UltimateStacksOrbit:
                 )
                 diagnosis["scores"]["network"] = 0
         except Exception as e:
-            print(f"{Fore.RED}❌ Network error: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if options.get("verbose"):
+                print(f"{Fore.RED}❌ Network error: {e}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}❌ Network error (use --verbose for details){Style.RESET_ALL}")
             diagnosis["issues"].append(str(e))
             diagnosis["scores"]["network"] = 0
 
@@ -1131,7 +1143,11 @@ class UltimateStacksOrbit:
                     )
                     diagnosis["scores"]["account"] = 50
             except Exception as e:
-                print(f"{Fore.RED}❌ Account check error: {e}{Style.RESET_ALL}")
+                # 🛡️ Sentinel: Prevent sensitive information disclosure.
+                if options.get("verbose"):
+                    print(f"{Fore.RED}❌ Account check error: {e}{Style.RESET_ALL}")
+                else:
+                    print(f"{Fore.RED}❌ Account check error (use --verbose for details){Style.RESET_ALL}")
                 diagnosis["issues"].append(str(e))
                 diagnosis["scores"]["account"] = 0
         else:
@@ -1159,7 +1175,11 @@ class UltimateStacksOrbit:
                 diagnosis["issues"].append("No contracts found")
                 diagnosis["scores"]["contracts"] = 0
         except Exception as e:
-            print(f"{Fore.RED}❌ Contract analysis error: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if options.get("verbose"):
+                print(f"{Fore.RED}❌ Contract analysis error: {e}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}❌ Contract analysis error (use --verbose for details){Style.RESET_ALL}")
             diagnosis["issues"].append(str(e))
             diagnosis["scores"]["contracts"] = 0
 
@@ -1203,7 +1223,11 @@ class UltimateStacksOrbit:
                 diagnosis["scores"]["dependencies"] = 0
 
         except Exception as e:
-            print(f"{Fore.RED}❌ Dependencies check error: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if options.get("verbose"):
+                print(f"{Fore.RED}❌ Dependencies check error: {e}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}❌ Dependencies check error (use --verbose for details){Style.RESET_ALL}")
             diagnosis["issues"].append(str(e))
             diagnosis["scores"]["dependencies"] = 0
 
@@ -1414,8 +1438,10 @@ class UltimateStacksOrbit:
             )
             return 1
         except Exception as e:
-            print(f"{Fore.RED}❌ Test execution failed: {e}{Style.RESET_ALL}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            print(f"{Fore.RED}❌ Test execution failed.{Style.RESET_ALL}")
             if options.get("verbose"):
+                print(f"   Error details: {e}")
                 import traceback
 
                 traceback.print_exc()
@@ -1724,7 +1750,7 @@ def main():
         # 🛡️ Sentinel: Prevent sensitive information disclosure.
         # A generic error message is shown to the user.
         # The detailed exception is only logged in verbose mode.
-        print(f"\n{Fore.RED}❌ An unexpected error occurred.{Style.RESET_ALL}")
+        print(f"\n{Fore.RED}❌ An unexpected error occurred (use --verbose for details).{Style.RESET_ALL}")
         if args.verbose:
             print(f"   Error details: {e}")
             import traceback
