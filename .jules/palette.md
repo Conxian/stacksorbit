@@ -11,3 +11,7 @@
 ## 2024-05-24 - TUI Accessibility and Clarity
 **Learning:** In terminal-based UIs (Textual), tooltips and explicit focus states are vital for accessibility. Tooltips provide essential context for emoji-heavy buttons without cluttering the layout. A clear focus state (e.g., changing border color on :focus) is necessary for keyboard-only navigation to ensure the user always knows their current position.
 **Action:** I will always include tooltips for icon/emoji buttons and define explicit :focus styles in TCSS for interactive elements.
+
+## 2025-02-01 - Widget-Specific Tooltip Limitations in Textual
+**Learning:** While the 'tooltip' attribute is a property of the base 'Widget' class in Textual, not all built-in widgets (like 'DataTable') accept it as a keyword argument in their '__init__' method. Attempting to do so results in a 'TypeError'.
+**Action:** For widgets that do not support 'tooltip' in their constructor, I will set the property programmatically in the 'on_mount' method or after instantiation.
