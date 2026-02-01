@@ -414,7 +414,11 @@ class EnhancedConxianDeployer:
             print("[ERROR] Clarinet not found (is it installed and on PATH?)")
             return False
         except Exception as e:
-            print(f"[ERROR] Could not run compilation check: {e}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if self.verbose:
+                print(f"[ERROR] Could not run compilation check: {e}")
+            else:
+                print("[ERROR] Could not run compilation check (use --verbose for details)")
             return False
 
     def _check_npm_tests(self) -> bool:
@@ -468,7 +472,11 @@ class EnhancedConxianDeployer:
             print("[ERROR] npm not found (is Node.js installed and on PATH?)")
             return False
         except Exception as e:
-            print(f"[ERROR] Could not run npm tests: {e}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if self.verbose:
+                print(f"[ERROR] Could not run npm tests: {e}")
+            else:
+                print("[ERROR] Could not run npm tests (use --verbose for details)")
             return False
 
     def _check_balance(self) -> bool:
@@ -577,7 +585,9 @@ class EnhancedConxianDeployer:
                 return True  # Don't fail the check, just report
 
         except Exception as e:
-            print(f"[WARNING] Could not check system alignment: {e}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if self.verbose:
+                print(f"[WARNING] Could not check system alignment: {e}")
             return True
 
     def _get_deployed_contracts(self) -> List[Dict]:
@@ -608,7 +618,9 @@ class EnhancedConxianDeployer:
                         )
 
         except Exception as e:
-            print(f"Warning: Could not read deployment history: {e}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if self.verbose:
+                print(f"Warning: Could not read deployment history: {e}")
 
         return deployed
 
@@ -671,7 +683,11 @@ class EnhancedConxianDeployer:
                     )
 
             except Exception as e:
-                print(f"[ERROR] {contract['name']} failed: {e}")
+                # 🛡️ Sentinel: Prevent sensitive information disclosure.
+                if self.verbose:
+                    print(f"[ERROR] {contract['name']} failed: {e}")
+                else:
+                    print(f"[ERROR] {contract['name']} failed (use --verbose for details)")
                 results["failed"].append({"name": contract["name"], "error": str(e)})
 
             # Small delay between deployments
@@ -828,7 +844,9 @@ class EnhancedConxianDeployer:
                 contracts.append(current_data)
 
         except Exception as e:
-            print(f"[WARNING] Could not parse Clarinet.toml fully: {e}")
+            # 🛡️ Sentinel: Prevent sensitive information disclosure.
+            if self.verbose:
+                print(f"[WARNING] Could not parse Clarinet.toml fully: {e}")
             # Fallback will handle this if list is empty, or return partial results
 
         return contracts

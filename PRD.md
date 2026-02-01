@@ -69,3 +69,12 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   Created the Contract Registry section in `PRD.md`.
     *   Marked Phase 3 as in-progress.
 *   **Status:** Complete.
+
+### Session 5: Security Hardening & Information Disclosure Prevention
+
+*   **Objective:** Enhance the security posture of the application by securing secret persistence and preventing sensitive information disclosure in error messages.
+*   **Changes:**
+    *   Hardened `EnhancedConfigManager.save_config` to filter out `SECRET_KEYS` when persisting configuration to disk.
+    *   Implemented error masking in `stacksorbit_cli.py` and `enhanced_conxian_deployment.py` to prevent leaking internal details in standard output.
+    *   Updated the Sentinel security journal with new learnings regarding secret persistence.
+*   **Status:** Complete.
