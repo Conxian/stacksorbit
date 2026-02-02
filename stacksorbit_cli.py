@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 # Bolt ⚡: Moved heavy imports inside methods to minimize CLI startup latency.
 # Standard library imports remain at the top.
-from stacksorbit_secrets import SECRET_KEYS, SENSITIVE_SUBSTRINGS, is_sensitive_key
+from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
 
 try:
     import colorama

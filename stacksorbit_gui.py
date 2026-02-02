@@ -36,7 +36,7 @@ except ImportError as e:
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
-from stacksorbit_secrets import SECRET_KEYS, SENSITIVE_SUBSTRINGS, is_sensitive_key
+from stacksorbit_secrets import is_sensitive_key
 
 
 class StacksOrbitGUI(App):

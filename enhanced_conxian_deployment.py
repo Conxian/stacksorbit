@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import argparse
 from dotenv import dotenv_values
-from stacksorbit_secrets import SECRET_KEYS, SENSITIVE_SUBSTRINGS, is_sensitive_key
+from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
 from deployment_monitor import DeploymentMonitor
 
 # 🛡️ Sentinel: Sensitive substrings to identify potential secrets
