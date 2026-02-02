@@ -1,6 +1,6 @@
 import pytest
 from stacksorbit_gui import StacksOrbitGUI
-from textual.widgets import Log, Button
+from textual.widgets import Log, Button, LoadingIndicator, DataTable
 
 
 @pytest.mark.asyncio
