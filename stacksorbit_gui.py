@@ -195,7 +195,7 @@ class StacksOrbitGUI(App):
         for indicator in self.query(LoadingIndicator):
             indicator.display = False
 
-        # 🎨 Palette: Add tooltips to widgets that don't support them in constructor
+        # Add tooltips to widgets that don't support them in constructor
         self.query_one("#contracts-table", DataTable).tooltip = (
             "List of contracts deployed by this address"
         )
@@ -489,7 +489,7 @@ class StacksOrbitGUI(App):
         save_btn.disabled = True
         save_btn.label = "Saving..."
 
-        # 🎨 Palette: This function handles the file I/O.
+        # This function handles the file I/O.
         # By running it in a thread, we prevent the UI from freezing.
         def _save_config_io(p_address: str):
             config = self._load_config()
@@ -521,7 +521,7 @@ class StacksOrbitGUI(App):
             else:
                 self.notify("Configuration saved.", severity="success")
 
-            # 🎨 Palette: Provide clear, temporary success feedback on the button.
+            # Provide clear, temporary success feedback on the button.
             save_btn.label = "✅ Saved!"
             save_btn.add_class("success")
             await asyncio.sleep(2)
