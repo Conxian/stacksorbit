@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 import time
 import os
 import sys
+from pathlib import Path
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -14,9 +15,21 @@ class TestDeploymentMonitorCache(unittest.TestCase):
 
     def setUp(self):
         """Set up a DeploymentMonitor instance for testing."""
+        # Use a temporary cache file for testing to avoid interference
+        self.test_cache_path = "logs/test_api_cache.json"
+        if os.path.exists(self.test_cache_path):
+            os.remove(self.test_cache_path)
+
         self.monitor = DeploymentMonitor(network='testnet', config={'LOG_LEVEL': 'DEBUG'})
+        self.monitor.cache_path = Path(self.test_cache_path)
+        self.monitor.cache = {} # Start with empty cache
         # Lower the expiry for faster testing
         self.monitor.cache_expiry = 2
+
+    def tearDown(self):
+        """Clean up after testing."""
+        if os.path.exists(self.test_cache_path):
+            os.remove(self.test_cache_path)
 
     @patch('requests.Session.get')
     def test_get_recent_transactions_caching(self, mock_get):
