@@ -15,3 +15,7 @@
 ## 2025-02-01 - Widget-Specific Tooltip Limitations in Textual
 **Learning:** While the 'tooltip' attribute is a property of the base 'Widget' class in Textual, not all built-in widgets (like 'DataTable') accept it as a keyword argument in their '__init__' method. Attempting to do so results in a 'TypeError'.
 **Action:** For widgets that do not support 'tooltip' in their constructor, I will set the property programmatically in the 'on_mount' method or after instantiation.
+
+## 2025-02-02 - Multi-Tab Loading States and Empty States
+**Learning:** In a multi-tabbed TUI, providing consistent loading feedback across all data-driven tabs is essential. If only one tab shows a loading indicator during a global refresh, users on other tabs may perceive the app as frozen. Additionally, providing explicit "No data found" rows in tables prevents the "is it still loading or is it empty?" confusion.
+**Action:** I will implement global loading management by querying all loading indicators and provide meaningful empty-state rows for all data tables.

@@ -68,6 +68,11 @@ Tab.--current {
     text-style: bold;
 }
 
+.metric-card:hover {
+    background: #252527;
+    border: round #007acc;
+}
+
 #overview-buttons {
     padding: 1 0;
     align: center middle;
@@ -96,6 +101,11 @@ Button.primary {
 
 Button.success {
     background: #28a745; /* Green */
+    color: white;
+}
+
+Button.error {
+    background: #cc3333; /* Red */
     color: white;
 }
 

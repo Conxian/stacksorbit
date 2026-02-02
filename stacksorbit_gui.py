@@ -115,7 +115,7 @@ class StacksOrbitGUI(App):
                     yield Button(
                         "🔄 Refresh",
                         id="refresh-btn",
-                        tooltip="Refresh all dashboard data",
+                        tooltip="Refresh all dashboard data [r]",
                     )
 
             with TabPane("📄 Contracts", id="contracts"):
@@ -132,6 +132,7 @@ class StacksOrbitGUI(App):
                     )
 
             with TabPane("📜 Transactions", id="transactions"):
+                yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
 
             with TabPane("🚀 Deploy", id="deployment"):
@@ -154,6 +155,7 @@ class StacksOrbitGUI(App):
                         yield Button(
                             "🗑️ Clear",
                             id="clear-log-btn",
+                            variant="error",
                             tooltip="Clear the deployment log",
                         )
 
@@ -192,6 +194,32 @@ class StacksOrbitGUI(App):
         self.sub_title = "Deployment Dashboard"
         for indicator in self.query(LoadingIndicator):
             indicator.display = False
+
+        # 🎨 Palette: Add tooltips to widgets that don't support them in constructor
+        self.query_one("#contracts-table", DataTable).tooltip = (
+            "List of contracts deployed by this address"
+        )
+        self.query_one("#transactions-table", DataTable).tooltip = (
+            "Recent transactions for this address"
+        )
+
+        # Add tooltips to metric cards for better clarity
+        self.query("#network-status").first().parent.tooltip = (
+            "Current status of the Stacks API"
+        )
+        self.query("#contract-count").first().parent.tooltip = (
+            "Total number of contracts deployed by this address"
+        )
+        self.query("#balance").first().parent.tooltip = (
+            "Available STX balance in this account"
+        )
+        self.query("#nonce").first().parent.tooltip = (
+            "Current account nonce (next transaction number)"
+        )
+        self.query("#block-height").first().parent.tooltip = (
+            "Current Stacks blockchain height"
+        )
+
         self._setup_tables()
         self.set_interval(10.0, self.update_data)
         self.run_worker(self.update_data())
@@ -206,8 +234,8 @@ class StacksOrbitGUI(App):
 
     async def update_data(self) -> None:
         """Update all data in the GUI concurrently."""
-        loading = self.query("#overview LoadingIndicator").first()
-        loading.display = True
+        for indicator in self.query(LoadingIndicator):
+            indicator.display = True
         contracts_table = self.query_one("#contracts-table", DataTable)
         transactions_table = self.query_one("#transactions-table", DataTable)
         contracts_table.clear()
@@ -282,6 +310,10 @@ class StacksOrbitGUI(App):
                     contracts_table.add_row(
                         "✅", name, address, key=contract.get("contract_id")
                     )
+            elif self.address != "Not configured":
+                contracts_table.add_row(
+                    "", "No contracts found", "Deploy a contract to see it here."
+                )
 
             # Process transactions result
             if isinstance(transactions, Exception):
@@ -294,12 +326,15 @@ class StacksOrbitGUI(App):
                         tx.get("tx_status", ""),
                         str(tx.get("block_height", "")),
                     )
+            elif self.address != "Not configured":
+                transactions_table.add_row("", "No transactions found", "", "")
 
         except Exception as e:
             self.query_one("#network-status").update("[red]Error[/]")
             self.notify(f"API error: {e}", severity="error")
         finally:
-            loading.display = False
+            for indicator in self.query(LoadingIndicator):
+                indicator.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
@@ -427,6 +462,7 @@ class StacksOrbitGUI(App):
     def on_clear_log_pressed(self) -> None:
         """Handle clear log button press."""
         self.query_one("#deployment-log", Log).clear()
+        self.notify("Deployment log cleared")
 
     @on(Switch.Changed, "#show-privkey")
     def on_show_privkey_changed(self, event: Switch.Changed) -> None:
