@@ -747,6 +747,7 @@ class UltimateStacksOrbit:
         self.project_root = Path.cwd()
         self.config_path = ".env"
         self.templates_path = "deployment_templates.json"
+        self._config_manager = None
         self._config = None
         self._monitor = None
 
@@ -754,13 +755,19 @@ class UltimateStacksOrbit:
         self.templates = self._load_templates()
 
     @property
+    def config_manager(self):
+        """Bolt ⚡: Lazily initialize shared configuration manager."""
+        if self._config_manager is None:
+            from enhanced_conxian_deployment import EnhancedConfigManager
+
+            self._config_manager = EnhancedConfigManager(self.config_path)
+        return self._config_manager
+
+    @property
     def config(self) -> Dict:
         """Bolt ⚡: Lazily load configuration to improve startup performance."""
         if self._config is None:
-            from enhanced_conxian_deployment import EnhancedConfigManager
-
-            config_manager = EnhancedConfigManager(self.config_path)
-            self._config = config_manager.load_config()
+            self._config = self.config_manager.load_config()
         return self._config
 
     @property
@@ -860,18 +867,15 @@ class UltimateStacksOrbit:
         """Run enhanced deployment with all features"""
         print(f"{Fore.CYAN}🚀 Enhanced Deployment Mode{Style.RESET_ALL}")
 
-        from enhanced_conxian_deployment import EnhancedConfigManager
-
-        # Load configuration
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
+        # Load configuration (Bolt ⚡: use shared lazy property)
+        config = self.config
 
         # Apply template if specified
         if options.get("template"):
             config = self._apply_template_config(config, options["template"])
 
-        # Validate configuration
-        is_valid, errors = config_manager.validate_config()
+        # Validate configuration (Bolt ⚡: use shared lazy manager)
+        is_valid, errors = self.config_manager.validate_config()
         if not is_valid:
             print(f"{Fore.RED}❌ Configuration validation failed:{Style.RESET_ALL}")
             for error in errors:
@@ -1001,11 +1005,8 @@ class UltimateStacksOrbit:
         """Run enhanced verification"""
         print(f"{Fore.CYAN}🔍 Enhanced Verification Mode{Style.RESET_ALL}")
 
-        from enhanced_conxian_deployment import EnhancedConfigManager
-
-        # Load configuration
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
+        # Load configuration (Bolt ⚡: use shared lazy property)
+        config = self.config
 
         address = config.get("SYSTEM_ADDRESS")
         if not address:
@@ -1058,11 +1059,8 @@ class UltimateStacksOrbit:
         print(f"{Fore.CYAN}🔍 Comprehensive System Diagnosis{Style.RESET_ALL}")
         print("=" * 60)
 
-        from enhanced_conxian_deployment import EnhancedConfigManager
-
-        # Load configuration
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
+        # Load configuration (Bolt ⚡: use shared lazy property)
+        config = self.config
 
         diagnosis = {
             "timestamp": datetime.now().isoformat(),
@@ -1075,7 +1073,7 @@ class UltimateStacksOrbit:
         # 1. Configuration Check
         print("🔧 Configuration Check...")
         try:
-            is_valid, errors = config_manager.validate_config()
+            is_valid, errors = self.config_manager.validate_config()
             if is_valid:
                 print(f"{Fore.GREEN}✅ Configuration valid{Style.RESET_ALL}")
                 diagnosis["scores"]["config"] = 100
@@ -1307,7 +1305,7 @@ class UltimateStacksOrbit:
 
     def apply_deployment_template(self, options: Dict) -> int:
         """Apply deployment template"""
-        from enhanced_conxian_deployment import EnhancedConfigManager
+        # (Bolt ⚡: configuration manager available via shared property)
 
         template_name = options.get("name")
         if not template_name:
@@ -1339,15 +1337,14 @@ class UltimateStacksOrbit:
         for i, step in enumerate(template["steps"], 1):
             print(f"   {i}. {step}")
 
-        # Apply template to configuration
-        config_manager = EnhancedConfigManager(self.config_path)
-        current_config = config_manager.load_config()
+        # Apply template to configuration (Bolt ⚡: use shared lazy properties)
+        current_config = self.config
 
         # Update with template config
         current_config.update(config)
 
         # Save updated configuration
-        config_manager.save_config(current_config)
+        self.config_manager.save_config(current_config)
 
         print(f"\n✅ Template applied!")
         print(f"💾 Updated configuration saved to {self.config_path}")
@@ -1449,11 +1446,10 @@ class UltimateStacksOrbit:
 
     def run_devnet(self, options: Dict) -> int:
         """Run local development network"""
-        from enhanced_conxian_deployment import EnhancedConfigManager
         from local_devnet import LocalDevnet
 
-        config_manager = EnhancedConfigManager(self.config_path)
-        config = config_manager.load_config()
+        # Load configuration (Bolt ⚡: use shared lazy property)
+        config = self.config
         stacks_core_path = Path(
             config.get("STACKS_CORE_PATH", self.project_root / "stacks-core")
         )
