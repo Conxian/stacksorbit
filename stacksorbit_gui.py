@@ -36,7 +36,7 @@ except ImportError as e:
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
-from stacksorbit_secrets import SECRET_KEYS
+from stacksorbit_secrets import SECRET_KEYS, SENSITIVE_SUBSTRINGS, is_sensitive_key
 
 
 class StacksOrbitGUI(App):
@@ -500,10 +500,9 @@ class StacksOrbitGUI(App):
             with open(self.config_path, "w", encoding="utf-8") as f:
                 for key, value in config.items():
                     # 🛡️ Sentinel: Security Enforcer.
-                    # We explicitly skip any known secrets before saving to disk.
-                    # This ensures that secrets are only handled in-memory or
-                    # via environment variables.
-                    if key not in SECRET_KEYS:
+                    # Explicitly skip any known secrets or potential sensitive keys before saving to disk.
+                    # This prevents accidental persistence of secrets to plaintext files.
+                    if not is_sensitive_key(key):
                         f.write(f"{key}={value}\n")
 
         try:

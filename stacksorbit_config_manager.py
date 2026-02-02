@@ -3,10 +3,9 @@ import sys
 import argparse
 import toml
 from dotenv import load_dotenv, dotenv_values
-from stacksorbit_secrets import SECRET_KEYS
+from stacksorbit_secrets import SECRET_KEYS, SENSITIVE_SUBSTRINGS, is_sensitive_key
 
 # --- Helper function for redaction ---
-SENSITIVE_SUBSTRINGS = ["KEY", "SECRET", "TOKEN", "PASSWORD", "MNEMONIC"]
 
 
 def redact_sensitive_info(config_item, parent_key=""):
@@ -23,10 +22,7 @@ def redact_sensitive_info(config_item, parent_key=""):
         return [redact_sensitive_info(item) for item in config_item]
     else:
         # Check if the parent key is a known secret or contains a sensitive substring.
-        is_sensitive = parent_key in SECRET_KEYS or any(
-            sub in parent_key.upper() for sub in SENSITIVE_SUBSTRINGS
-        )
-        if is_sensitive and config_item is not None:
+        if is_sensitive_key(parent_key) and config_item is not None:
             # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
             if isinstance(config_item, str) and config_item != "":
                 return "<redacted>"
