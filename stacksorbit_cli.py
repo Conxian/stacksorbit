@@ -24,6 +24,14 @@ try:
     colorama.init()
     USE_COLORS = True
 except ImportError:
+    # 🛡️ Sentinel: Provide empty string fallbacks for Fore and Style if colorama is missing.
+    # This prevents NameError exceptions when these are used in print statements.
+    class EmptyStringProxy:
+        def __getattr__(self, name):
+            return ""
+
+    Fore = EmptyStringProxy()
+    Style = EmptyStringProxy()
     USE_COLORS = False
 
 
@@ -1352,95 +1360,75 @@ class UltimateStacksOrbit:
         return 0
 
     def run_comprehensive_tests(self, options: Dict) -> int:
-        """Run comprehensive test suite using Hiro SDK"""
+        """Run comprehensive test suite using Vitest and Clarinet SDK"""
         print(
-            f"{Fore.CYAN}🧪 Running Comprehensive Test Suite with Hiro SDK{Style.RESET_ALL}"
+            f"{Fore.CYAN}🧪 Running Comprehensive Test Suite (Vitest + Clarinet SDK){Style.RESET_ALL}"
         )
         print("=" * 60)
 
         try:
-            # Import the Hiro-enhanced tester module
-            sys.path.append(str(Path(__file__).parent))
-            from stacksorbit_tester_hiro import StacksOrbitTester
+            # 1. Clarinet Check (Basic syntax check)
+            if options.get("clarinet_only") or not options.get("vitest_only"):
+                print(f"{Fore.YELLOW}🔍 Running Clarinet syntax checks...{Style.RESET_ALL}")
+                try:
+                    # Stream output to terminal so user can see progress
+                    result = subprocess.run(
+                        ["clarinet", "check"],
+                        cwd=self.project_root,
+                        capture_output=False,
+                        text=True,
+                        timeout=300,
+                    )
 
-            tester = StacksOrbitTester(str(self.project_root))
+                    if result.returncode == 0:
+                        print(f"{Fore.GREEN}✅ Clarinet check passed{Style.RESET_ALL}")
+                        if options.get("clarinet_only"):
+                            return 0
+                    else:
+                        print(f"{Fore.RED}❌ Clarinet check failed{Style.RESET_ALL}")
+                        if options.get("clarinet_only"):
+                            return 1
+                except FileNotFoundError:
+                    print(f"{Fore.YELLOW}⚠️  Clarinet not found. Skipping syntax checks.{Style.RESET_ALL}")
+                    if options.get("clarinet_only"):
+                        return 1
 
-            # Run specific test types based on options
-            if options.get("clarinet_only"):
-                # Run clarinet check first
+            # 2. Vitest Tests (Logic and integration tests)
+            if options.get("vitest_only") or not options.get("clarinet_only"):
+                print(f"{Fore.YELLOW}🧪 Running Vitest test suite...{Style.RESET_ALL}")
+
+                # Check if node_modules exists
+                if not (self.project_root / "node_modules").exists():
+                    print(f"{Fore.YELLOW}📦 node_modules not found. Running npm install...{Style.RESET_ALL}")
+                    subprocess.run(["npm", "install"], cwd=self.project_root, check=True)
+
+                test_command = ["npm", "run", "test:vitest"]
+
+                if options.get("test_coverage"):
+                    test_command = ["npx", "vitest", "run", "--coverage"]
+
+                # Stream output to terminal so user can see progress
                 result = subprocess.run(
-                    ["clarinet", "check"],
+                    test_command,
                     cwd=self.project_root,
-                    capture_output=True,
+                    capture_output=False,
                     text=True,
-                    timeout=300,
                 )
 
                 if result.returncode == 0:
-                    print(f"{Fore.GREEN}✅ Clarinet check passed{Style.RESET_ALL}")
-                    return 0
+                    print(f"{Fore.GREEN}✅ Vitest tests passed{Style.RESET_ALL}")
                 else:
-                    print(f"{Fore.RED}❌ Clarinet check failed{Style.RESET_ALL}")
+                    print(f"{Fore.RED}❌ Vitest tests failed{Style.RESET_ALL}")
                     return 1
 
-            elif options.get("vitest_only"):
-                suite = options.get("test_suite", "unit")
-                results = tester.run_vitest_tests(suite)
-                for result in results:
-                    tester._print_test_result(result)
-                failed = any(r.status.value == "failed" for r in results)
-                return 1 if failed else 0
+            return 0
 
-            elif options.get("hiro_only"):
-                results = tester.run_vitest_tests("hiro")
-                for result in results:
-                    tester._print_test_result(result)
-                failed = any(r.status.value == "failed" for r in results)
-                return 1 if failed else 0
-
-            else:
-                # Run all tests using Hiro SDK
-                all_results = tester.run_all_tests()
-
-                # Check if any tests failed
-                failed_tests = 0
-                for suite, results in all_results.items():
-                    for result in results:
-                        if result.status.value == "failed":
-                            failed_tests += 1
-
-                if options.get("test_coverage"):
-                    print(
-                        f"\n{Fore.CYAN}📊 Generating Coverage Report...{Style.RESET_ALL}"
-                    )
-                    try:
-                        subprocess.run(
-                            ["npm", "run", "coverage"],
-                            cwd=self.project_root,
-                            check=True,
-                        )
-                        print(
-                            f"{Fore.GREEN}✅ Coverage report generated{Style.RESET_ALL}"
-                        )
-                    except subprocess.CalledProcessError:
-                        print(
-                            f"{Fore.YELLOW}⚠️  Coverage report generation failed{Style.RESET_ALL}"
-                        )
-
-                return 1 if failed_tests > 0 else 0
-
-        except ImportError as e:
-            print(
-                f"{Fore.RED}❌ Failed to import Hiro test module: {e}{Style.RESET_ALL}"
-            )
-            return 1
         except Exception as e:
             # 🛡️ Sentinel: Prevent sensitive information disclosure.
             print(f"{Fore.RED}❌ Test execution failed.{Style.RESET_ALL}")
             if options.get("verbose"):
                 print(f"   Error details: {e}")
                 import traceback
-
                 traceback.print_exc()
             return 1
 

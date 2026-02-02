@@ -25,8 +25,35 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [x] Implement multi-network monitoring (Devnet, Testnet, Mainnet).
 *   **Phase 3: Contract Registry (In Progress)**
     *   [x] Create a contract registry in this PRD to track deployments across all networks.
+*   **Phase 4: Full Development Cycle Integration (Complete)**
+    *   [x] Align CLI with full lifecycle: Setup -> Detect -> Test -> Deploy -> Monitor -> Verify.
+    *   [x] Standardize test runner to use Vitest and Clarinet SDK.
+*   **Phase 5: Clarity 4 Native Support (Planned)**
+    *   [ ] Research and implement Clarity 4 syntax support.
+    *   [ ] Add Clarity 4 examples and test templates.
 
-## 4. Contract Registry
+## 4. Feature Alignment
+
+### 4.1. Full Development Cycle
+StacksOrbit handles the entire development lifecycle:
+*   **Setup:** Interactive wizard for rapid environment configuration.
+*   **Detect:** Automatic discovery of contracts and project structure.
+*   **Test:** Native integration with Vitest and Clarinet SDK for robust unit and integration testing.
+*   **Deploy:** Smart, dependency-aware deployment to any Stacks network.
+*   **Monitor:** Real-time CLI and TUI dashboards, plus **Chainhooks** for event-driven multi-network monitoring.
+*   **Verify:** Post-deployment validation to ensure system integrity.
+
+### 4.2. All-Network Support
+*   **Devnet:** Local development network management with `stacks-core` integration.
+*   **Testnet:** Full support for Hiro Testnet, including automated pre-checks and faucet links.
+*   **Mainnet:** Secure production deployment with error masking and sentinel security hardening.
+
+### 4.3. Clarity 4 Native Support
+StacksOrbit is committed to supporting the latest Clarity language features.
+*   **Current:** Full support for Clarity 1 and Clarity 2.
+*   **Upcoming:** Native support for Clarity 4 (Nakamoto) is on the roadmap to enable developers to leverage the latest Stacks blockchain innovations.
+
+## 5. Contract Registry
 
 | Contract | Devnet | Testnet | Mainnet |
 | :--- | :--- | :--- | :--- |
@@ -68,6 +95,16 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   Standardized `chainhooks/testnet.json`.
     *   Created the Contract Registry section in `PRD.md`.
     *   Marked Phase 3 as in-progress.
+*   **Status:** Complete.
+
+### Session 6: Full Cycle Alignment & Clarity 4 Roadmap
+
+*   **Objective:** Align the project with the full development cycle and establish a roadmap for Clarity 4 support.
+*   **Changes:**
+    *   Fixed `stacksorbit_cli.py` import bugs (colorama) and missing module dependencies for the `test` command.
+    *   Standardized the CLI `test` command to use Vitest and Clarinet SDK.
+    *   Updated `PRD.md` and `AGENTS.md` to reflect full lifecycle support (Setup, Detect, Test, Deploy, Monitor, Verify) across all networks.
+    *   Formally added Clarity 4 support to the project roadmap.
 *   **Status:** Complete.
 
 ### Session 5: Security Hardening & Information Disclosure Prevention

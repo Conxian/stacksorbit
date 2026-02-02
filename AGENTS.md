@@ -34,9 +34,13 @@ The StacksOrbit project is composed of the following key components:
 
 ### 1.2. Features
 
-* **Smart Category Recognition:** Automatically categorizes and deploys smart contracts.
-* **Advanced Monitoring Dashboard:** A real-time, interactive dashboard for monitoring deployments.
-* **Comprehensive Testing & Verification:** A full suite of tests to ensure the reliability of the tool.
+* **Full Development Lifecycle:** Support for the entire dev cycle: Setup, Auto-Detection, Testing, Deployment, Monitoring, and Verification.
+* **All-Network Support:** Native support for Devnet (local), Testnet (public), and Mainnet (production).
+* **Multi-Network Chainhooks:** Built-in support for Chainhook predicates to monitor contract events across all networks.
+* **Smart Category Recognition:** Automatically categorizes and deploys smart contracts based on their purpose.
+* **Native Testing Integration:** Built-in support for Vitest and Clarinet SDK for comprehensive contract testing.
+* **Advanced Monitoring Dashboard:** A real-time, interactive dashboard (CLI and TUI) for monitoring deployments.
+* **Clarity 4 Roadmap:** Committed support for the latest Clarity language features (Clarity 1, 2, and upcoming 4).
 * **User-Friendly Experience:** An interactive setup wizard and clear, concise documentation.
 
 ## 2. Installation Guide
