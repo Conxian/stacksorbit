@@ -11,3 +11,8 @@
 **Vulnerability:** Secrets loaded from environment variables were being inadvertently saved to the plaintext `.env` file when updating configuration (e.g., via templates). Additionally, verbose exception messages were leaking internal details in non-verbose CLI output.
 **Learning:** Preventing secret loading from disk is not enough; saving operations must also be explicitly filtered to maintain a secure state. Centralizing error handling or following a consistent masking pattern is crucial for preventing information disclosure.
 **Prevention:** Always use a block-list (like `SECRET_KEYS`) in all configuration saving methods. Ensure that top-level exception handlers in CLI tools default to generic error messages, only revealing details when a `--verbose` flag is explicitly provided.
+
+## 2026-02-02 - Centralized Secret Detection and Robust Address Validation
+**Vulnerability:** Inconsistent secret filtering and weak address validation across different parts of the application. Specifically, the TUI was missing pattern-based secret filtering (e.g., for keys containing 'TOKEN'), and the CLI used a naive address validation that allowed invalid characters and ignored network prefixes.
+**Learning:** Security logic (like secret identification and input validation) must be centralized and reused across all interfaces (CLI, GUI, API) to prevent "implementation drift" where one interface becomes less secure than others.
+**Prevention:** Maintain a single source of truth for security-sensitive logic and constants (e.g., in `stacksorbit_secrets.py`). Prefer shared utility functions (`is_sensitive_key`, `validate_address`) over local re-implementations.

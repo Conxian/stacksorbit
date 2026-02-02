@@ -16,11 +16,10 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import argparse
 from dotenv import dotenv_values
-from stacksorbit_secrets import SECRET_KEYS
+from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
 from deployment_monitor import DeploymentMonitor
 
 # 🛡️ Sentinel: Sensitive substrings to identify potential secrets
-SENSITIVE_SUBSTRINGS = ["KEY", "SECRET", "TOKEN", "PASSWORD", "MNEMONIC"]
 
 # Force UTF-8 encoding for stdout on Windows
 if sys.platform == "win32":
@@ -146,10 +145,7 @@ CONFIRMATION_TIMEOUT=300
                 # 🛡️ Sentinel: Security Enforcer.
                 # Explicitly skip any known secrets or potential sensitive keys before saving to disk.
                 # This prevents accidental persistence of secrets to plaintext files.
-                is_secret = key in SECRET_KEYS or any(
-                    sub in key.upper() for sub in SENSITIVE_SUBSTRINGS
-                )
-                if not is_secret:
+                if not is_sensitive_key(key):
                     f.write(f"{key}={value}\n")
 
     def validate_config(self) -> Tuple[bool, List[str]]:
