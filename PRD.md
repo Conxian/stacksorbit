@@ -23,7 +23,7 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [x] Create `/chainhooks` directory.
     *   [x] Define Chainhook predicates for contract events.
     *   [x] Implement multi-network monitoring (Devnet, Testnet, Mainnet).
-*   **Phase 3: Contract Registry (In Progress)**
+*   **Phase 3: Contract Registry (Complete)**
     *   [x] Create a contract registry in this PRD to track deployments across all networks.
 *   **Phase 4: Full Development Cycle Integration (Complete)**
     *   [x] Align CLI with full lifecycle: Setup -> Detect -> Test -> Deploy -> Monitor -> Verify.
