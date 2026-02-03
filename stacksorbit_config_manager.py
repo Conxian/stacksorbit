@@ -88,7 +88,25 @@ class ConfigManager:
         self.config.update(env_overrides)
 
         # Load .toml files (e.g., Clarinet.toml)
-        for root, _, files in os.walk(self.base_path):
+        # Bolt ⚡: Optimize configuration scanning by skipping heavy directories.
+        # This significantly reduces I/O and CPU usage during startup.
+        ignore_dirs = {
+            "node_modules",
+            ".git",
+            "dist",
+            "build",
+            ".stacksorbit",
+            "logs",
+            "target",
+            "__pycache__",
+        }
+
+        for root, dirs, files in os.walk(self.base_path):
+            # Bolt ⚡: Skip ignored and hidden directories in-place.
+            dirs[:] = [
+                d for d in dirs if d not in ignore_dirs and not d.startswith(".")
+            ]
+
             for file in files:
                 if file == "Clarinet.toml":
                     toml_path = os.path.join(root, file)
