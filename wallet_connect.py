@@ -10,7 +10,9 @@ import webbrowser
 import json
 import threading
 import time
+import secrets
 from pathlib import Path
+from stacksorbit_secrets import validate_stacks_address
 
 # HTML template for wallet connection
 WALLET_CONNECT_HTML = """
@@ -243,10 +245,13 @@ WALLET_CONNECT_HTML = """
         }
         
         function sendToServer(address) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
             fetch('/wallet-connected', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: address })
+                body: JSON.stringify({ address: address, token: token })
             }).catch(err => console.error('Failed to notify server:', err));
         }
     </script>
@@ -258,9 +263,11 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP handler for wallet connection"""
     
     connected_address = None
+    session_token = None
     
     def do_GET(self):
-        if self.path == '/' or self.path == '/index.html':
+        path = self.path.split('?')[0]
+        if path == '/' or path == '/index.html':
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
@@ -270,17 +277,34 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_POST(self):
         if self.path == '/wallet-connected':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode())
-            
-            WalletConnectHandler.connected_address = data.get('address')
-            print(f"\n✅ Wallet connected: {WalletConnectHandler.connected_address}")
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({'status': 'ok'}).encode())
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode())
+
+                # 🛡️ Sentinel: Validate session token to prevent unauthorized overrides
+                if not data.get('token') or data.get('token') != WalletConnectHandler.session_token:
+                    print("⚠️  Unauthorized connection attempt: Invalid session token")
+                    self.send_error(403, "Invalid session token")
+                    return
+
+                address = data.get('address')
+                # 🛡️ Sentinel: Validate Stacks address format and network
+                if not address or not validate_stacks_address(address):
+                    print(f"⚠️  Invalid Stacks address received: {address}")
+                    self.send_error(400, "Invalid Stacks address")
+                    return
+
+                WalletConnectHandler.connected_address = address
+                print(f"\n✅ Wallet connected and validated: {WalletConnectHandler.connected_address}")
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'status': 'ok'}).encode())
+            except (json.JSONDecodeError, ValueError, KeyError) as e:
+                print(f"⚠️  Error processing wallet connection: {e}")
+                self.send_error(400, "Bad Request")
         else:
             self.send_error(404)
     
@@ -291,6 +315,11 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
 def start_wallet_connect_server(port=8765):
     """Start the wallet connect server and open browser"""
     
+    # 🛡️ Sentinel: Generate a random session token for security
+    token = secrets.token_urlsafe(16)
+    WalletConnectHandler.session_token = token
+    url = f"http://localhost:{port}/?token={token}"
+
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║           🚀 StacksOrbit Wallet Connect                      ║
@@ -298,16 +327,17 @@ def start_wallet_connect_server(port=8765):
 ║  Opening browser for wallet connection...                    ║
 ║                                                              ║
 ║  If browser doesn't open, visit:                             ║
-║  http://localhost:{port}                                        ║
+║  {url}
 ║                                                              ║
 ║  Scan the QR code with your mobile Stacks wallet             ║
 ║  or click "Connect" if using browser extension               ║
 ╚══════════════════════════════════════════════════════════════╝
 """)
     
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", port), WalletConnectHandler) as httpd:
         # Open browser
-        webbrowser.open(f'http://localhost:{port}')
+        webbrowser.open(url)
         
         print("Waiting for wallet connection... (Press Ctrl+C to cancel)")
         

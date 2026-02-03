@@ -36,7 +36,7 @@ except ImportError as e:
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
-from stacksorbit_secrets import is_sensitive_key
+from stacksorbit_secrets import is_sensitive_key, validate_stacks_address
 
 
 class StacksOrbitGUI(App):
@@ -503,6 +503,14 @@ class StacksOrbitGUI(App):
         # We also identify if the user is attempting to save a real secret.
         privkey_val = self.query_one("#privkey-input", Input).value
         address_val = self.query_one("#address-input", Input).value
+
+        # 🛡️ Sentinel: Validate the Stacks address before saving
+        if address_val and not validate_stacks_address(address_val, self.network):
+            self.notify(
+                f"🛡️ Security: Invalid Stacks address for {self.network.upper()}.",
+                severity="error",
+            )
+            return
 
         # Check if the private key is a real secret (not empty or placeholder)
         is_secret_provided = (
