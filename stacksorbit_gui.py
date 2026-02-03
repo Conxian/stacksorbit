@@ -48,10 +48,15 @@ class StacksOrbitGUI(App):
         Binding("d", "toggle_dark", "Toggle dark mode"),
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh data"),
+        Binding("s", "save_settings", "Save settings"),
     ]
 
     # Reactive variables
     network = reactive("testnet")
+
+    def watch_network(self, network: str) -> None:
+        """Watch the network reactive variable and update subtitle."""
+        self.sub_title = f"Deployment Dashboard [{network.upper()}]"
 
     def __init__(self, config_path: str = ".env", **kwargs):
         super().__init__(**kwargs)
@@ -174,16 +179,22 @@ class StacksOrbitGUI(App):
                             id="show-privkey", tooltip="Toggle private key visibility"
                         )
                     yield Label("Stacks Address:")
-                    yield Input(
-                        placeholder="Your STX address",
-                        value=self.config.get("SYSTEM_ADDRESS", ""),
-                        id="address-input",
-                    )
+                    with Horizontal(classes="input-group"):
+                        yield Input(
+                            placeholder="Your STX address",
+                            value=self.config.get("SYSTEM_ADDRESS", ""),
+                            id="address-input",
+                        )
+                        yield Button(
+                            "📋",
+                            id="copy-address-btn",
+                            tooltip="Copy address to clipboard",
+                        )
                     yield Button(
                         "💾 Save",
                         id="save-config-btn",
                         variant="primary",
-                        tooltip="Save settings to .env file",
+                        tooltip="Save settings to .env file [s]",
                     )
 
         yield Footer()
@@ -191,7 +202,7 @@ class StacksOrbitGUI(App):
     def on_mount(self) -> None:
         """Initialize the GUI"""
         self.title = "StacksOrbit"
-        self.sub_title = "Deployment Dashboard"
+        self.sub_title = f"Deployment Dashboard [{self.network.upper()}]"
         for indicator in self.query(LoadingIndicator):
             indicator.display = False
 
@@ -368,6 +379,11 @@ class StacksOrbitGUI(App):
     def action_toggle_dark(self) -> None:
         self.dark = not self.dark
 
+    async def action_save_settings(self) -> None:
+        """Action to save settings from keyboard shortcut."""
+        self.query_one(TabbedContent).active = "settings"
+        await self.on_save_config_pressed()
+
     @on(Button.Pressed, "#refresh-btn")
     def action_refresh(self) -> None:
         """Handle manual refresh button press."""
@@ -468,6 +484,14 @@ class StacksOrbitGUI(App):
     def on_show_privkey_changed(self, event: Switch.Changed) -> None:
         """Toggle private key visibility."""
         self.query_one("#privkey-input", Input).password = not event.value
+
+    @on(Button.Pressed, "#copy-address-btn")
+    def on_copy_address_pressed(self) -> None:
+        """Handle copy address button press."""
+        address = self.query_one("#address-input", Input).value
+        if address:
+            self.copy_to_clipboard(address)
+            self.notify("Address copied to clipboard", severity="information")
 
     @on(Button.Pressed, "#save-config-btn")
     async def on_save_config_pressed(self) -> None:
