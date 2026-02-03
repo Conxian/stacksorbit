@@ -423,41 +423,37 @@ class GenericStacksAutoDetector:
             return self.contract_cache[cache_key]
 
         contracts = []
+        seen_names = set()
 
         # Method 1: Enhanced Clarinet.toml parsing (SDK 3.8 compatible)
         clarinet_contracts = self._parse_generic_clarinet_toml(directory)
         if clarinet_contracts:
             contracts.extend(clarinet_contracts)
+            seen_names.update(c["name"] for c in clarinet_contracts)
             print(f"✅ Clarinet.toml detection: {len(clarinet_contracts)} contracts")
 
-        # Method 2: Generic directory scanning (any .clar files)
-        directory_contracts = self._generic_directory_scan(directory)
+        # Method 2: Efficient directory scanning (any .clar files, skipping heavy dirs)
+        # Bolt ⚡: Consolidate directory and project structure scanning into a single
+        # efficient pass to avoid redundant I/O and recursive globbing.
+        directory_contracts = self._efficient_directory_scan(directory)
         if directory_contracts:
-            # Avoid duplicates
-            existing_names = {c["name"] for c in contracts}
             new_contracts = [
-                c for c in directory_contracts if c["name"] not in existing_names
+                c for c in directory_contracts if c["name"] not in seen_names
             ]
             contracts.extend(new_contracts)
-            print(f"✅ Directory scanning: {len(new_contracts)} additional contracts")
+            seen_names.update(c["name"] for c in new_contracts)
+            print(f"✅ Efficient scanning: {len(new_contracts)} additional contracts")
 
         # Method 3: Check for deployment manifests
         manifest_contracts = self._parse_deployment_manifests(directory)
         if manifest_contracts:
-            print(
-                f"📦 Found deployment manifests: {len(manifest_contracts)} contracts referenced"
-            )
-
-        # Method 4: Check for standard Stacks project structures
-        project_contracts = self._scan_project_structures(directory)
-        if project_contracts:
-            existing_names = {c["name"] for c in contracts}
             new_contracts = [
-                c for c in project_contracts if c["name"] not in existing_names
+                c for c in manifest_contracts if c["name"] not in seen_names
             ]
             contracts.extend(new_contracts)
+            seen_names.update(c["name"] for c in new_contracts)
             print(
-                f"✅ Project structure scanning: {len(new_contracts)} additional contracts"
+                f"📦 Found deployment manifests: {len(manifest_contracts)} contracts referenced ({len(new_contracts)} new)"
             )
 
         # Categorize contracts generically
@@ -579,82 +575,57 @@ class GenericStacksAutoDetector:
 
         return contracts
 
-    def _generic_directory_scan(self, directory: Path) -> List[Dict]:
-        """Generic directory scanning for any .clar files"""
+    def _efficient_directory_scan(self, directory: Path) -> List[Dict]:
+        """
+        Bolt ⚡: Efficiently scan directory for .clar files in a single pass.
+        Skips heavy directories to reduce I/O and avoids redundant recursive globbing.
+        """
         contracts = []
+        seen_paths = set()
 
-        # Standard Stacks project structures
-        scan_patterns = [
-            ("contracts/**/*.clar", "contracts directory"),
-            ("clarinet/contracts/**/*.clar", "clarinet contracts"),
-            ("src/**/*.clar", "src directory"),
-            ("**/*.clar", "any .clar files"),
-        ]
+        # Directories to ignore to speed up scanning
+        ignore_dirs = {
+            "node_modules",
+            ".git",
+            "dist",
+            "build",
+            ".stacksorbit",
+            "logs",
+            "target",
+            "__pycache__",
+            ".venv",
+            "venv",
+            "env",
+        }
 
-        for pattern, description in scan_patterns:
-            found_contracts = list(directory.glob(pattern))
-            if found_contracts:
-                print(
-                    f"📁 Found contracts in {description}: {len(found_contracts)} files"
-                )
+        for root, dirs, files in os.walk(directory):
+            # Bolt ⚡: Modify dirs in-place to skip ignored directories and hidden ones
+            dirs[:] = [
+                d for d in dirs if d not in ignore_dirs and not d.startswith(".")
+            ]
 
-                for clar_file in found_contracts:
-                    if clar_file.is_file():
-                        contract_name = clar_file.stem
-                        contracts.append(
-                            {
-                                "name": contract_name,
-                                "path": str(clar_file.relative_to(directory)),
-                                "full_path": str(clar_file),
-                                "source": description,
-                                "size": clar_file.stat().st_size,
-                                "modified": clar_file.stat().st_mtime,
-                                "hash": self._calculate_file_hash(clar_file),
-                                "category": self._determine_contract_category(
-                                    contract_name
-                                ),
-                            }
-                        )
+            for file in files:
+                if file.endswith(".clar"):
+                    full_path = Path(root) / file
+                    if full_path in seen_paths:
+                        continue
+                    seen_paths.add(full_path)
 
-        return contracts
-
-    def _scan_project_structures(self, directory: Path) -> List[Dict]:
-        """Scan standard Stacks project structures"""
-        contracts = []
-
-        # Check for common Stacks project structures
-        structures = [
-            ("clarinet", "Clarinet project structure"),
-            ("contracts", "Standard contracts directory"),
-            ("src/contracts", "Source contracts"),
-            ("packages", "Monorepo packages"),
-            ("tests/contracts", "Test contracts"),
-        ]
-
-        for structure_dir, description in structures:
-            structure_path = directory / structure_dir
-            if structure_path.exists():
-                print(f"🏗️  Found {description}: {structure_path}")
-
-                # Look for contracts in this structure
-                for clar_file in structure_path.rglob("*.clar"):
-                    if clar_file.is_file():
-                        contract_name = clar_file.stem
-                        contracts.append(
-                            {
-                                "name": contract_name,
-                                "path": str(clar_file.relative_to(directory)),
-                                "full_path": str(clar_file),
-                                "source": description,
-                                "size": clar_file.stat().st_size,
-                                "modified": clar_file.stat().st_mtime,
-                                "hash": self._calculate_file_hash(clar_file),
-                                "category": self._determine_contract_category(
-                                    contract_name
-                                ),
-                            }
-                        )
-
+                    contract_name = full_path.stem
+                    contracts.append(
+                        {
+                            "name": contract_name,
+                            "path": str(full_path.relative_to(directory)),
+                            "full_path": str(full_path),
+                            "source": "efficient_scan",
+                            "size": full_path.stat().st_size,
+                            "modified": full_path.stat().st_mtime,
+                            "hash": self._calculate_file_hash(full_path),
+                            "category": self._determine_contract_category(
+                                contract_name
+                            ),
+                        }
+                    )
         return contracts
 
     def _determine_contract_category(self, contract_name: str) -> str:
@@ -941,10 +912,17 @@ class GenericStacksAutoDetector:
             analysis["compatible"] = False
 
     def _calculate_file_hash(self, file_path: Path) -> str:
-        """Calculate file hash for change detection"""
+        """
+        Bolt ⚡: Calculate file hash using chunked reading.
+        More memory-efficient and avoids loading large contract files entirely into RAM.
+        """
+        hasher = hashlib.md5()
         try:
             with open(file_path, "rb") as f:
-                return hashlib.md5(f.read()).hexdigest()
+                # Read in 4KB chunks
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hasher.update(chunk)
+            return hasher.hexdigest()
         except:
             return "unknown"
 
