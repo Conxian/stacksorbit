@@ -44,6 +44,7 @@ setup(
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
+            "pytest-asyncio",
             "black>=23.0.0",
             "pylint>=2.17.0",
             "mypy>=1.0.0",
@@ -51,6 +52,7 @@ setup(
         "test": [
             "pytest>=7.0.0",
             "pytest-mock>=3.10.0",
+            "pytest-asyncio",
         ],
     },
     classifiers=[
