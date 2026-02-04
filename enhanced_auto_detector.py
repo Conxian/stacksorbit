@@ -29,6 +29,7 @@ class GenericStacksAutoDetector:
         self.contract_cache = {}
         self.deployment_cache = {}
         self.project_files_cache = {}
+        self.json_cache = {}
         self.state_file = (
             self.project_root / ".stacksorbit" / "auto_detection_state.json"
         )
@@ -694,25 +695,22 @@ class GenericStacksAutoDetector:
 
             if is_manifest:
                 if manifest_file.is_file():
-                    try:
-                        with open(manifest_file, "r") as f:
-                            data = json.load(f)
+                    data = self._load_json_cached(manifest_file)
+                    if not data:
+                        continue
 
-                        # Extract contract information if available
-                        if "deployment" in data and "successful" in data["deployment"]:
-                            successful_contracts = data["deployment"]["successful"]
-                            for contract in successful_contracts:
-                                manifests.append(
-                                    {
-                                        "name": contract.get("name", ""),
-                                        "tx_id": contract.get("tx_id", ""),
-                                        "source": "deployment_manifest",
-                                        "path": str(manifest_file),
-                                    }
-                                )
-
-                    except Exception as e:
-                        print(f"⚠️  Error reading manifest {manifest_file}: {e}")
+                    # Extract contract information if available
+                    if "deployment" in data and "successful" in data["deployment"]:
+                        successful_contracts = data["deployment"]["successful"]
+                        for contract in successful_contracts:
+                            manifests.append(
+                                {
+                                    "name": contract.get("name", ""),
+                                    "tx_id": contract.get("tx_id", ""),
+                                    "source": "deployment_manifest",
+                                    "path": str(manifest_file),
+                                }
+                            )
 
         return manifests
 
@@ -938,6 +936,24 @@ class GenericStacksAutoDetector:
             analysis["issues"].append(f"Manual analysis error: {e}")
             analysis["compatible"] = False
 
+    def _load_json_cached(self, file_path: Path) -> Optional[Dict]:
+        """
+        Bolt ⚡: Load and parse JSON file with in-memory caching.
+        Prevents redundant parsing of the same manifest/artifact files.
+        """
+        cache_key = str(file_path)
+        if cache_key in self.json_cache:
+            return self.json_cache[cache_key]
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                self.json_cache[cache_key] = data
+                return data
+        except Exception as e:
+            print(f"⚠️  Error reading JSON {file_path}: {e}")
+            return None
+
     def _calculate_file_hash(self, file_path: Path) -> str:
         """
         Bolt ⚡: Calculate file hash using chunked reading.
@@ -991,10 +1007,8 @@ class GenericStacksAutoDetector:
 
             if is_artifact:
                 if artifact_file.is_file():
-                    try:
-                        with open(artifact_file, "r") as f:
-                            data = json.load(f)
-
+                    data = self._load_json_cached(artifact_file)
+                    if data:
                         artifacts.append(
                             {
                                 "type": "deployment_artifact",
@@ -1003,8 +1017,6 @@ class GenericStacksAutoDetector:
                                 "modified": artifact_file.stat().st_mtime,
                             }
                         )
-                    except Exception as e:
-                        print(f"⚠️  Error reading artifact {artifact_file}: {e}")
 
         return artifacts
 
@@ -1151,21 +1163,15 @@ class GenericStacksAutoDetector:
 
             if is_history:
                 if project_file.is_file():
-                    try:
-                        with open(project_file, "r") as f:
-                            data = json.load(f)
-                            deployment_history.extend(data)
-                    except Exception as e:
-                        print(f"⚠️  Error reading {project_file}: {e}")
+                    data = self._load_json_cached(project_file)
+                    if data and isinstance(data, list):
+                        deployment_history.extend(data)
 
             if is_manifest:
                 if project_file.is_file():
-                    try:
-                        with open(project_file, "r") as f:
-                            data = json.load(f)
-                            manifests.append(data)
-                    except Exception as e:
-                        print(f"⚠️  Error reading {project_file}: {e}")
+                    data = self._load_json_cached(project_file)
+                    if data:
+                        manifests.append(data)
 
         return {
             "has_local_history": len(deployment_history) > 0,

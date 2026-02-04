@@ -151,6 +151,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Performance optimizations
 - Additional network support
 
+### ⚡ **Bolt: Performance Optimizations**
+
+- Consolidated redundant directory scans in auto-detection into a single-pass `os.walk`.
+- Implemented in-memory caching for project files and parsed JSON manifests.
+- Optimized file hashing with chunked reading for memory efficiency.
+
 ---
 
 ## 📋 **Release Checklist**
