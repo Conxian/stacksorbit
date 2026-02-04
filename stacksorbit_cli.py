@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 # Bolt ⚡: Moved heavy imports inside methods to minimize CLI startup latency.
 # Standard library imports remain at the top.
-from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
+from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key, validate_stacks_address
 
 try:
     import colorama
@@ -627,29 +627,9 @@ class SetupWizard:
         )
 
     def _validate_address(self, address: str) -> bool:
-        """Validate Stacks address format by network and charset"""
-        if not address or not isinstance(address, str):
-            return False
-        addr = address.strip().upper()
+        """Validate Stacks address format using centralized utility"""
         network = self.config.get("network")
-
-        # Prefix rules: SP for mainnet, ST for testnet/devnet
-        if network == "mainnet":
-            if not addr.startswith("SP"):
-                return False
-        elif network in ["testnet", "devnet"]:
-            if not addr.startswith("ST"):
-                return False
-        else:
-            if not (addr.startswith("SP") or addr.startswith("ST")):
-                return False
-
-        # C32 allowed charset (I, L, O, U are excluded)
-        allowed = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
-        if len(addr) != 41:
-            return False
-        body = addr[2:]
-        return all(ch in allowed for ch in body)
+        return validate_stacks_address(address, network)
 
     def _get_user_input(
         self,
