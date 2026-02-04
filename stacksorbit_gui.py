@@ -120,7 +120,6 @@ class StacksOrbitGUI(App):
                     yield Button(
                         "🔄 Refresh",
                         id="refresh-btn",
-                        tooltip="Refresh all dashboard data [r]",
                     )
 
             with TabPane("📄 Contracts", id="contracts"):
@@ -149,19 +148,16 @@ class StacksOrbitGUI(App):
                             "🔍 Pre-check",
                             id="precheck-btn",
                             variant="primary",
-                            tooltip="Run diagnostic checks before deployment",
                         )
                         yield Button(
                             "🚀 Deploy",
                             id="start-deploy-btn",
                             variant="primary",
-                            tooltip="Start the deployment process",
                         )
                         yield Button(
                             "🗑️ Clear",
                             id="clear-log-btn",
                             variant="error",
-                            tooltip="Clear the deployment log",
                         )
 
             with TabPane("⚙️ Settings", id="settings"):
@@ -175,9 +171,7 @@ class StacksOrbitGUI(App):
                             password=True,
                         )
                         yield Label("Show", classes="switch-label")
-                        yield Switch(
-                            id="show-privkey", tooltip="Toggle private key visibility"
-                        )
+                        yield Switch(id="show-privkey")
                     yield Label("Stacks Address:")
                     with Horizontal(classes="input-group"):
                         yield Input(
@@ -188,13 +182,11 @@ class StacksOrbitGUI(App):
                         yield Button(
                             "📋",
                             id="copy-address-btn",
-                            tooltip="Copy address to clipboard",
                         )
                     yield Button(
                         "💾 Save",
                         id="save-config-btn",
                         variant="primary",
-                        tooltip="Save settings to .env file [s]",
                     )
 
         yield Footer()
@@ -206,12 +198,35 @@ class StacksOrbitGUI(App):
         for indicator in self.query(LoadingIndicator):
             indicator.display = False
 
-        # Add tooltips to widgets that don't support them in constructor
+        # Add tooltips to widgets
         self.query_one("#contracts-table", DataTable).tooltip = (
-            "List of contracts deployed by this address"
+            "List of contracts deployed by this address. Click a row to view source code."
         )
         self.query_one("#transactions-table", DataTable).tooltip = (
-            "Recent transactions for this address"
+            "Recent transactions for this address. Click a row to copy full TX ID."
+        )
+
+        # Buttons and interactive elements tooltips
+        self.query_one("#refresh-btn", Button).tooltip = (
+            "Refresh all dashboard data [r]"
+        )
+        self.query_one("#precheck-btn", Button).tooltip = (
+            "Run diagnostic checks before deployment"
+        )
+        self.query_one("#start-deploy-btn", Button).tooltip = (
+            "Start the deployment process"
+        )
+        self.query_one("#clear-log-btn", Button).tooltip = (
+            "Clear the deployment log"
+        )
+        self.query_one("#show-privkey", Switch).tooltip = (
+            "Toggle private key visibility"
+        )
+        self.query_one("#copy-address-btn", Button).tooltip = (
+            "Copy address to clipboard"
+        )
+        self.query_one("#save-config-btn", Button).tooltip = (
+            "Save settings to .env file [s]"
         )
 
         # Add tooltips to metric cards for better clarity
@@ -336,6 +351,7 @@ class StacksOrbitGUI(App):
                         tx.get("tx_type", ""),
                         tx.get("tx_status", ""),
                         str(tx.get("block_height", "")),
+                        key=tx.get("tx_id"),
                     )
             elif self.address != "Not configured":
                 transactions_table.add_row("", "No transactions found", "", "")
@@ -348,14 +364,21 @@ class StacksOrbitGUI(App):
                 indicator.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        # ⚡ Bolt: This event handler was previously decorated twice, causing it to
-        # fire two times for every click. The redundant decorator was removed to
-        # prevent duplicate API calls and unnecessary processing.
+    def on_contracts_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle contract row selection."""
         contract_id = event.row_key.value
         if contract_id:
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
+
+    @on(DataTable.RowSelected, "#transactions-table")
+    def on_transactions_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Handle transaction row selection - copy full TX ID to clipboard."""
+        tx_id = event.row_key.value
+        if tx_id:
+            self.copy_to_clipboard(tx_id)
+            self.notify(
+                f"Transaction ID copied: {tx_id[:10]}...", severity="information"
+            )
 
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""

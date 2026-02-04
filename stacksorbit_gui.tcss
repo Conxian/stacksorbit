@@ -44,6 +44,11 @@ Tab:hover {
     background: #252527;
 }
 
+Tab:focus {
+    border: round #007acc;
+    background: #252527;
+}
+
 Tab.--current {
     background: #007acc;
     color: white;

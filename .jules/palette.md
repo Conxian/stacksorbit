@@ -19,3 +19,7 @@
 ## 2025-02-02 - Multi-Tab Loading States and Empty States
 **Learning:** In a multi-tabbed TUI, providing consistent loading feedback across all data-driven tabs is essential. If only one tab shows a loading indicator during a global refresh, users on other tabs may perceive the app as frozen. Additionally, providing explicit "No data found" rows in tables prevents the "is it still loading or is it empty?" confusion.
 **Action:** I will implement global loading management by querying all loading indicators and provide meaningful empty-state rows for all data tables.
+
+## 2025-02-03 - Event Handler Naming and Collisions in Textual
+**Learning:** In Textual, naming an event handler with a generic pattern like `on_data_table_row_selected` makes it a global listener for that event across all instances of that widget class. If you also use the `@on` decorator with a specific ID, both the generic handler and the decorated handler may fire, or it may cause unexpected behavior.
+**Action:** Always use specific, unique names for event handlers (e.g., `on_contracts_row_selected`) when using the `@on` decorator with an ID selector to avoid collisions with automatic generic handler discovery.
