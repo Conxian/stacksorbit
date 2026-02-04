@@ -11,7 +11,7 @@ import requests
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import argparse
 
 # Import monitoring components
@@ -197,7 +197,7 @@ class DeploymentVerifier:
                 tx
                 for tx in transactions
                 if datetime.fromisoformat(tx["burn_block_time"].replace("Z", "+00:00"))
-                > datetime.now() - timedelta(hours=24)
+                > datetime.now(timezone.utc) - timedelta(hours=24)
             ]
 
             # Look for contract deployment transactions

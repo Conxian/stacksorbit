@@ -1421,18 +1421,16 @@ class GenericStacksAutoDetector:
         }
 
         try:
-            from enhanced_conxian_deployment import (
-                EnhancedConfigManager,
-                ConxianHiroMonitor,
-            )
+            from enhanced_conxian_deployment import EnhancedConfigManager
+            from deployment_monitor import DeploymentMonitor
 
-            # Use Conxian monitor if available
+            # Use deployment monitor if available
             config_manager = EnhancedConfigManager(self.project_root / ".env")
             config = config_manager.load_config()
 
             address = config.get("SYSTEM_ADDRESS")
             if address:
-                monitor = ConxianHiroMonitor(config.get("NETWORK", "testnet"))
+                monitor = DeploymentMonitor(config.get("NETWORK", "testnet"), config)
                 account = monitor.get_account_info(address)
 
                 if account:
