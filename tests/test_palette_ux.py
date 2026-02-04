@@ -44,10 +44,16 @@ async def test_new_ux_enhancements():
 
         # 2. Verify tooltips set in on_mount
         contracts_table = app.query_one("#contracts-table", DataTable)
-        assert contracts_table.tooltip == "List of contracts deployed by this address"
+        assert (
+            contracts_table.tooltip
+            == "List of contracts deployed by this address. Click a row to view source code."
+        )
 
         transactions_table = app.query_one("#transactions-table", DataTable)
-        assert transactions_table.tooltip == "Recent transactions for this address"
+        assert (
+            transactions_table.tooltip
+            == "Recent transactions for this address. Click a row to copy full TX ID."
+        )
 
         # 3. Verify Refresh button tooltip with shortcut hint
         refresh_btn = app.query_one("#refresh-btn", Button)

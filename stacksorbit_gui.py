@@ -208,10 +208,10 @@ class StacksOrbitGUI(App):
 
         # Add tooltips to widgets that don't support them in constructor
         self.query_one("#contracts-table", DataTable).tooltip = (
-            "List of contracts deployed by this address"
+            "List of contracts deployed by this address. Click a row to view source code."
         )
         self.query_one("#transactions-table", DataTable).tooltip = (
-            "Recent transactions for this address"
+            "Recent transactions for this address. Click a row to copy full TX ID."
         )
 
         # Add tooltips to metric cards for better clarity
@@ -336,6 +336,7 @@ class StacksOrbitGUI(App):
                         tx.get("tx_type", ""),
                         tx.get("tx_status", ""),
                         str(tx.get("block_height", "")),
+                        key=tx.get("tx_id"),
                     )
             elif self.address != "Not configured":
                 transactions_table.add_row("", "No transactions found", "", "")
@@ -348,14 +349,21 @@ class StacksOrbitGUI(App):
                 indicator.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        # ⚡ Bolt: This event handler was previously decorated twice, causing it to
-        # fire two times for every click. The redundant decorator was removed to
-        # prevent duplicate API calls and unnecessary processing.
+    def on_contracts_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle contract row selection."""
         contract_id = event.row_key.value
         if contract_id:
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
+
+    @on(DataTable.RowSelected, "#transactions-table")
+    def on_transactions_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Handle transaction row selection - copy full TX ID to clipboard."""
+        tx_id = event.row_key.value
+        if tx_id:
+            self.copy_to_clipboard(tx_id)
+            self.notify(
+                f"Transaction ID copied: {tx_id[:10]}...", severity="information"
+            )
 
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""
