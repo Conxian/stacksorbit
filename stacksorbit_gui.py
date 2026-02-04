@@ -4,6 +4,7 @@ StacksOrbit GUI - A modern, feature-rich dashboard for Stacks blockchain deploym
 """
 
 import asyncio
+import os
 import subprocess
 import threading
 from typing import Dict, List
@@ -36,7 +37,12 @@ except ImportError as e:
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
-from stacksorbit_secrets import is_sensitive_key, validate_stacks_address
+from stacksorbit_secrets import (
+    SECRET_KEYS,
+    is_sensitive_key,
+    validate_stacks_address,
+    validate_private_key,
+)
 
 
 class StacksOrbitGUI(App):
@@ -68,21 +74,45 @@ class StacksOrbitGUI(App):
         self._manual_refresh_in_progress = False
 
     def _load_config(self) -> Dict:
-        """Load configuration from file"""
+        """Load configuration from file and environment, enforcing security policies."""
         config = {}
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if "=" in line and not line.startswith("#"):
-                        key, value = line.split("=", 1)
-                        config[key.strip()] = value.strip().strip('"').strip("'")
-        except FileNotFoundError:
-            # app.notify might not be available yet in __init__
-            print(f"Config file {self.config_path} not found")
-        except Exception as e:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if "=" in line and not line.startswith("#"):
+                            key, value = line.split("=", 1)
+                            k, v = key.strip(), value.strip().strip('"').strip("'")
+
+                            # 🛡️ Sentinel: Enforce security policy - no secrets in .env
+                            if is_sensitive_key(k) and v not in (
+                                "",
+                                "your_private_key_here",
+                                "your_hiro_api_key",
+                            ):
+                                raise ValueError(
+                                    f"🛡️ Sentinel Security Error: Secret key '{k}' found in .env file.\n"
+                                    "   Storing secrets in plaintext files is a critical security risk.\n"
+                                    "   Please move this secret to an environment variable."
+                                )
+                            config[k] = v
+
+            # 🛡️ Sentinel: Selectively load environment variables to override file config.
+            # This uses an allow-list (keys from .env + known secrets) to prevent
+            # leaking unrelated environment variables.
+            allowed_keys = set(config.keys()) | set(SECRET_KEYS)
+            for key in allowed_keys:
+                if key in os.environ:
+                    config[key] = os.environ[key]
+
+        except ValueError as e:
+            # Re-raise Sentinel security errors to prevent app from starting insecurely
+            print(f"\n{e}\n")
+            raise
+        except Exception:
             # 🛡️ Sentinel: Prevent sensitive information disclosure.
-            print("Error loading configuration from file.")
+            print("Error loading configuration.")
         return config
 
     def compose(self) -> ComposeResult:
@@ -531,6 +561,18 @@ class StacksOrbitGUI(App):
         if address_val and not validate_stacks_address(address_val, self.network):
             self.notify(
                 f"🛡️ Security: Invalid Stacks address for {self.network.upper()}.",
+                severity="error",
+            )
+            return
+
+        # 🛡️ Sentinel: Validate the private key if provided
+        if (
+            privkey_val
+            and privkey_val != "your_private_key_here"
+            and not validate_private_key(privkey_val)
+        ):
+            self.notify(
+                "🛡️ Security: Invalid private key format (must be 64/66 hex chars).",
                 severity="error",
             )
             return

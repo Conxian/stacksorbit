@@ -61,3 +61,18 @@ def validate_stacks_address(address: str, network: str = None) -> bool:
     allowed = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
     body = addr[2:]
     return all(ch in allowed for ch in body)
+
+
+def validate_private_key(privkey: str) -> bool:
+    """
+    Validate Stacks private key format (64 or 66 chars hex).
+    """
+    if not privkey or not isinstance(privkey, str):
+        return False
+    pk = privkey.strip()
+    if pk.lower() == "your_private_key_here":
+        return False
+    if len(pk) not in (64, 66):
+        return False
+    # Hex-only characters
+    return all(c in "0123456789abcdefABCDEF" for c in pk)
