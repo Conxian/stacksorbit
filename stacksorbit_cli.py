@@ -15,7 +15,12 @@ from typing import Dict, List, Optional
 from datetime import datetime
 # Bolt ⚡: Moved heavy imports inside methods to minimize CLI startup latency.
 # Standard library imports remain at the top.
-from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key, validate_stacks_address
+from stacksorbit_secrets import (
+    SECRET_KEYS,
+    is_sensitive_key,
+    validate_stacks_address,
+    validate_private_key,
+)
 
 try:
     import colorama
@@ -621,10 +626,8 @@ class SetupWizard:
             return "other"
 
     def _validate_private_key(self, privkey: str) -> bool:
-        """Validate private key format"""
-        return len(privkey) == 64 and all(
-            c in "0123456789abcdefABCDEF" for c in privkey
-        )
+        """Validate private key format using centralized utility"""
+        return validate_private_key(privkey)
 
     def _validate_address(self, address: str) -> bool:
         """Validate Stacks address format using centralized utility"""
