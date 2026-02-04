@@ -10,6 +10,7 @@ import json
 import time
 import hashlib
 import re
+import fnmatch
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -27,6 +28,7 @@ class GenericStacksAutoDetector:
         )
         self.contract_cache = {}
         self.deployment_cache = {}
+        self.project_files_cache = {}
         self.state_file = (
             self.project_root / ".stacksorbit" / "auto_detection_state.json"
         )
@@ -579,17 +581,19 @@ class GenericStacksAutoDetector:
         """
         Bolt ⚡: Efficiently scan directory for .clar files in a single pass.
         Skips heavy directories to reduce I/O and avoids redundant recursive globbing.
+        Populates project_files_cache for subsequent use by other discovery methods.
         """
         contracts = []
         seen_paths = set()
+        cache_key = str(directory)
+        self.project_files_cache[cache_key] = []
 
-        # Directories to ignore to speed up scanning
+        # Directories to ignore to speed up scanning (heavy dependencies and metadata)
         ignore_dirs = {
             "node_modules",
             ".git",
             "dist",
             "build",
-            ".stacksorbit",
             "logs",
             "target",
             "__pycache__",
@@ -599,14 +603,17 @@ class GenericStacksAutoDetector:
         }
 
         for root, dirs, files in os.walk(directory):
-            # Bolt ⚡: Modify dirs in-place to skip ignored directories and hidden ones
+            # Bolt ⚡: Modify dirs in-place to skip ignored directories and hidden ones.
+            # We keep .stacksorbit as it contains valuable deployment manifests.
             dirs[:] = [
-                d for d in dirs if d not in ignore_dirs and not d.startswith(".")
+                d for d in dirs if d not in ignore_dirs and (not d.startswith(".") or d == ".stacksorbit")
             ]
 
             for file in files:
+                full_path = Path(root) / file
+                self.project_files_cache[cache_key].append(full_path)
+
                 if file.endswith(".clar"):
-                    full_path = Path(root) / file
                     if full_path in seen_paths:
                         continue
                     seen_paths.add(full_path)
@@ -653,19 +660,39 @@ class GenericStacksAutoDetector:
         return contracts
 
     def _parse_deployment_manifests(self, directory: Path) -> List[Dict]:
-        """Parse deployment manifests for contract information"""
+        """
+        Bolt ⚡: Parse deployment manifests using the pre-scanned project_files_cache.
+        Avoids redundant recursive filesystem globbing.
+        """
         manifests = []
+        cache_key = str(directory)
 
-        # Check for deployment manifest files
+        # Get all files from cache, or perform a scan if not available
+        all_files = self.project_files_cache.get(cache_key)
+        if all_files is None:
+            self._efficient_directory_scan(directory)
+            all_files = self.project_files_cache.get(cache_key, [])
+
+        # Check for deployment manifest files using in-memory pattern matching
         manifest_patterns = [
+            "deployment/*.json",
             "deployment/**/*.json",
+            "manifest.json",
             "**/manifest.json",
+            "deployments.json",
             "**/deployments.json",
+            ".stacksorbit/*.json",
             ".stacksorbit/**/*.json",
         ]
 
-        for pattern in manifest_patterns:
-            for manifest_file in directory.glob(pattern):
+        for manifest_file in all_files:
+            rel_path = str(manifest_file.relative_to(directory))
+            # Standardize path for matching
+            match_path = rel_path.replace(os.sep, "/")
+
+            is_manifest = any(fnmatch.fnmatch(match_path, p) for p in manifest_patterns)
+
+            if is_manifest:
                 if manifest_file.is_file():
                     try:
                         with open(manifest_file, "r") as f:
@@ -927,20 +954,42 @@ class GenericStacksAutoDetector:
             return "unknown"
 
     def _find_deployment_artifacts(self, directory: Path) -> List[Dict]:
-        """Find deployment artifacts and history"""
+        """
+        Bolt ⚡: Find deployment artifacts using the pre-scanned project_files_cache.
+        Avoids redundant recursive filesystem globbing.
+        """
         artifacts = []
+        cache_key = str(directory)
 
-        # Check for various deployment-related files
+        # Get all files from cache, or perform a scan if not available
+        all_files = self.project_files_cache.get(cache_key)
+        if all_files is None:
+            self._efficient_directory_scan(directory)
+            all_files = self.project_files_cache.get(cache_key, [])
+
+        # Pattern list for matching
         artifact_patterns = [
+            "deployment/*.json",
             "deployment/**/*.json",
+            "manifest.json",
             "**/manifest.json",
+            "deployments.json",
             "**/deployments.json",
+            ".stacksorbit/*.json",
             ".stacksorbit/**/*.json",
+            "*.deployment",
             "**/*.deployment",
         ]
 
-        for pattern in artifact_patterns:
-            for artifact_file in directory.glob(pattern):
+        # Check for various deployment-related files using in-memory pattern matching
+        for artifact_file in all_files:
+            rel_path = str(artifact_file.relative_to(directory))
+            # Standardize path for matching
+            match_path = rel_path.replace(os.sep, "/")
+
+            is_artifact = any(fnmatch.fnmatch(match_path, p) for p in artifact_patterns)
+
+            if is_artifact:
                 if artifact_file.is_file():
                     try:
                         with open(artifact_file, "r") as f:
@@ -1064,28 +1113,25 @@ class GenericStacksAutoDetector:
         }
 
     def _check_local_deployment_status(self) -> Dict:
-        """Check local deployment status from files"""
+        """
+        Bolt ⚡: Check local deployment status using the pre-scanned project_files_cache.
+        Avoids redundant recursive filesystem globbing.
+        """
         deployment_history = []
+        cache_key = str(self.project_root)
 
-        # Check deployment history
+        # Get all files from cache, or perform a scan if not available
+        all_files = self.project_files_cache.get(cache_key)
+        if all_files is None:
+            self._efficient_directory_scan(self.project_root)
+            all_files = self.project_files_cache.get(cache_key, [])
+
+        # Pattern lists for matching
         history_patterns = [
             "deployment/history.json",
             ".stacksorbit/deployment_history.json",
             "**/deployment_history.json",
         ]
-
-        for pattern in history_patterns:
-            for history_file in self.project_root.glob(pattern):
-                if history_file.is_file():
-                    try:
-                        with open(history_file, "r") as f:
-                            data = json.load(f)
-                            deployment_history.extend(data)
-                    except Exception as e:
-                        print(f"⚠️  Error reading {history_file}: {e}")
-
-        # Check manifest files
-        manifests = []
         manifest_patterns = [
             "deployment/manifest.json",
             ".stacksorbit/manifest.json",
@@ -1093,15 +1139,33 @@ class GenericStacksAutoDetector:
             "**/mainnet-manifest.json",
         ]
 
-        for pattern in manifest_patterns:
-            for manifest_file in self.project_root.glob(pattern):
-                if manifest_file.is_file():
+        # Check deployment history and manifest files using in-memory pattern matching
+        manifests = []
+        for project_file in all_files:
+            rel_path = str(project_file.relative_to(self.project_root))
+            # Standardize path for matching
+            match_path = rel_path.replace(os.sep, "/")
+
+            is_history = any(fnmatch.fnmatch(match_path, p) for p in history_patterns)
+            is_manifest = any(fnmatch.fnmatch(match_path, p) for p in manifest_patterns)
+
+            if is_history:
+                if project_file.is_file():
                     try:
-                        with open(manifest_file, "r") as f:
+                        with open(project_file, "r") as f:
+                            data = json.load(f)
+                            deployment_history.extend(data)
+                    except Exception as e:
+                        print(f"⚠️  Error reading {project_file}: {e}")
+
+            if is_manifest:
+                if project_file.is_file():
+                    try:
+                        with open(project_file, "r") as f:
                             data = json.load(f)
                             manifests.append(data)
                     except Exception as e:
-                        print(f"⚠️  Error reading {manifest_file}: {e}")
+                        print(f"⚠️  Error reading {project_file}: {e}")
 
         return {
             "has_local_history": len(deployment_history) > 0,
