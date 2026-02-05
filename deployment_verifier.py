@@ -16,6 +16,7 @@ import argparse
 
 # Import monitoring components
 from deployment_monitor import DeploymentMonitor
+from stacksorbit_secrets import is_sensitive_key
 
 
 class DeploymentVerifier:
@@ -438,15 +439,28 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Load configuration
+        # 🛡️ Sentinel: Secure configuration loading.
         config = {}
         if Path(args.config).exists():
-            with open(args.config, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, value = line.split("=", 1)
-                        config[key.strip()] = value.strip().strip('"')
+            from dotenv import dotenv_values
+
+            file_config = dotenv_values(dotenv_path=args.config)
+
+            # Enforce security policy - no secrets in .env
+            for key, value in file_config.items():
+                if is_sensitive_key(key) and value not in (
+                    "",
+                    "your_private_key_here",
+                    "your_hiro_api_key",
+                ):
+                    error_message = (
+                        f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
+                        "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
+                        "   For your protection, please move this secret to an environment variable and remove it from the .env file.\n"
+                        f"   Example: export {key}='your_secret_value_here'"
+                    )
+                    raise ValueError(error_message)
+                config[key] = value
 
         # Override with command line arguments
         if args.network:

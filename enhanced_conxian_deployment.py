@@ -64,9 +64,9 @@ class EnhancedConfigManager:
         # Load variables from the .env file first.
         file_config = dotenv_values(dotenv_path=self.config_path)
 
-        # Sentinel Security Enhancement: Check for secrets in the file.
-        for key in SECRET_KEYS:
-            if file_config.get(key) and file_config[key] not in (
+        # 🛡️ Sentinel: Enforce security policy - no secrets in .env
+        for key, value in file_config.items():
+            if is_sensitive_key(key) and value not in (
                 "",
                 "your_private_key_here",
                 "your_hiro_api_key",

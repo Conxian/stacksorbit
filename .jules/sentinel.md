@@ -21,3 +21,8 @@
 **Vulnerability:** A local HTTP server for wallet connection was unauthenticated, allowing unauthorized processes or websites to spoof wallet connections. Additionally, address validation was inconsistent and missing in some interfaces.
 **Learning:** Local development servers must still implement basic authentication (e.g., via session tokens in the URL) to prevent spoofing. Centralizing input validation ensures consistent security enforcement across CLI, GUI, and API interfaces.
 **Prevention:** Always use a session token for local servers that perform sensitive actions. Maintain a single source of truth for validation logic and reuse it everywhere.
+
+## 2026-02-04 - Standardized Secret Detection in Configuration Loaders
+**Vulnerability:** Inconsistent and incomplete secret detection in configuration loaders across the codebase. Some loaders used a hardcoded list of secrets, missing pattern-matched secrets (e.g., keys containing 'PASSWORD' or 'TOKEN'), while others performed no secret checks at all when loading from disk.
+**Learning:** Implementation drift in security logic (like secret detection) can create holes where one interface is less secure than others. Pattern-based detection (e.g., `is_sensitive_key`) is more robust than hardcoded lists and should be enforced across all data entry points.
+**Prevention:** Always use the centralized `is_sensitive_key(key)` utility for all configuration loading and saving operations. Ensure that all loaders consistently reject non-placeholder sensitive values in plaintext files like `.env`.
