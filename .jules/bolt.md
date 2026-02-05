@@ -17,3 +17,7 @@
 **Learning:** Recursive directory scans (e.g., `glob("**/*.clar")` or `os.walk`) can be extremely slow and memory-intensive if they traverse heavy directories like `node_modules`, `.git`, or build artifacts. Performing multiple independent scans for different file patterns or project structures also leads to redundant I/O and CPU work.
 
 **Action:** Consolidate multiple recursive scans into a single, efficient pass using `os.walk`. Always prune irrelevant or heavy directories by modifying the `dirs` list in-place (`dirs[:] = [...]`) within the walk loop. This ensures the scanner never even enters those directories, providing a massive performance boost for projects with many dependencies.
+
+## 2026-02-05 - Single-Pass Project Discovery and JSON Caching
+**Learning:** Multiple independent recursive `glob` or `os.walk` calls in a project discovery system (like `GenericStacksAutoDetector`) lead to massive I/O redundancy. Consolidating these into a single-pass scan with pattern matching (`fnmatch`) drastically improves performance. Additionally, caching JSON parsing results with `mtime` validation prevents expensive re-parsing of static manifests.
+**Action:** Always prefer a single `os.walk` that populates a project-wide file cache. Use this cache for all subsequent pattern matching instead of calling `glob` repeatedly. Implement `mtime`-aware JSON caching for frequently accessed configuration and manifest files.
