@@ -173,3 +173,31 @@ LoadingIndicator {
     height: 100%;
     align: center middle;
 }
+
+.details-pane {
+    width: 60%;
+    padding: 1;
+    border-left: solid #2a2a2c;
+}
+
+.header {
+    text-style: bold;
+    color: #e0e0e0;
+}
+
+#contract-details-header {
+    height: auto;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+#contract-details-header Label {
+    width: 1fr;
+    margin: 0;
+}
+
+#contract-details-header Button {
+    min-width: 6;
+    margin: 0;
+    padding: 0 1;
+}
