@@ -23,3 +23,7 @@
 ## 2025-02-03 - Event Handler Naming and Collisions in Textual
 **Learning:** In Textual, naming an event handler with a generic pattern like `on_data_table_row_selected` makes it a global listener for that event across all instances of that widget class. If you also use the `@on` decorator with a specific ID, both the generic handler and the decorated handler may fire, or it may cause unexpected behavior.
 **Action:** Always use specific, unique names for event handlers (e.g., `on_contracts_row_selected`) when using the `@on` decorator with an ID selector to avoid collisions with automatic generic handler discovery.
+
+## 2024-05-25 - Robust Visual Feedback in TUIs
+**Learning:** When implementing temporary visual feedback (e.g., changing a button label to '✅' for 1 second) in a Textual TUI, avoid saving the 'original' label in a variable if the handler can be triggered multiple times quickly. If the user clicks during the feedback period, the variable might capture the '✅' label, causing the button to get stuck in that state.
+**Action:** Use a hardcoded restoration value for the label (e.g., returning to '📋' or 'Copy') or check the current label state before starting the feedback timer to ensure the UI remains consistent.

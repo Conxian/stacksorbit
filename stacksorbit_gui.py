@@ -72,6 +72,7 @@ class StacksOrbitGUI(App):
         self.address = self.config.get("SYSTEM_ADDRESS", "Not configured")
         self.monitor = DeploymentMonitor(self.network, self.config)
         self._manual_refresh_in_progress = False
+        self.selected_contract_id = None
 
     def _load_config(self) -> Dict:
         """Load configuration from file and environment, enforcing security policies."""
@@ -156,7 +157,11 @@ class StacksOrbitGUI(App):
                 with Horizontal():
                     yield DataTable(id="contracts-table", zebra_stripes=True)
                     yield Vertical(
-                        Label("Contract Details", classes="header"),
+                        Horizontal(
+                            Label("Contract Details", classes="header"),
+                            Button("📋", id="copy-contract-id-btn"),
+                            id="contract-details-header",
+                        ),
                         LoadingIndicator(),
                         Markdown(
                             "Select a contract from the table to view its source code.",
@@ -246,15 +251,18 @@ class StacksOrbitGUI(App):
         self.query_one("#start-deploy-btn", Button).tooltip = (
             "Start the deployment process"
         )
-        self.query_one("#clear-log-btn", Button).tooltip = (
-            "Clear the deployment log"
-        )
+        self.query_one("#clear-log-btn", Button).tooltip = "Clear the deployment log"
         self.query_one("#show-privkey", Switch).tooltip = (
             "Toggle private key visibility"
         )
         self.query_one("#copy-address-btn", Button).tooltip = (
             "Copy address to clipboard"
         )
+        self.query_one("#copy-contract-id-btn", Button).tooltip = (
+            "Copy selected contract ID"
+        )
+        self.query_one("#copy-contract-id-btn", Button).disabled = True
+
         self.query_one("#save-config-btn", Button).tooltip = (
             "Save settings to .env file [s]"
         )
@@ -398,6 +406,8 @@ class StacksOrbitGUI(App):
         """Handle contract row selection."""
         contract_id = event.row_key.value
         if contract_id:
+            self.selected_contract_id = contract_id
+            self.query_one("#copy-contract-id-btn", Button).disabled = False
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
 
     @on(DataTable.RowSelected, "#transactions-table")
@@ -539,12 +549,36 @@ class StacksOrbitGUI(App):
         self.query_one("#privkey-input", Input).password = not event.value
 
     @on(Button.Pressed, "#copy-address-btn")
-    def on_copy_address_pressed(self) -> None:
-        """Handle copy address button press."""
+    async def on_copy_address_pressed(self) -> None:
+        """Handle copy address button press with visual feedback."""
         address = self.query_one("#address-input", Input).value
         if address:
             self.copy_to_clipboard(address)
             self.notify("Address copied to clipboard", severity="information")
+
+            # Micro-UX: Visual feedback
+            btn = self.query_one("#copy-address-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📋"
+
+    @on(Button.Pressed, "#copy-contract-id-btn")
+    async def on_copy_contract_id_pressed(self) -> None:
+        """Handle contract ID copy button press with visual feedback."""
+        if self.selected_contract_id:
+            self.copy_to_clipboard(self.selected_contract_id)
+            self.notify(
+                f"Contract ID copied: {self.selected_contract_id}",
+                severity="information",
+            )
+
+            # Micro-UX: Visual feedback
+            btn = self.query_one("#copy-contract-id-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📋"
 
     @on(Button.Pressed, "#save-config-btn")
     async def on_save_config_pressed(self) -> None:
