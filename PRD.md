@@ -138,3 +138,13 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Standardized cross-platform path matching by using forward-slash normalization for all cached project files.
     *   Documented performance impacts and critical learnings in the Bolt performance journal.
 *   **Status:** Complete.
+
+### Session 9: Standardized Secret Detection & Hardening
+
+*   **Objective:** Unify secret detection patterns across all configuration loaders to prevent information disclosure.
+*   **Changes:**
+    *   Standardized secret detection in `stacksorbit_config_manager.py`, `enhanced_conxian_deployment.py`, and `deployment_verifier.py` using the centralized `is_sensitive_key` utility.
+    *   Hardened the configuration loader in `deployment_verifier.py` to block sensitive keys in `.env` files.
+    *   Unified placeholder handling and error messaging across all configuration loaders.
+    *   Verified the fix with a custom security hardening test script and existing test suites.
+*   **Status:** Complete.
