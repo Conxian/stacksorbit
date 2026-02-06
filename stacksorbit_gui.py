@@ -73,6 +73,9 @@ class StacksOrbitGUI(App):
         self.monitor = DeploymentMonitor(self.network, self.config)
         self._manual_refresh_in_progress = False
         self.selected_contract_id = None
+        # Bolt ⚡: State tracking to avoid redundant UI re-renders
+        self._last_contracts = None
+        self._last_transactions = None
 
     def _load_config(self) -> Dict:
         """Load configuration from file and environment, enforcing security policies."""
@@ -298,12 +301,10 @@ class StacksOrbitGUI(App):
 
     async def update_data(self) -> None:
         """Update all data in the GUI concurrently."""
+        # ⚡ Bolt: Don't clear tables immediately to avoid flickering.
+        # We will clear them only if data has changed.
         for indicator in self.query(LoadingIndicator):
             indicator.display = True
-        contracts_table = self.query_one("#contracts-table", DataTable)
-        transactions_table = self.query_one("#transactions-table", DataTable)
-        contracts_table.clear()
-        transactions_table.clear()
 
         try:
             # ⚡ Bolt: Run synchronous API calls concurrently in threads
@@ -335,8 +336,7 @@ class StacksOrbitGUI(App):
                 # If no address, only fetch API status and provide sensible defaults for other data.
                 api_status = await api_status_task
                 account_info, deployed_contracts, transactions = None, [], []
-                contracts_table.add_row("Address not configured in .env file.")
-                transactions_table.add_row("Address not configured in .env file.")
+                # Data will be processed by the Bolt ⚡ optimization logic below
 
             # Process API status result
             if isinstance(api_status, Exception):
@@ -368,31 +368,47 @@ class StacksOrbitGUI(App):
             if isinstance(deployed_contracts, Exception):
                 raise deployed_contracts
             self.query_one("#contract-count").update(str(len(deployed_contracts)))
-            if deployed_contracts:
-                for contract in deployed_contracts:
-                    address, name = contract.get("contract_id", "...").split(".")
+
+            # ⚡ Bolt: Only clear and repopulate contracts table if data changed
+            if deployed_contracts != self._last_contracts:
+                contracts_table = self.query_one("#contracts-table", DataTable)
+                contracts_table.clear()
+                if deployed_contracts:
+                    for contract in deployed_contracts:
+                        address, name = contract.get("contract_id", "...").split(".")
+                        contracts_table.add_row(
+                            "✅", name, address, key=contract.get("contract_id")
+                        )
+                elif self.address != "Not configured":
                     contracts_table.add_row(
-                        "✅", name, address, key=contract.get("contract_id")
+                        "", "No contracts found", "Deploy a contract to see it here."
                     )
-            elif self.address != "Not configured":
-                contracts_table.add_row(
-                    "", "No contracts found", "Deploy a contract to see it here."
-                )
+                else:
+                    contracts_table.add_row("Address not configured in .env file.")
+                self._last_contracts = deployed_contracts
 
             # Process transactions result
             if isinstance(transactions, Exception):
                 raise transactions
-            if transactions:
-                for tx in transactions:
-                    transactions_table.add_row(
-                        tx.get("tx_id", "")[:10] + "...",
-                        tx.get("tx_type", ""),
-                        tx.get("tx_status", ""),
-                        str(tx.get("block_height", "")),
-                        key=tx.get("tx_id"),
-                    )
-            elif self.address != "Not configured":
-                transactions_table.add_row("", "No transactions found", "", "")
+
+            # ⚡ Bolt: Only clear and repopulate transactions table if data changed
+            if transactions != self._last_transactions:
+                transactions_table = self.query_one("#transactions-table", DataTable)
+                transactions_table.clear()
+                if transactions:
+                    for tx in transactions:
+                        transactions_table.add_row(
+                            tx.get("tx_id", "")[:10] + "...",
+                            tx.get("tx_type", ""),
+                            tx.get("tx_status", ""),
+                            str(tx.get("block_height", "")),
+                            key=tx.get("tx_id"),
+                        )
+                elif self.address != "Not configured":
+                    transactions_table.add_row("", "No transactions found", "", "")
+                else:
+                    transactions_table.add_row("Address not configured in .env file.")
+                self._last_transactions = transactions
 
         except Exception as e:
             self.query_one("#network-status").update("[red]Error[/]")
