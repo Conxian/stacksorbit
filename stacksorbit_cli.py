@@ -1343,7 +1343,10 @@ class UltimateStacksOrbit:
         print(f"\n⚙️  Configuration:")
         config = template["config"]
         for key, value in config.items():
-            print(f"   {key}: {value}")
+            if is_sensitive_key(key):
+                print(f"   {key}: <set>")
+            else:
+                print(f"   {key}: {value}")
 
         print(f"\n📋 Deployment Steps:")
         for i, step in enumerate(template["steps"], 1):
