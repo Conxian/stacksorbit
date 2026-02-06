@@ -145,6 +145,10 @@ Input:focus {
     border: round #007acc;
 }
 
+Input.error {
+    border: round #cc3333;
+}
+
 .input-group {
     layout: horizontal;
     align: center middle;

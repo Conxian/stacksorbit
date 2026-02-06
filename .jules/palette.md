@@ -27,3 +27,7 @@
 ## 2024-05-25 - Robust Visual Feedback in TUIs
 **Learning:** When implementing temporary visual feedback (e.g., changing a button label to '✅' for 1 second) in a Textual TUI, avoid saving the 'original' label in a variable if the handler can be triggered multiple times quickly. If the user clicks during the feedback period, the variable might capture the '✅' label, causing the button to get stuck in that state.
 **Action:** Use a hardcoded restoration value for the label (e.g., returning to '📋' or 'Copy') or check the current label state before starting the feedback timer to ensure the UI remains consistent.
+
+## 2025-02-06 - Pseudo-ARIA labels in Textual TUI
+**Learning:** Textual widgets do not support an 'aria_label' attribute similar to HTML/JSX. While Python allows setting it as a custom attribute without crashing, it has no functional effect on accessibility in Textual.
+**Action:** Use the 'tooltip' property to provide descriptive context for icon-only buttons, as this is the standard way to provide additional information in Textual.

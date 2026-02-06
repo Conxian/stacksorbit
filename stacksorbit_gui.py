@@ -55,6 +55,11 @@ class StacksOrbitGUI(App):
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh data"),
         Binding("s", "save_settings", "Save settings"),
+        Binding("f1", "switch_tab('overview')", "Dashboard", show=False),
+        Binding("f2", "switch_tab('contracts')", "Contracts", show=False),
+        Binding("f3", "switch_tab('transactions')", "Transactions", show=False),
+        Binding("f4", "switch_tab('deployment')", "Deploy", show=False),
+        Binding("f5", "switch_tab('settings')", "Settings", show=False),
     ]
 
     # Reactive variables
@@ -124,7 +129,7 @@ class StacksOrbitGUI(App):
         yield Header()
 
         with TabbedContent(initial="overview"):
-            with TabPane("📊 Dashboard", id="overview"):
+            with TabPane("📊 Dashboard [F1]", id="overview"):
                 yield LoadingIndicator()
                 with Grid(id="metrics-grid"):
                     yield Container(
@@ -156,7 +161,7 @@ class StacksOrbitGUI(App):
                         id="refresh-btn",
                     )
 
-            with TabPane("📄 Contracts", id="contracts"):
+            with TabPane("📄 Contracts [F2]", id="contracts"):
                 with Horizontal():
                     yield DataTable(id="contracts-table", zebra_stripes=True)
                     yield Vertical(
@@ -173,11 +178,11 @@ class StacksOrbitGUI(App):
                         classes="details-pane",
                     )
 
-            with TabPane("📜 Transactions", id="transactions"):
+            with TabPane("📜 Transactions [F3]", id="transactions"):
                 yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
 
-            with TabPane("🚀 Deploy", id="deployment"):
+            with TabPane("🚀 Deploy [F4]", id="deployment"):
                 with Vertical():
                     yield LoadingIndicator()
                     yield Log(id="deployment-log")
@@ -198,9 +203,9 @@ class StacksOrbitGUI(App):
                             variant="error",
                         )
 
-            with TabPane("⚙️ Settings", id="settings"):
+            with TabPane("⚙️ Settings [F5]", id="settings"):
                 with VerticalScroll():
-                    yield Label("Private Key:")
+                    yield Label("Private Key: [red]*[/red]", markup=True)
                     with Horizontal(classes="input-group"):
                         yield Input(
                             placeholder="Your private key",
@@ -210,7 +215,7 @@ class StacksOrbitGUI(App):
                         )
                         yield Label("Show", classes="switch-label")
                         yield Switch(id="show-privkey")
-                    yield Label("Stacks Address:")
+                    yield Label("Stacks Address: [red]*[/red]", markup=True)
                     with Horizontal(classes="input-group"):
                         yield Input(
                             placeholder="Your STX address",
@@ -269,6 +274,13 @@ class StacksOrbitGUI(App):
         self.query_one("#save-config-btn", Button).tooltip = (
             "Save settings to .env file [s]"
         )
+
+        # Add tooltips to tabs for better discoverability
+        self.query_one("#overview").tooltip = "Dashboard overview [F1]"
+        self.query_one("#contracts").tooltip = "Contract management [F2]"
+        self.query_one("#transactions").tooltip = "Transaction history [F3]"
+        self.query_one("#deployment").tooltip = "Smart contract deployment [F4]"
+        self.query_one("#settings").tooltip = "App settings [F5]"
 
         # Add tooltips to metric cards for better clarity
         self.query("#network-status").first().parent.tooltip = (
@@ -436,6 +448,10 @@ class StacksOrbitGUI(App):
                 f"Transaction ID copied: {tx_id[:10]}...", severity="information"
             )
 
+    def action_switch_tab(self, tab_id: str) -> None:
+        """Switch to a specific tab."""
+        self.query_one(TabbedContent).active = tab_id
+
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""
         details_pane = self.query(".details-pane").first()
@@ -563,6 +579,26 @@ class StacksOrbitGUI(App):
     def on_show_privkey_changed(self, event: Switch.Changed) -> None:
         """Toggle private key visibility."""
         self.query_one("#privkey-input", Input).password = not event.value
+
+    @on(Input.Changed, "#address-input")
+    def on_address_changed(self, event: Input.Changed) -> None:
+        """Real-time validation for Stacks address."""
+        if not event.value:
+            event.input.remove_class("error")
+        elif validate_stacks_address(event.value, self.network):
+            event.input.remove_class("error")
+        else:
+            event.input.add_class("error")
+
+    @on(Input.Changed, "#privkey-input")
+    def on_privkey_changed(self, event: Input.Changed) -> None:
+        """Real-time validation for Private Key."""
+        if not event.value or event.value == "your_private_key_here":
+            event.input.remove_class("error")
+        elif validate_private_key(event.value):
+            event.input.remove_class("error")
+        else:
+            event.input.add_class("error")
 
     @on(Button.Pressed, "#copy-address-btn")
     async def on_copy_address_pressed(self) -> None:
