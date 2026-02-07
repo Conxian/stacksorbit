@@ -37,13 +37,15 @@ async def test_update_data_calls_clear_when_data_changes():
         app._last_contracts = []
         app._last_transactions = []
 
-        async with app.run_test() as pilot:
-            # Reset state after on_mount update
-            app._last_contracts = []
-            app._last_transactions = []
+        # Bolt ⚡: Mock run_worker to prevent race conditions with on_mount background updates
+        with patch.object(app, 'run_worker') as mock_run_worker:
+            async with app.run_test() as pilot:
+                # Reset state to be absolutely sure
+                app._last_contracts = []
+                app._last_transactions = []
 
-            with patch.object(DataTable, 'clear') as mock_clear:
-                await app.update_data()
+                with patch.object(DataTable, 'clear') as mock_clear:
+                    await app.update_data()
                 # Should be called twice: once for contracts, once for transactions
                 assert mock_clear.call_count == 2
 
