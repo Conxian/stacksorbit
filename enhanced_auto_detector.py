@@ -626,6 +626,8 @@ class GenericStacksAutoDetector:
         """
         contracts = []
         seen_paths = set()
+        cache_key = str(directory)
+        self.project_files_cache[cache_key] = []
 
         for rel_path in self.project_files_cache:
             if rel_path.endswith(".clar"):
@@ -681,12 +683,23 @@ class GenericStacksAutoDetector:
         Avoids multiple redundant recursive globbing calls.
         """
         manifests = []
+        cache_key = str(directory)
 
-        # Check for deployment manifest files
+        # Get all files from cache, or perform a scan if not available
+        all_files = self.project_files_cache.get(cache_key)
+        if all_files is None:
+            self._efficient_directory_scan(directory)
+            all_files = self.project_files_cache.get(cache_key, [])
+
+        # Check for deployment manifest files using in-memory pattern matching
         manifest_patterns = [
+            "deployment/*.json",
             "deployment/**/*.json",
+            "manifest.json",
             "**/manifest.json",
+            "deployments.json",
             "**/deployments.json",
+            ".stacksorbit/*.json",
             ".stacksorbit/**/*.json",
         ]
 
@@ -724,8 +737,18 @@ class GenericStacksAutoDetector:
                                     }
                                 )
 
-                    except Exception as e:
-                        print(f"⚠️  Error reading manifest {manifest_file}: {e}")
+                    # Extract contract information if available
+                    if "deployment" in data and "successful" in data["deployment"]:
+                        successful_contracts = data["deployment"]["successful"]
+                        for contract in successful_contracts:
+                            manifests.append(
+                                {
+                                    "name": contract.get("name", ""),
+                                    "tx_id": contract.get("tx_id", ""),
+                                    "source": "deployment_manifest",
+                                    "path": str(manifest_file),
+                                }
+                            )
 
         return manifests
 
@@ -951,6 +974,24 @@ class GenericStacksAutoDetector:
             analysis["issues"].append(f"Manual analysis error: {e}")
             analysis["compatible"] = False
 
+    def _load_json_cached(self, file_path: Path) -> Optional[Dict]:
+        """
+        Bolt ⚡: Load and parse JSON file with in-memory caching.
+        Prevents redundant parsing of the same manifest/artifact files.
+        """
+        cache_key = str(file_path)
+        if cache_key in self.json_cache:
+            return self.json_cache[cache_key]
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                self.json_cache[cache_key] = data
+                return data
+        except Exception as e:
+            print(f"⚠️  Error reading JSON {file_path}: {e}")
+            return None
+
     def _calculate_file_hash(self, file_path: Path) -> str:
         """
         Bolt ⚡: Calculate file hash using chunked reading.
@@ -972,13 +1013,25 @@ class GenericStacksAutoDetector:
         Avoids redundant recursive filesystem traversal.
         """
         artifacts = []
+        cache_key = str(directory)
 
-        # Check for various deployment-related files
+        # Get all files from cache, or perform a scan if not available
+        all_files = self.project_files_cache.get(cache_key)
+        if all_files is None:
+            self._efficient_directory_scan(directory)
+            all_files = self.project_files_cache.get(cache_key, [])
+
+        # Pattern list for matching
         artifact_patterns = [
+            "deployment/*.json",
             "deployment/**/*.json",
+            "manifest.json",
             "**/manifest.json",
+            "deployments.json",
             "**/deployments.json",
+            ".stacksorbit/*.json",
             ".stacksorbit/**/*.json",
+            "*.deployment",
             "**/*.deployment",
         ]
 
@@ -1126,8 +1179,15 @@ class GenericStacksAutoDetector:
         Avoids redundant recursive filesystem traversal.
         """
         deployment_history = []
+        cache_key = str(self.project_root)
 
-        # Check deployment history
+        # Get all files from cache, or perform a scan if not available
+        all_files = self.project_files_cache.get(cache_key)
+        if all_files is None:
+            self._efficient_directory_scan(self.project_root)
+            all_files = self.project_files_cache.get(cache_key, [])
+
+        # Pattern lists for matching
         history_patterns = [
             "deployment/history.json",
             ".stacksorbit/deployment_history.json",
@@ -1447,18 +1507,16 @@ class GenericStacksAutoDetector:
         }
 
         try:
-            from enhanced_conxian_deployment import (
-                EnhancedConfigManager,
-                ConxianHiroMonitor,
-            )
+            from enhanced_conxian_deployment import EnhancedConfigManager
+            from deployment_monitor import DeploymentMonitor
 
-            # Use Conxian monitor if available
+            # Use deployment monitor if available
             config_manager = EnhancedConfigManager(self.project_root / ".env")
             config = config_manager.load_config()
 
             address = config.get("SYSTEM_ADDRESS")
             if address:
-                monitor = ConxianHiroMonitor(config.get("NETWORK", "testnet"))
+                monitor = DeploymentMonitor(config.get("NETWORK", "testnet"), config)
                 account = monitor.get_account_info(address)
 
                 if account:
