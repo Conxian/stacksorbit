@@ -25,3 +25,9 @@
 ## 2026-02-19 - GUI Data Refresh Optimization
 **Learning:** Periodically refreshing a Textual TUI by clearing and repopulating DataTables causes visual flickering and redundant main-thread CPU usage. Even with cached API results, the DOM manipulation for clearing and re-adding dozens of rows is expensive.
 **Action:** Always implement state tracking (e.g., `self._last_data`) and compare new data against the previous state before updating UI components. Move `table.clear()` to immediately precede the population logic to ensure the UI stays responsive and flickering is eliminated.
+
+## 2026-02-07 - API Caching Latency in Polling Loops
+
+**Learning:** I discovered that aggressive API caching (e.g., 5-minute expiry) in polling loops (like `wait_for_transaction`) and monitoring background tasks causes massive latency in status detection. A transaction that confirms in 10 seconds might not be detected for 300 seconds because the poller keeps hitting the stale cache.
+
+**Action:** Always implement an explicit `bypass_cache` mechanism in caching decorators. Use `bypass_cache=True` for all critical polling operations and manual user refreshes to ensure immediate responsiveness, while maintaining cache benefits for non-critical background updates.

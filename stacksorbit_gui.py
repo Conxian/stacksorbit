@@ -311,7 +311,7 @@ class StacksOrbitGUI(App):
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Block")
 
-    async def update_data(self) -> None:
+    async def update_data(self, bypass_cache: bool = False) -> None:
         """Update all data in the GUI concurrently."""
         # ⚡ Bolt: Don't clear tables immediately to avoid flickering.
         # We will clear them only if data has changed.
@@ -322,17 +322,23 @@ class StacksOrbitGUI(App):
             # ⚡ Bolt: Run synchronous API calls concurrently in threads
             # This prevents the UI from blocking and speeds up the data refresh
             # by fetching all data in parallel instead of one by one.
-            api_status_task = asyncio.to_thread(self.monitor.check_api_status)
+            api_status_task = asyncio.to_thread(
+                self.monitor.check_api_status, bypass_cache=bypass_cache
+            )
 
             if self.address != "Not configured":
                 account_info_task = asyncio.to_thread(
-                    self.monitor.get_account_info, self.address
+                    self.monitor.get_account_info, self.address, bypass_cache=bypass_cache
                 )
                 contracts_task = asyncio.to_thread(
-                    self.monitor.get_deployed_contracts, self.address
+                    self.monitor.get_deployed_contracts,
+                    self.address,
+                    bypass_cache=bypass_cache,
                 )
                 transactions_task = asyncio.to_thread(
-                    self.monitor.get_recent_transactions, self.address
+                    self.monitor.get_recent_transactions,
+                    self.address,
+                    bypass_cache=bypass_cache,
                 )
 
                 api_status, account_info, deployed_contracts, transactions = (
@@ -497,7 +503,8 @@ class StacksOrbitGUI(App):
         """Perform the data refresh and update the UI."""
         self._manual_refresh_in_progress = True
         try:
-            await self.update_data()
+            # Bolt ⚡: Manual refresh always bypasses the cache for immediate responsiveness.
+            await self.update_data(bypass_cache=True)
             self.notify("Data refreshed")
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")

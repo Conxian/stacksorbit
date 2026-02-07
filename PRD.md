@@ -32,6 +32,10 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [ ] Research and implement Clarity 4 syntax support.
     *   [ ] Add Clarity 4 examples and test templates.
 
+*   **Phase 6: Performance Optimization (In-Progress)**
+    *   [x] Optimize API caching strategy for real-time responsiveness.
+    *   [ ] Parallelize deployment verification.
+
 ## 4. Feature Alignment
 
 ### 4.1. Full Development Cycle
@@ -147,4 +151,16 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Hardened the configuration loader in `deployment_verifier.py` to block sensitive keys in `.env` files.
     *   Unified placeholder handling and error messaging across all configuration loaders.
     *   Verified the fix with a custom security hardening test script and existing test suites.
+*   **Status:** Complete.
+
+### Session 10: API Caching Optimization & Real-time Responsiveness
+
+*   **Objective:** Implement a high-impact performance optimization to the API caching strategy to eliminate latency in monitoring and deployment status updates.
+*   **Changes:**
+    *   Enhanced the `@cache_api_call` decorator in `deployment_monitor.py` to support explicit cache bypassing via the `bypass_cache` keyword argument.
+    *   Optimized `wait_for_transaction` to bypass the 5-minute cache during polling, reducing transaction confirmation detection latency by up to 96%.
+    *   Updated the monitoring loop (`_check_for_new_deployments`) and verification logic (`verify_deployment`) to use fresh data for critical state checks.
+    *   Enhanced `StacksOrbitGUI` to support cache-bypassing refreshes, ensuring manual "Refresh" button clicks always provide the latest blockchain state.
+    *   Refactored `tests/test_bolt_performance.py` to eliminate race conditions in automated GUI testing.
+    *   Added `tests/unit/test_bolt_cache_bypass.py` for comprehensive validation of the new caching logic.
 *   **Status:** Complete.
