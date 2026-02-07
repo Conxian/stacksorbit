@@ -56,12 +56,13 @@ class ConfigManager:
             # Use dotenv_values to get the contents of the .env file as a dict without modifying the environment.
             file_vars = dotenv_values(dotenv_path=env_path)
 
-            # For each potential secret, check if it exists in the file with a real value.
-            for key in SECRET_KEYS:
-                # A secret is considered present if the key exists and its value is not empty or a placeholder.
-                if file_vars.get(key) and file_vars[key] not in (
+            # 🛡️ Sentinel: Enforce security policy - no secrets in .env
+            # We iterate over all keys in the file and use is_sensitive_key to identify secrets.
+            for key, value in file_vars.items():
+                if is_sensitive_key(key) and value not in (
                     "",
                     "your_private_key_here",
+                    "your_hiro_api_key",
                 ):
                     # If a secret is found, raise an error and exit immediately.
                     error_message = (

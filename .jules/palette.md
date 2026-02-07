@@ -19,3 +19,15 @@
 ## 2025-02-02 - Multi-Tab Loading States and Empty States
 **Learning:** In a multi-tabbed TUI, providing consistent loading feedback across all data-driven tabs is essential. If only one tab shows a loading indicator during a global refresh, users on other tabs may perceive the app as frozen. Additionally, providing explicit "No data found" rows in tables prevents the "is it still loading or is it empty?" confusion.
 **Action:** I will implement global loading management by querying all loading indicators and provide meaningful empty-state rows for all data tables.
+
+## 2025-02-03 - Event Handler Naming and Collisions in Textual
+**Learning:** In Textual, naming an event handler with a generic pattern like `on_data_table_row_selected` makes it a global listener for that event across all instances of that widget class. If you also use the `@on` decorator with a specific ID, both the generic handler and the decorated handler may fire, or it may cause unexpected behavior.
+**Action:** Always use specific, unique names for event handlers (e.g., `on_contracts_row_selected`) when using the `@on` decorator with an ID selector to avoid collisions with automatic generic handler discovery.
+
+## 2024-05-25 - Robust Visual Feedback in TUIs
+**Learning:** When implementing temporary visual feedback (e.g., changing a button label to '✅' for 1 second) in a Textual TUI, avoid saving the 'original' label in a variable if the handler can be triggered multiple times quickly. If the user clicks during the feedback period, the variable might capture the '✅' label, causing the button to get stuck in that state.
+**Action:** Use a hardcoded restoration value for the label (e.g., returning to '📋' or 'Copy') or check the current label state before starting the feedback timer to ensure the UI remains consistent.
+
+## 2025-02-06 - Pseudo-ARIA labels in Textual TUI
+**Learning:** Textual widgets do not support an 'aria_label' attribute similar to HTML/JSX. While Python allows setting it as a custom attribute without crashing, it has no functional effect on accessibility in Textual.
+**Action:** Use the 'tooltip' property to provide descriptive context for icon-only buttons, as this is the standard way to provide additional information in Textual.

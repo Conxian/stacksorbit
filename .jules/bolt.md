@@ -18,8 +18,16 @@
 
 **Action:** Consolidate multiple recursive scans into a single, efficient pass using `os.walk`. Always prune irrelevant or heavy directories by modifying the `dirs` list in-place (`dirs[:] = [...]`) within the walk loop. This ensures the scanner never even enters those directories, providing a massive performance boost for projects with many dependencies.
 
-## 2025-02-14 - Redundant Glob Scans and In-Memory Caching
+## 2026-02-05 - Single-Pass Project Discovery and JSON Caching
+**Learning:** Multiple independent recursive `glob` or `os.walk` calls in a project discovery system (like `GenericStacksAutoDetector`) lead to massive I/O redundancy. Consolidating these into a single-pass scan with pattern matching (`fnmatch`) drastically improves performance. Additionally, caching JSON parsing results with `mtime` validation prevents expensive re-parsing of static manifests.
+**Action:** Always prefer a single `os.walk` that populates a project-wide file cache. Use this cache for all subsequent pattern matching instead of calling `glob` repeatedly. Implement `mtime`-aware JSON caching for frequently accessed configuration and manifest files.
 
-**Learning:** Even if a scanner uses `os.walk`, other methods in the same class might still perform redundant recursive scans using `Path.glob()`. In `GenericStacksAutoDetector`, several methods were performing independent recursive searches for manifests, artifacts, and history files, leading to $O(N \times M)$ filesystem overhead where $M$ is the number of discovery methods.
+## 2026-02-19 - GUI Data Refresh Optimization
+**Learning:** Periodically refreshing a Textual TUI by clearing and repopulating DataTables causes visual flickering and redundant main-thread CPU usage. Even with cached API results, the DOM manipulation for clearing and re-adding dozens of rows is expensive.
+**Action:** Always implement state tracking (e.g., `self._last_data`) and compare new data against the previous state before updating UI components. Move `table.clear()` to immediately precede the population logic to ensure the UI stays responsive and flickering is eliminated.
 
-**Action:** Capture all file paths during the initial `os.walk` pass into an in-memory cache (e.g., `self.project_files_cache`). Refactor all subsequent discovery methods to filter this cache using `fnmatch` or simple string matching instead of querying the filesystem. This reduces the total number of recursive scans to exactly one, providing a measurable performance gain (~44% in small projects, significantly more in large ones). Always ensure that when refactoring these methods, variable names are updated correctly to avoid `NameError` regressions.
+## 2026-02-07 - API Caching Latency in Polling Loops
+
+**Learning:** I discovered that aggressive API caching (e.g., 5-minute expiry) in polling loops (like `wait_for_transaction`) and monitoring background tasks causes massive latency in status detection. A transaction that confirms in 10 seconds might not be detected for 300 seconds because the poller keeps hitting the stale cache.
+
+**Action:** Always implement an explicit `bypass_cache` mechanism in caching decorators. Use `bypass_cache=True` for all critical polling operations and manual user refreshes to ensure immediate responsiveness, while maintaining cache benefits for non-critical background updates.

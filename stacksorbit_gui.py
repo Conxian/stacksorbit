@@ -4,6 +4,7 @@ StacksOrbit GUI - A modern, feature-rich dashboard for Stacks blockchain deploym
 """
 
 import asyncio
+import os
 import subprocess
 import threading
 from typing import Dict, List
@@ -36,7 +37,12 @@ except ImportError as e:
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
-from stacksorbit_secrets import is_sensitive_key
+from stacksorbit_secrets import (
+    SECRET_KEYS,
+    is_sensitive_key,
+    validate_stacks_address,
+    validate_private_key,
+)
 
 
 class StacksOrbitGUI(App):
@@ -49,6 +55,11 @@ class StacksOrbitGUI(App):
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh data"),
         Binding("s", "save_settings", "Save settings"),
+        Binding("f1", "switch_tab('overview')", "Dashboard", show=False),
+        Binding("f2", "switch_tab('contracts')", "Contracts", show=False),
+        Binding("f3", "switch_tab('transactions')", "Transactions", show=False),
+        Binding("f4", "switch_tab('deployment')", "Deploy", show=False),
+        Binding("f5", "switch_tab('settings')", "Settings", show=False),
     ]
 
     # Reactive variables
@@ -66,23 +77,51 @@ class StacksOrbitGUI(App):
         self.address = self.config.get("SYSTEM_ADDRESS", "Not configured")
         self.monitor = DeploymentMonitor(self.network, self.config)
         self._manual_refresh_in_progress = False
+        self.selected_contract_id = None
+        # Bolt ⚡: State tracking to avoid redundant UI re-renders
+        self._last_contracts = None
+        self._last_transactions = None
 
     def _load_config(self) -> Dict:
-        """Load configuration from file"""
+        """Load configuration from file and environment, enforcing security policies."""
         config = {}
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if "=" in line and not line.startswith("#"):
-                        key, value = line.split("=", 1)
-                        config[key.strip()] = value.strip().strip('"').strip("'")
-        except FileNotFoundError:
-            # app.notify might not be available yet in __init__
-            print(f"Config file {self.config_path} not found")
-        except Exception as e:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if "=" in line and not line.startswith("#"):
+                            key, value = line.split("=", 1)
+                            k, v = key.strip(), value.strip().strip('"').strip("'")
+
+                            # 🛡️ Sentinel: Enforce security policy - no secrets in .env
+                            if is_sensitive_key(k) and v not in (
+                                "",
+                                "your_private_key_here",
+                                "your_hiro_api_key",
+                            ):
+                                raise ValueError(
+                                    f"🛡️ Sentinel Security Error: Secret key '{k}' found in .env file.\n"
+                                    "   Storing secrets in plaintext files is a critical security risk.\n"
+                                    "   Please move this secret to an environment variable."
+                                )
+                            config[k] = v
+
+            # 🛡️ Sentinel: Selectively load environment variables to override file config.
+            # This uses an allow-list (keys from .env + known secrets) to prevent
+            # leaking unrelated environment variables.
+            allowed_keys = set(config.keys()) | set(SECRET_KEYS)
+            for key in allowed_keys:
+                if key in os.environ:
+                    config[key] = os.environ[key]
+
+        except ValueError as e:
+            # Re-raise Sentinel security errors to prevent app from starting insecurely
+            print(f"\n{e}\n")
+            raise
+        except Exception:
             # 🛡️ Sentinel: Prevent sensitive information disclosure.
-            print("Error loading configuration from file.")
+            print("Error loading configuration.")
         return config
 
     def compose(self) -> ComposeResult:
@@ -90,7 +129,7 @@ class StacksOrbitGUI(App):
         yield Header()
 
         with TabbedContent(initial="overview"):
-            with TabPane("📊 Dashboard", id="overview"):
+            with TabPane("📊 Dashboard [F1]", id="overview"):
                 yield LoadingIndicator()
                 with Grid(id="metrics-grid"):
                     yield Container(
@@ -120,14 +159,17 @@ class StacksOrbitGUI(App):
                     yield Button(
                         "🔄 Refresh",
                         id="refresh-btn",
-                        tooltip="Refresh all dashboard data [r]",
                     )
 
-            with TabPane("📄 Contracts", id="contracts"):
+            with TabPane("📄 Contracts [F2]", id="contracts"):
                 with Horizontal():
                     yield DataTable(id="contracts-table", zebra_stripes=True)
                     yield Vertical(
-                        Label("Contract Details", classes="header"),
+                        Horizontal(
+                            Label("Contract Details", classes="header"),
+                            Button("📋", id="copy-contract-id-btn"),
+                            id="contract-details-header",
+                        ),
                         LoadingIndicator(),
                         Markdown(
                             "Select a contract from the table to view its source code.",
@@ -136,11 +178,11 @@ class StacksOrbitGUI(App):
                         classes="details-pane",
                     )
 
-            with TabPane("📜 Transactions", id="transactions"):
+            with TabPane("📜 Transactions [F3]", id="transactions"):
                 yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
 
-            with TabPane("🚀 Deploy", id="deployment"):
+            with TabPane("🚀 Deploy [F4]", id="deployment"):
                 with Vertical():
                     yield LoadingIndicator()
                     yield Log(id="deployment-log")
@@ -149,24 +191,21 @@ class StacksOrbitGUI(App):
                             "🔍 Pre-check",
                             id="precheck-btn",
                             variant="primary",
-                            tooltip="Run diagnostic checks before deployment",
                         )
                         yield Button(
                             "🚀 Deploy",
                             id="start-deploy-btn",
                             variant="primary",
-                            tooltip="Start the deployment process",
                         )
                         yield Button(
                             "🗑️ Clear",
                             id="clear-log-btn",
                             variant="error",
-                            tooltip="Clear the deployment log",
                         )
 
-            with TabPane("⚙️ Settings", id="settings"):
+            with TabPane("⚙️ Settings [F5]", id="settings"):
                 with VerticalScroll():
-                    yield Label("Private Key:")
+                    yield Label("Private Key: [red]*[/red]", markup=True)
                     with Horizontal(classes="input-group"):
                         yield Input(
                             placeholder="Your private key",
@@ -175,10 +214,8 @@ class StacksOrbitGUI(App):
                             password=True,
                         )
                         yield Label("Show", classes="switch-label")
-                        yield Switch(
-                            id="show-privkey", tooltip="Toggle private key visibility"
-                        )
-                    yield Label("Stacks Address:")
+                        yield Switch(id="show-privkey")
+                    yield Label("Stacks Address: [red]*[/red]", markup=True)
                     with Horizontal(classes="input-group"):
                         yield Input(
                             placeholder="Your STX address",
@@ -188,13 +225,11 @@ class StacksOrbitGUI(App):
                         yield Button(
                             "📋",
                             id="copy-address-btn",
-                            tooltip="Copy address to clipboard",
                         )
                     yield Button(
                         "💾 Save",
                         id="save-config-btn",
                         variant="primary",
-                        tooltip="Save settings to .env file [s]",
                     )
 
         yield Footer()
@@ -206,13 +241,46 @@ class StacksOrbitGUI(App):
         for indicator in self.query(LoadingIndicator):
             indicator.display = False
 
-        # Add tooltips to widgets that don't support them in constructor
+        # Add tooltips to widgets
         self.query_one("#contracts-table", DataTable).tooltip = (
-            "List of contracts deployed by this address"
+            "List of contracts deployed by this address. Click a row to view source code."
         )
         self.query_one("#transactions-table", DataTable).tooltip = (
-            "Recent transactions for this address"
+            "Recent transactions for this address. Click a row to copy full TX ID."
         )
+
+        # Buttons and interactive elements tooltips
+        self.query_one("#refresh-btn", Button).tooltip = (
+            "Refresh all dashboard data [r]"
+        )
+        self.query_one("#precheck-btn", Button).tooltip = (
+            "Run diagnostic checks before deployment"
+        )
+        self.query_one("#start-deploy-btn", Button).tooltip = (
+            "Start the deployment process"
+        )
+        self.query_one("#clear-log-btn", Button).tooltip = "Clear the deployment log"
+        self.query_one("#show-privkey", Switch).tooltip = (
+            "Toggle private key visibility"
+        )
+        self.query_one("#copy-address-btn", Button).tooltip = (
+            "Copy address to clipboard"
+        )
+        self.query_one("#copy-contract-id-btn", Button).tooltip = (
+            "Copy selected contract ID"
+        )
+        self.query_one("#copy-contract-id-btn", Button).disabled = True
+
+        self.query_one("#save-config-btn", Button).tooltip = (
+            "Save settings to .env file [s]"
+        )
+
+        # Add tooltips to tabs for better discoverability
+        self.query_one("#overview").tooltip = "Dashboard overview [F1]"
+        self.query_one("#contracts").tooltip = "Contract management [F2]"
+        self.query_one("#transactions").tooltip = "Transaction history [F3]"
+        self.query_one("#deployment").tooltip = "Smart contract deployment [F4]"
+        self.query_one("#settings").tooltip = "App settings [F5]"
 
         # Add tooltips to metric cards for better clarity
         self.query("#network-status").first().parent.tooltip = (
@@ -243,30 +311,34 @@ class StacksOrbitGUI(App):
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Block")
 
-    async def update_data(self) -> None:
+    async def update_data(self, bypass_cache: bool = False) -> None:
         """Update all data in the GUI concurrently."""
+        # ⚡ Bolt: Don't clear tables immediately to avoid flickering.
+        # We will clear them only if data has changed.
         for indicator in self.query(LoadingIndicator):
             indicator.display = True
-        contracts_table = self.query_one("#contracts-table", DataTable)
-        transactions_table = self.query_one("#transactions-table", DataTable)
-        contracts_table.clear()
-        transactions_table.clear()
 
         try:
             # ⚡ Bolt: Run synchronous API calls concurrently in threads
             # This prevents the UI from blocking and speeds up the data refresh
             # by fetching all data in parallel instead of one by one.
-            api_status_task = asyncio.to_thread(self.monitor.check_api_status)
+            api_status_task = asyncio.to_thread(
+                self.monitor.check_api_status, bypass_cache=bypass_cache
+            )
 
             if self.address != "Not configured":
                 account_info_task = asyncio.to_thread(
-                    self.monitor.get_account_info, self.address
+                    self.monitor.get_account_info, self.address, bypass_cache=bypass_cache
                 )
                 contracts_task = asyncio.to_thread(
-                    self.monitor.get_deployed_contracts, self.address
+                    self.monitor.get_deployed_contracts,
+                    self.address,
+                    bypass_cache=bypass_cache,
                 )
                 transactions_task = asyncio.to_thread(
-                    self.monitor.get_recent_transactions, self.address
+                    self.monitor.get_recent_transactions,
+                    self.address,
+                    bypass_cache=bypass_cache,
                 )
 
                 api_status, account_info, deployed_contracts, transactions = (
@@ -282,8 +354,7 @@ class StacksOrbitGUI(App):
                 # If no address, only fetch API status and provide sensible defaults for other data.
                 api_status = await api_status_task
                 account_info, deployed_contracts, transactions = None, [], []
-                contracts_table.add_row("Address not configured in .env file.")
-                transactions_table.add_row("Address not configured in .env file.")
+                # Data will be processed by the Bolt ⚡ optimization logic below
 
             # Process API status result
             if isinstance(api_status, Exception):
@@ -315,30 +386,47 @@ class StacksOrbitGUI(App):
             if isinstance(deployed_contracts, Exception):
                 raise deployed_contracts
             self.query_one("#contract-count").update(str(len(deployed_contracts)))
-            if deployed_contracts:
-                for contract in deployed_contracts:
-                    address, name = contract.get("contract_id", "...").split(".")
+
+            # ⚡ Bolt: Only clear and repopulate contracts table if data changed
+            if deployed_contracts != self._last_contracts:
+                contracts_table = self.query_one("#contracts-table", DataTable)
+                contracts_table.clear()
+                if deployed_contracts:
+                    for contract in deployed_contracts:
+                        address, name = contract.get("contract_id", "...").split(".")
+                        contracts_table.add_row(
+                            "✅", name, address, key=contract.get("contract_id")
+                        )
+                elif self.address != "Not configured":
                     contracts_table.add_row(
-                        "✅", name, address, key=contract.get("contract_id")
+                        "", "No contracts found", "Deploy a contract to see it here."
                     )
-            elif self.address != "Not configured":
-                contracts_table.add_row(
-                    "", "No contracts found", "Deploy a contract to see it here."
-                )
+                else:
+                    contracts_table.add_row("Address not configured in .env file.")
+                self._last_contracts = deployed_contracts
 
             # Process transactions result
             if isinstance(transactions, Exception):
                 raise transactions
-            if transactions:
-                for tx in transactions:
-                    transactions_table.add_row(
-                        tx.get("tx_id", "")[:10] + "...",
-                        tx.get("tx_type", ""),
-                        tx.get("tx_status", ""),
-                        str(tx.get("block_height", "")),
-                    )
-            elif self.address != "Not configured":
-                transactions_table.add_row("", "No transactions found", "", "")
+
+            # ⚡ Bolt: Only clear and repopulate transactions table if data changed
+            if transactions != self._last_transactions:
+                transactions_table = self.query_one("#transactions-table", DataTable)
+                transactions_table.clear()
+                if transactions:
+                    for tx in transactions:
+                        transactions_table.add_row(
+                            tx.get("tx_id", "")[:10] + "...",
+                            tx.get("tx_type", ""),
+                            tx.get("tx_status", ""),
+                            str(tx.get("block_height", "")),
+                            key=tx.get("tx_id"),
+                        )
+                elif self.address != "Not configured":
+                    transactions_table.add_row("", "No transactions found", "", "")
+                else:
+                    transactions_table.add_row("Address not configured in .env file.")
+                self._last_transactions = transactions
 
         except Exception as e:
             self.query_one("#network-status").update("[red]Error[/]")
@@ -348,14 +436,27 @@ class StacksOrbitGUI(App):
                 indicator.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        # ⚡ Bolt: This event handler was previously decorated twice, causing it to
-        # fire two times for every click. The redundant decorator was removed to
-        # prevent duplicate API calls and unnecessary processing.
+    def on_contracts_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle contract row selection."""
         contract_id = event.row_key.value
         if contract_id:
+            self.selected_contract_id = contract_id
+            self.query_one("#copy-contract-id-btn", Button).disabled = False
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
+
+    @on(DataTable.RowSelected, "#transactions-table")
+    def on_transactions_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Handle transaction row selection - copy full TX ID to clipboard."""
+        tx_id = event.row_key.value
+        if tx_id:
+            self.copy_to_clipboard(tx_id)
+            self.notify(
+                f"Transaction ID copied: {tx_id[:10]}...", severity="information"
+            )
+
+    def action_switch_tab(self, tab_id: str) -> None:
+        """Switch to a specific tab."""
+        self.query_one(TabbedContent).active = tab_id
 
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""
@@ -402,7 +503,8 @@ class StacksOrbitGUI(App):
         """Perform the data refresh and update the UI."""
         self._manual_refresh_in_progress = True
         try:
-            await self.update_data()
+            # Bolt ⚡: Manual refresh always bypasses the cache for immediate responsiveness.
+            await self.update_data(bypass_cache=True)
             self.notify("Data refreshed")
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")
@@ -485,13 +587,57 @@ class StacksOrbitGUI(App):
         """Toggle private key visibility."""
         self.query_one("#privkey-input", Input).password = not event.value
 
+    @on(Input.Changed, "#address-input")
+    def on_address_changed(self, event: Input.Changed) -> None:
+        """Real-time validation for Stacks address."""
+        if not event.value:
+            event.input.remove_class("error")
+        elif validate_stacks_address(event.value, self.network):
+            event.input.remove_class("error")
+        else:
+            event.input.add_class("error")
+
+    @on(Input.Changed, "#privkey-input")
+    def on_privkey_changed(self, event: Input.Changed) -> None:
+        """Real-time validation for Private Key."""
+        if not event.value or event.value == "your_private_key_here":
+            event.input.remove_class("error")
+        elif validate_private_key(event.value):
+            event.input.remove_class("error")
+        else:
+            event.input.add_class("error")
+
     @on(Button.Pressed, "#copy-address-btn")
-    def on_copy_address_pressed(self) -> None:
-        """Handle copy address button press."""
+    async def on_copy_address_pressed(self) -> None:
+        """Handle copy address button press with visual feedback."""
         address = self.query_one("#address-input", Input).value
         if address:
             self.copy_to_clipboard(address)
             self.notify("Address copied to clipboard", severity="information")
+
+            # Micro-UX: Visual feedback
+            btn = self.query_one("#copy-address-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📋"
+
+    @on(Button.Pressed, "#copy-contract-id-btn")
+    async def on_copy_contract_id_pressed(self) -> None:
+        """Handle contract ID copy button press with visual feedback."""
+        if self.selected_contract_id:
+            self.copy_to_clipboard(self.selected_contract_id)
+            self.notify(
+                f"Contract ID copied: {self.selected_contract_id}",
+                severity="information",
+            )
+
+            # Micro-UX: Visual feedback
+            btn = self.query_one("#copy-contract-id-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📋"
 
     @on(Button.Pressed, "#save-config-btn")
     async def on_save_config_pressed(self) -> None:
@@ -503,6 +649,26 @@ class StacksOrbitGUI(App):
         # We also identify if the user is attempting to save a real secret.
         privkey_val = self.query_one("#privkey-input", Input).value
         address_val = self.query_one("#address-input", Input).value
+
+        # 🛡️ Sentinel: Validate the Stacks address before saving
+        if address_val and not validate_stacks_address(address_val, self.network):
+            self.notify(
+                f"🛡️ Security: Invalid Stacks address for {self.network.upper()}.",
+                severity="error",
+            )
+            return
+
+        # 🛡️ Sentinel: Validate the private key if provided
+        if (
+            privkey_val
+            and privkey_val != "your_private_key_here"
+            and not validate_private_key(privkey_val)
+        ):
+            self.notify(
+                "🛡️ Security: Invalid private key format (must be 64/66 hex chars).",
+                severity="error",
+            )
+            return
 
         # Check if the private key is a real secret (not empty or placeholder)
         is_secret_provided = (

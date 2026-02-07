@@ -32,6 +32,10 @@ def cache_api_call(func):
 
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
+        # Bolt ⚡: Support explicit cache bypass for real-time responsiveness.
+        # This is critical for polling loops and manual refreshes.
+        bypass_cache = kwargs.pop("bypass_cache", False)
+
         # Create a cache key from the function name and arguments
         # Note: This is a simple key generation strategy. For complex arguments,
         # a more robust method (like hashing a serialized version of args) might be needed.
@@ -39,14 +43,15 @@ def cache_api_call(func):
         key_kwargs = [f"{k}={v}" for k, v in sorted(kwargs.items())]
         cache_key = f"{func.__name__}_{'_'.join(key_args)}_{'_'.join(key_kwargs)}"
 
-        with self.cache_lock:
-            cached_data = self.cache.get(cache_key)
-            if (
-                cached_data
-                and (time.time() - cached_data["timestamp"]) < self.cache_expiry
-            ):
-                self.logger.debug(f"Cache hit for {cache_key}")
-                return cached_data["data"]
+        if not bypass_cache:
+            with self.cache_lock:
+                cached_data = self.cache.get(cache_key)
+                if (
+                    cached_data
+                    and (time.time() - cached_data["timestamp"]) < self.cache_expiry
+                ):
+                    self.logger.debug(f"Cache hit for {cache_key}")
+                    return cached_data["data"]
 
         self.logger.debug(f"Cache miss for {cache_key}, fetching from API")
         # Execute the function if no valid cache entry is found
@@ -232,8 +237,8 @@ class DeploymentMonitor:
             return False
 
         try:
-            # Get account info
-            account_info = self.get_account_info(address)
+            # Bolt ⚡: Bypass cache for account info in monitoring loops to ensure immediate detection.
+            account_info = self.get_account_info(address, bypass_cache=True)
             if not account_info:
                 return False
 
@@ -352,7 +357,9 @@ class DeploymentMonitor:
         max_poll_interval = 30  # Cap at 30 seconds
 
         while time.time() - start_time < timeout:
-            tx_info = self.get_transaction_info(tx_id)
+            # Bolt ⚡: Bypass cache for transaction info when waiting for confirmation.
+            # This reduces confirmation detection latency from 5 minutes to seconds.
+            tx_info = self.get_transaction_info(tx_id, bypass_cache=True)
 
             if tx_info:
                 status = tx_info.get("tx_status", "unknown")
@@ -439,7 +446,8 @@ class DeploymentMonitor:
         """Verify deployment completeness"""
         self.logger.info("🔍 Verifying deployment...")
 
-        deployed_contracts = self.get_deployed_contracts(address)
+        # Bolt ⚡: Bypass cache during verification to ensure accuracy.
+        deployed_contracts = self.get_deployed_contracts(address, bypass_cache=True)
         deployed_names = [
             c.get("contract_id", "").split(".")[-1] for c in deployed_contracts
         ]

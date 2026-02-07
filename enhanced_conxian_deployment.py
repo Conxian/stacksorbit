@@ -16,7 +16,12 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import argparse
 from dotenv import dotenv_values
-from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
+from stacksorbit_secrets import (
+    SECRET_KEYS,
+    is_sensitive_key,
+    validate_stacks_address,
+    validate_private_key,
+)
 from deployment_monitor import DeploymentMonitor
 
 # 🛡️ Sentinel: Sensitive substrings to identify potential secrets
@@ -59,11 +64,12 @@ class EnhancedConfigManager:
         # Load variables from the .env file first.
         file_config = dotenv_values(dotenv_path=self.config_path)
 
-        # Sentinel Security Enhancement: Check for secrets in the file.
-        for key in SECRET_KEYS:
-            if file_config.get(key) and file_config[key] not in (
+        # 🛡️ Sentinel: Enforce security policy - no secrets in .env
+        for key, value in file_config.items():
+            if is_sensitive_key(key) and value not in (
                 "",
                 "your_private_key_here",
+                "your_hiro_api_key",
             ):
                 error_message = (
                     f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
@@ -180,38 +186,12 @@ CONFIRMATION_TIMEOUT=300
         return len(errors) == 0, errors
 
     def _validate_private_key(self, privkey: str) -> bool:
-        """Validate private key format"""
-        if not privkey or not isinstance(privkey, str):
-            return False
-        pk = privkey.strip()
-        if pk.lower() == "your_private_key_here":
-            return False
-        if len(pk) not in (64, 66):
-            return False
-        # Hex-only characters
-        for c in pk:
-            if c not in "0123456789abcdefABCDEF":
-                return False
-        return True
+        """Validate private key format using centralized utility"""
+        return validate_private_key(privkey)
 
     def _validate_address(self, address: str, network: Optional[str] = None) -> bool:
-        """Validate Stacks address format by network and charset"""
-        if not address or not isinstance(address, str):
-            return False
-        addr = address.strip().upper()
-        # Prefix rules: SP for mainnet, ST for testnet/devnet
-        if network == "mainnet":
-            if not addr.startswith("SP"):
-                return False
-        else:
-            if not addr.startswith("ST"):
-                return False
-        # C32 allowed charset (I, L, O, U are excluded)
-        allowed = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
-        body = addr[2:]
-        if len(addr) != 41:
-            return False
-        return all(ch in allowed for ch in body)
+        """Validate Stacks address format using centralized utility"""
+        return validate_stacks_address(address, network)
 
 
 class EnhancedConxianDeployer:

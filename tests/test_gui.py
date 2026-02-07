@@ -22,7 +22,7 @@ async def test_contract_selection_triggers_details_fetch():
             await pilot.pause()
 
             # Simulate the row selection event
-            app.on_data_table_row_selected(
+            app.on_contracts_row_selected(
                 contracts_table.RowSelected(
                     data_table=contracts_table,
                     row_key=RowKey("ST123.test-contract"),

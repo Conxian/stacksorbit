@@ -18,6 +18,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 # Import our enhanced modules
+from stacksorbit_secrets import is_sensitive_key
 from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
 from deployment_monitor import DeploymentMonitor
 from deployment_verifier import DeploymentVerifier, load_expected_contracts
@@ -282,8 +283,8 @@ class ConxianTestnetDeployer:
         # Environment
         print("\n🔧 Environment:")
         for key, value in config.items():
-            if key in ["DEPLOYER_PRIVKEY", "HIRO_API_KEY"]:
-                print(f"   {key}: {value[:10]}...")
+            if is_sensitive_key(key):
+                print(f"   {key}: <set>")
             else:
                 print(f"   {key}: {value}")
 

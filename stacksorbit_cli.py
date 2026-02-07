@@ -15,7 +15,12 @@ from typing import Dict, List, Optional
 from datetime import datetime
 # Bolt ⚡: Moved heavy imports inside methods to minimize CLI startup latency.
 # Standard library imports remain at the top.
-from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
+from stacksorbit_secrets import (
+    SECRET_KEYS,
+    is_sensitive_key,
+    validate_stacks_address,
+    validate_private_key,
+)
 
 try:
     import colorama
@@ -621,35 +626,13 @@ class SetupWizard:
             return "other"
 
     def _validate_private_key(self, privkey: str) -> bool:
-        """Validate private key format"""
-        return len(privkey) == 64 and all(
-            c in "0123456789abcdefABCDEF" for c in privkey
-        )
+        """Validate private key format using centralized utility"""
+        return validate_private_key(privkey)
 
     def _validate_address(self, address: str) -> bool:
-        """Validate Stacks address format by network and charset"""
-        if not address or not isinstance(address, str):
-            return False
-        addr = address.strip().upper()
+        """Validate Stacks address format using centralized utility"""
         network = self.config.get("network")
-
-        # Prefix rules: SP for mainnet, ST for testnet/devnet
-        if network == "mainnet":
-            if not addr.startswith("SP"):
-                return False
-        elif network in ["testnet", "devnet"]:
-            if not addr.startswith("ST"):
-                return False
-        else:
-            if not (addr.startswith("SP") or addr.startswith("ST")):
-                return False
-
-        # C32 allowed charset (I, L, O, U are excluded)
-        allowed = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
-        if len(addr) != 41:
-            return False
-        body = addr[2:]
-        return all(ch in allowed for ch in body)
+        return validate_stacks_address(address, network)
 
     def _get_user_input(
         self,
@@ -1360,7 +1343,10 @@ class UltimateStacksOrbit:
         print(f"\n⚙️  Configuration:")
         config = template["config"]
         for key, value in config.items():
-            print(f"   {key}: {value}")
+            if is_sensitive_key(key):
+                print(f"   {key}: <set>")
+            else:
+                print(f"   {key}: {value}")
 
         print(f"\n📋 Deployment Steps:")
         for i, step in enumerate(template["steps"], 1):
