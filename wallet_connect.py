@@ -95,7 +95,7 @@ WALLET_CONNECT_HTML = """
         .hidden { display: none; }
         .balance { font-size: 24px; color: #22c55e; margin: 10px 0; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -270,6 +270,9 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
         if path == '/' or path == '/index.html':
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
+            # 🛡️ Sentinel: Security Headers
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.testnet.hiro.so; style-src 'self' 'unsafe-inline'; img-src 'self' data:;")
             self.end_headers()
             self.wfile.write(WALLET_CONNECT_HTML.encode())
         else:
@@ -278,7 +281,12 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/wallet-connected':
             try:
-                content_length = int(self.headers['Content-Length'])
+                content_length = int(self.headers.get('Content-Length', 0))
+                # 🛡️ Sentinel: DoS Protection - limit request body size to 1MB
+                if content_length > 1024 * 1024:
+                    self.send_error(413, "Request entity too large")
+                    return
+
                 post_data = self.rfile.read(content_length)
                 data = json.loads(post_data.decode())
 
