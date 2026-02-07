@@ -55,11 +55,11 @@ class StacksOrbitGUI(App):
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh", "Refresh data"),
         Binding("s", "save_settings", "Save settings"),
-        Binding("f1", "switch_tab('overview')", "Dashboard", show=False),
-        Binding("f2", "switch_tab('contracts')", "Contracts", show=False),
-        Binding("f3", "switch_tab('transactions')", "Transactions", show=False),
-        Binding("f4", "switch_tab('deployment')", "Deploy", show=False),
-        Binding("f5", "switch_tab('settings')", "Settings", show=False),
+        Binding("f1", "switch_tab('overview')", "Dashboard", show=True),
+        Binding("f2", "switch_tab('contracts')", "Contracts", show=True),
+        Binding("f3", "switch_tab('transactions')", "Transactions", show=True),
+        Binding("f4", "switch_tab('deployment')", "Deploy", show=True),
+        Binding("f5", "switch_tab('settings')", "Settings", show=True),
     ]
 
     # Reactive variables
@@ -129,7 +129,7 @@ class StacksOrbitGUI(App):
         yield Header()
 
         with TabbedContent(initial="overview"):
-            with TabPane("📊 Dashboard [F1]", id="overview"):
+            with TabPane("📊 Dashboard", id="overview"):
                 yield LoadingIndicator()
                 with Grid(id="metrics-grid"):
                     yield Container(
@@ -161,7 +161,7 @@ class StacksOrbitGUI(App):
                         id="refresh-btn",
                     )
 
-            with TabPane("📄 Contracts [F2]", id="contracts"):
+            with TabPane("📄 Contracts", id="contracts"):
                 with Horizontal():
                     yield DataTable(id="contracts-table", zebra_stripes=True)
                     yield Vertical(
@@ -178,11 +178,11 @@ class StacksOrbitGUI(App):
                         classes="details-pane",
                     )
 
-            with TabPane("📜 Transactions [F3]", id="transactions"):
+            with TabPane("📜 Transactions", id="transactions"):
                 yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
 
-            with TabPane("🚀 Deploy [F4]", id="deployment"):
+            with TabPane("🚀 Deploy", id="deployment"):
                 with Vertical():
                     yield LoadingIndicator()
                     yield Log(id="deployment-log")
@@ -203,7 +203,7 @@ class StacksOrbitGUI(App):
                             variant="error",
                         )
 
-            with TabPane("⚙️ Settings [F5]", id="settings"):
+            with TabPane("⚙️ Settings", id="settings"):
                 with VerticalScroll():
                     yield Label("Private Key: [red]*[/red]", markup=True)
                     with Horizontal(classes="input-group"):
