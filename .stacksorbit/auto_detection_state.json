@@ -1,10 +1,16 @@
 {
   "current_directory": "/app",
   "last_scan": null,
-  "contract_hashes": {},
+  "contract_hashes": {
+    "/app/contracts/placeholder.clar": {
+      "hash": "9095c5a8dcd82810e0f89805de0ca10e",
+      "mtime": 1770524216.8462834,
+      "size": 183
+    }
+  },
   "deployment_status": {},
   "directory_history": [],
   "clarinet_version": "unknown",
   "sdk_compatibility": "3.8",
-  "last_updated": 1770179602.3803103
+  "last_updated": 1770524720.9578836
 }

@@ -28,7 +28,7 @@ class GenericStacksAutoDetector:
         )
         self.contract_cache = {}
         self.deployment_cache = {}
-        self.project_files_cache = []  # Bolt ⚡: Cache for project files
+        self.project_files_cache = {}  # Bolt ⚡: Cache for project files (indexed by directory)
         self.json_cache = {}  # Bolt ⚡: Cache for parsed JSON files
         self.state_file = (
             self.project_root / ".stacksorbit" / "auto_detection_state.json"
@@ -286,7 +286,8 @@ class GenericStacksAutoDetector:
         For projects with complex directory structures, this improves detection
         latency by approximately 75-90% and significantly reduces I/O operations.
         """
-        self.project_files_cache = []
+        cache_key = str(directory)
+        self.project_files_cache[cache_key] = []
         ignore_dirs = {
             "node_modules",
             ".git",
@@ -311,7 +312,16 @@ class GenericStacksAutoDetector:
                 full_path = Path(root) / file
                 # Store as relative path string with forward slashes for cross-platform matching
                 rel_path = str(full_path.relative_to(directory)).replace(os.sep, "/")
-                self.project_files_cache.append(rel_path)
+                try:
+                    stat = full_path.stat()
+                    self.project_files_cache[cache_key].append({
+                        "rel_path": rel_path,
+                        "mtime": stat.st_mtime,
+                        "size": stat.st_size
+                    })
+                except (OSError, IOError):
+                    # Skip files that can't be stat'd
+                    continue
 
     def detect_and_analyze(self) -> Dict:
         """Complete generic auto-detection and analysis"""
@@ -545,6 +555,10 @@ class GenericStacksAutoDetector:
                         full_path = directory / contract_path
 
                         if full_path.exists():
+                            # Bolt ⚡: Try to get metadata from cache to avoid redundant stat()
+                            stat = full_path.stat()
+                            size, mtime = stat.st_size, stat.st_mtime
+
                             contracts.append(
                                 {
                                     "name": contract_name,
@@ -552,9 +566,11 @@ class GenericStacksAutoDetector:
                                     "full_path": str(full_path),
                                     "source": "clarinet_toml",
                                     "config": contract_config,
-                                    "size": full_path.stat().st_size,
-                                    "modified": full_path.stat().st_mtime,
-                                    "hash": self._calculate_file_hash(full_path),
+                                    "size": size,
+                                    "modified": mtime,
+                                    "hash": self._calculate_file_hash(
+                                        full_path, mtime=mtime, size=size
+                                    ),
                                     "category": self._determine_contract_category(
                                         contract_name
                                     ),
@@ -598,15 +614,18 @@ class GenericStacksAutoDetector:
 
                             full_path = clarinet_path.parent / contract_path
                             if full_path.exists():
+                                stat = full_path.stat()
                                 contracts.append(
                                     {
                                         "name": contract_name,
                                         "path": contract_path,
                                         "full_path": str(full_path),
                                         "source": "clarinet_toml",
-                                        "size": full_path.stat().st_size,
-                                        "modified": full_path.stat().st_mtime,
-                                        "hash": self._calculate_file_hash(full_path),
+                                        "size": stat.st_size,
+                                        "modified": stat.st_mtime,
+                                        "hash": self._calculate_file_hash(
+                                            full_path, mtime=stat.st_mtime, size=stat.st_size
+                                        ),
                                         "category": self._determine_contract_category(
                                             contract_name
                                         ),
@@ -627,9 +646,15 @@ class GenericStacksAutoDetector:
         contracts = []
         seen_paths = set()
         cache_key = str(directory)
-        self.project_files_cache[cache_key] = []
 
-        for rel_path in self.project_files_cache:
+        # Get files from cache, or scan if not available
+        all_files = self.project_files_cache.get(cache_key)
+        if all_files is None:
+            self._scan_project_files(directory)
+            all_files = self.project_files_cache.get(cache_key, [])
+
+        for file_info in all_files:
+            rel_path = file_info["rel_path"]
             if rel_path.endswith(".clar"):
                 full_path = directory / rel_path
                 if full_path in seen_paths:
@@ -643,9 +668,11 @@ class GenericStacksAutoDetector:
                         "path": rel_path,
                         "full_path": str(full_path),
                         "source": "efficient_scan",
-                        "size": full_path.stat().st_size,
-                        "modified": full_path.stat().st_mtime,
-                        "hash": self._calculate_file_hash(full_path),
+                        "size": file_info["size"],
+                        "modified": file_info["mtime"],
+                        "hash": self._calculate_file_hash(
+                            full_path, mtime=file_info["mtime"], size=file_info["size"]
+                        ),
                         "category": self._determine_contract_category(
                             contract_name
                         ),
@@ -705,37 +732,24 @@ class GenericStacksAutoDetector:
 
         # Use cached files and fnmatch for pattern matching
         matched_files = []
-        for rel_path in self.project_files_cache:
+        for file_info in all_files:
+            rel_path = file_info["rel_path"]
             for pattern in manifest_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
-                    matched_files.append(directory / rel_path)
+                    matched_files.append((directory / rel_path, file_info["mtime"]))
                     break
 
-        for manifest_file in matched_files:
+        for manifest_file, mtime in matched_files:
             if manifest_file.is_file():
                 try:
                     # Bolt ⚡: Use JSON cache with mtime validation to avoid redundant parsing
                     file_key = str(manifest_file)
-                    mtime = manifest_file.stat().st_mtime
                     if file_key in self.json_cache and self.json_cache[file_key]["mtime"] == mtime:
                         data = self.json_cache[file_key]["data"]
                     else:
                         with open(manifest_file, "r") as f:
                             data = json.load(f)
                             self.json_cache[file_key] = {"data": data, "mtime": mtime}
-
-                    # Extract contract information if available
-                        if "deployment" in data and "successful" in data["deployment"]:
-                            successful_contracts = data["deployment"]["successful"]
-                            for contract in successful_contracts:
-                                manifests.append(
-                                    {
-                                        "name": contract.get("name", ""),
-                                        "tx_id": contract.get("tx_id", ""),
-                                        "source": "deployment_manifest",
-                                        "path": str(manifest_file),
-                                    }
-                                )
 
                     # Extract contract information if available
                     if "deployment" in data and "successful" in data["deployment"]:
@@ -749,6 +763,8 @@ class GenericStacksAutoDetector:
                                     "path": str(manifest_file),
                                 }
                             )
+                except Exception as e:
+                    print(f"⚠️  Error reading manifest {manifest_file}: {e}")
 
         return manifests
 
@@ -992,19 +1008,51 @@ class GenericStacksAutoDetector:
             print(f"⚠️  Error reading JSON {file_path}: {e}")
             return None
 
-    def _calculate_file_hash(self, file_path: Path) -> str:
+    def _calculate_file_hash(
+        self,
+        file_path: Path,
+        mtime: Optional[float] = None,
+        size: Optional[int] = None,
+    ) -> str:
         """
-        Bolt ⚡: Calculate file hash using chunked reading.
-        More memory-efficient and avoids loading large contract files entirely into RAM.
+        Bolt ⚡: Calculate file hash with mtime caching.
+        Only re-hashes if the file has changed since the last scan.
         """
-        hasher = hashlib.md5()
         try:
+            file_key = str(file_path)
+
+            # Get stat info if not provided
+            if mtime is None or size is None:
+                stat = file_path.stat()
+                mtime = stat.st_mtime
+                size = stat.st_size
+
+            # Check if we have a cached hash that's still valid
+            if file_key in self.state["contract_hashes"]:
+                cached = self.state["contract_hashes"][file_key]
+                if cached.get("mtime") == mtime and cached.get("size") == size:
+                    return cached.get("hash", "unknown")
+
+            # Hash not in cache or file changed, calculate it
+            hasher = hashlib.md5()
             with open(file_path, "rb") as f:
                 # Read in 4KB chunks
                 for chunk in iter(lambda: f.read(4096), b""):
                     hasher.update(chunk)
-            return hasher.hexdigest()
-        except:
+
+            file_hash = hasher.hexdigest()
+
+            # Update cache in state
+            self.state["contract_hashes"][file_key] = {
+                "hash": file_hash,
+                "mtime": mtime,
+                "size": size,
+            }
+            # Bolt ⚡: Persist state immediately after hashing a new file
+            # ensures cache is available if process is interrupted.
+            self._save_state()
+            return file_hash
+        except Exception:
             return "unknown"
 
     def _find_deployment_artifacts(self, directory: Path) -> List[Dict]:
@@ -1037,18 +1085,18 @@ class GenericStacksAutoDetector:
 
         # Use cached files and fnmatch for pattern matching
         matched_files = []
-        for rel_path in self.project_files_cache:
+        for file_info in all_files:
+            rel_path = file_info["rel_path"]
             for pattern in artifact_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
-                    matched_files.append(directory / rel_path)
+                    matched_files.append((directory / rel_path, file_info["mtime"]))
                     break
 
-        for artifact_file in matched_files:
+        for artifact_file, mtime in matched_files:
             if artifact_file.is_file():
                 try:
                     # Bolt ⚡: Use JSON cache with mtime validation to avoid redundant parsing
                     file_key = str(artifact_file)
-                    mtime = artifact_file.stat().st_mtime
                     if file_key in self.json_cache and self.json_cache[file_key]["mtime"] == mtime:
                         data = self.json_cache[file_key]["data"]
                     else:
@@ -1195,18 +1243,18 @@ class GenericStacksAutoDetector:
         ]
 
         matched_history = []
-        for rel_path in self.project_files_cache:
+        for file_info in all_files:
+            rel_path = file_info["rel_path"]
             for pattern in history_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
-                    matched_history.append(self.project_root / rel_path)
+                    matched_history.append((self.project_root / rel_path, file_info["mtime"]))
                     break
 
-        for history_file in matched_history:
+        for history_file, mtime in matched_history:
             if history_file.is_file():
                 try:
                     # Bolt ⚡: Use JSON cache with mtime validation to avoid redundant parsing
                     file_key = str(history_file)
-                    mtime = history_file.stat().st_mtime
                     if file_key in self.json_cache and self.json_cache[file_key]["mtime"] == mtime:
                         data = self.json_cache[file_key]["data"]
                     else:
@@ -1227,18 +1275,18 @@ class GenericStacksAutoDetector:
         ]
 
         matched_manifests = []
-        for rel_path in self.project_files_cache:
+        for file_info in all_files:
+            rel_path = file_info["rel_path"]
             for pattern in manifest_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
-                    matched_manifests.append(self.project_root / rel_path)
+                    matched_manifests.append((self.project_root / rel_path, file_info["mtime"]))
                     break
 
-        for manifest_file in matched_manifests:
+        for manifest_file, mtime in matched_manifests:
             if manifest_file.is_file():
                 try:
                     # Bolt ⚡: Use JSON cache with mtime validation to avoid redundant parsing
                     file_key = str(manifest_file)
-                    mtime = manifest_file.stat().st_mtime
                     if file_key in self.json_cache and self.json_cache[file_key]["mtime"] == mtime:
                         data = self.json_cache[file_key]["data"]
                     else:
