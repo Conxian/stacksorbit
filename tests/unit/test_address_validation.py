@@ -17,11 +17,22 @@ class TestAddressValidation(unittest.TestCase):
         # Should fail for testnet
         self.assertFalse(validate_stacks_address(addr, "testnet"))
 
+    def test_valid_length_range(self):
+        # 40 chars should be valid (found in PRD)
+        addr = "SP2J1BCZK8Q0CP3W4R1XX9TMKJ1N1S8QZ7K0B5N8"
+        self.assertTrue(validate_stacks_address(addr))
+
+        # 29 chars should be valid (burn address)
+        addr = "ST000000000000000000002Q6VF78"
+        self.assertTrue(validate_stacks_address(addr))
+
     def test_invalid_length(self):
-        addr = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZG" # 40 chars
+        # Too short
+        addr = "ST1PQHQKV0RJXZFY"
         self.assertFalse(validate_stacks_address(addr))
 
-        addr = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGMA" # 42 chars
+        # Too long
+        addr = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGMAA" # 43 chars
         self.assertFalse(validate_stacks_address(addr))
 
     def test_invalid_charset(self):

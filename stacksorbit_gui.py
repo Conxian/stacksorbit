@@ -42,6 +42,7 @@ from stacksorbit_secrets import (
     is_sensitive_key,
     validate_stacks_address,
     validate_private_key,
+    set_secure_permissions,
 )
 
 
@@ -694,6 +695,9 @@ class StacksOrbitGUI(App):
                     # This prevents accidental persistence of secrets to plaintext files.
                     if not is_sensitive_key(key):
                         f.write(f"{key}={value}\n")
+
+            # 🛡️ Sentinel: Enforce secure file permissions
+            set_secure_permissions(self.config_path)
 
         try:
             # 🛡️ Sentinel: Only save non-sensitive settings to the file.
