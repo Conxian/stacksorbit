@@ -215,6 +215,7 @@ class StacksOrbitGUI(App):
                         )
                         yield Label("Show", classes="switch-label")
                         yield Switch(id="show-privkey")
+                    yield Label("", id="privkey-error", markup=True)
                     yield Label("Stacks Address: [red]*[/red]", markup=True)
                     with Horizontal(classes="input-group"):
                         yield Input(
@@ -226,6 +227,7 @@ class StacksOrbitGUI(App):
                             "📋",
                             id="copy-address-btn",
                         )
+                    yield Label("", id="address-error", markup=True)
                     yield Button(
                         "💾 Save",
                         id="save-config-btn",
@@ -590,22 +592,31 @@ class StacksOrbitGUI(App):
     @on(Input.Changed, "#address-input")
     def on_address_changed(self, event: Input.Changed) -> None:
         """Real-time validation for Stacks address."""
+        error_label = self.query_one("#address-error", Label)
         if not event.value:
             event.input.remove_class("error")
+            error_label.update("")
         elif validate_stacks_address(event.value, self.network):
             event.input.remove_class("error")
+            error_label.update("")
         else:
             event.input.add_class("error")
+            prefix = "SP" if self.network == "mainnet" else "ST"
+            error_label.update(f"[red]❌ Must be 41 chars and start with {prefix}[/red]")
 
     @on(Input.Changed, "#privkey-input")
     def on_privkey_changed(self, event: Input.Changed) -> None:
         """Real-time validation for Private Key."""
+        error_label = self.query_one("#privkey-error", Label)
         if not event.value or event.value == "your_private_key_here":
             event.input.remove_class("error")
+            error_label.update("")
         elif validate_private_key(event.value):
             event.input.remove_class("error")
+            error_label.update("")
         else:
             event.input.add_class("error")
+            error_label.update("[red]❌ Must be a 64 or 66 character hex string[/red]")
 
     @on(Button.Pressed, "#copy-address-btn")
     async def on_copy_address_pressed(self) -> None:
