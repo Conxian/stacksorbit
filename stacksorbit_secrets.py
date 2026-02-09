@@ -15,7 +15,7 @@ SECRET_KEYS = [
 ]
 
 # 🛡️ Sentinel: Sensitive substrings to identify potential secrets in configuration keys.
-SENSITIVE_SUBSTRINGS = ["KEY", "SECRET", "TOKEN", "PASSWORD", "MNEMONIC"]
+SENSITIVE_SUBSTRINGS = ["KEY", "SECRET", "TOKEN", "PASSWORD", "MNEMONIC", "SEED"]
 
 
 def is_sensitive_key(key: str) -> bool:
@@ -53,8 +53,8 @@ def validate_stacks_address(address: str, network: str = None) -> bool:
         if not (addr.startswith("SP") or addr.startswith("ST")):
             return False
 
-    # Length and Charset validation
-    if len(addr) != 41:
+    # Length and Charset validation (Stacks addresses are typically 28-41 characters)
+    if not (28 <= len(addr) <= 41):
         return False
 
     # C32 allowed charset (I, L, O, U are excluded)
@@ -76,3 +76,17 @@ def validate_private_key(privkey: str) -> bool:
         return False
     # Hex-only characters
     return all(c in "0123456789abcdefABCDEF" for c in pk)
+
+
+def set_secure_permissions(filepath: str):
+    """
+    🛡️ Sentinel: Set file permissions to 600 (owner read/write only) on POSIX systems.
+    This prevents other users on the same machine from reading sensitive configuration files.
+    """
+    try:
+        import os
+        if os.name == 'posix' and os.path.exists(filepath):
+            os.chmod(filepath, 0o600)
+    except Exception:
+        # Fail gracefully if permissions cannot be set
+        pass

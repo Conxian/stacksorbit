@@ -12,7 +12,7 @@ import threading
 import time
 import secrets
 from pathlib import Path
-from stacksorbit_secrets import validate_stacks_address
+from stacksorbit_secrets import validate_stacks_address, set_secure_permissions
 
 # HTML template for wallet connection
 WALLET_CONNECT_HTML = """
@@ -391,6 +391,9 @@ def save_wallet_address(address):
         # Create new
         env_path.write_text(f'SYSTEM_ADDRESS={address}\nNETWORK=testnet\n')
     
+    # 🛡️ Sentinel: Enforce secure file permissions
+    set_secure_permissions(str(env_path))
+
     print(f"\n✅ Saved wallet address to .env: {address}")
 
 

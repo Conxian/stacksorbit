@@ -21,6 +21,7 @@ from stacksorbit_secrets import (
     is_sensitive_key,
     validate_stacks_address,
     validate_private_key,
+    set_secure_permissions,
 )
 from deployment_monitor import DeploymentMonitor
 
@@ -144,6 +145,9 @@ CONFIRMATION_TIMEOUT=300
         with open(self.config_path, "w") as f:
             f.write(default_config)
 
+        # 🛡️ Sentinel: Enforce secure file permissions
+        set_secure_permissions(str(self.config_path))
+
     def save_config(self, config: Dict):
         """Save configuration to file"""
         with open(self.config_path, "w") as f:
@@ -153,6 +157,9 @@ CONFIRMATION_TIMEOUT=300
                 # This prevents accidental persistence of secrets to plaintext files.
                 if not is_sensitive_key(key):
                     f.write(f"{key}={value}\n")
+
+        # 🛡️ Sentinel: Enforce secure file permissions
+        set_secure_permissions(str(self.config_path))
 
     def validate_config(self) -> Tuple[bool, List[str]]:
         """Validate configuration and return (is_valid, errors)"""
