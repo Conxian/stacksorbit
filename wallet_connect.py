@@ -266,13 +266,31 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
     session_token = None
     
     def do_GET(self):
-        path = self.path.split('?')[0]
-        if path == '/' or path == '/index.html':
+        # 🛡️ Sentinel: Validate session token for all GET requests to prevent unauthorized access.
+        if "?" not in self.path:
+            self.send_error(403, "Missing session token")
+            return
+
+        path_part, query_part = self.path.split("?", 1)
+        import urllib.parse
+
+        query = urllib.parse.parse_qs(query_part)
+        token = query.get("token", [None])[0]
+
+        if token != WalletConnectHandler.session_token:
+            print("⚠️  Unauthorized GET attempt: Invalid session token")
+            self.send_error(403, "Invalid session token")
+            return
+
+        if path_part in ("/", "/index.html"):
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
+            self.send_header("Content-type", "text/html")
             # 🛡️ Sentinel: Security Headers
-            self.send_header('X-Content-Type-Options', 'nosniff')
-            self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.testnet.hiro.so; style-src 'self' 'unsafe-inline'; img-src 'self' data:;")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.testnet.hiro.so; style-src 'self' 'unsafe-inline'; img-src 'self' data:;",
+            )
             self.end_headers()
             self.wfile.write(WALLET_CONNECT_HTML.encode())
         else:
@@ -326,7 +344,7 @@ def start_wallet_connect_server(port=8765):
     # 🛡️ Sentinel: Generate a random session token for security
     token = secrets.token_urlsafe(16)
     WalletConnectHandler.session_token = token
-    url = f"http://localhost:{port}/?token={token}"
+    url = f"http://127.0.0.1:{port}/?token={token}"
 
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
@@ -343,7 +361,8 @@ def start_wallet_connect_server(port=8765):
 """)
     
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", port), WalletConnectHandler) as httpd:
+    # 🛡️ Sentinel: Bind only to localhost (127.0.0.1) for security.
+    with socketserver.TCPServer(("127.0.0.1", port), WalletConnectHandler) as httpd:
         # Open browser
         webbrowser.open(url)
         
