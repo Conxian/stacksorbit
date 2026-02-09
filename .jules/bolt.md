@@ -31,3 +31,7 @@
 **Learning:** I discovered that aggressive API caching (e.g., 5-minute expiry) in polling loops (like `wait_for_transaction`) and monitoring background tasks causes massive latency in status detection. A transaction that confirms in 10 seconds might not be detected for 300 seconds because the poller keeps hitting the stale cache.
 
 **Action:** Always implement an explicit `bypass_cache` mechanism in caching decorators. Use `bypass_cache=True` for all critical polling operations and manual user refreshes to ensure immediate responsiveness, while maintaining cache benefits for non-critical background updates.
+
+## 2026-02-08 - Optimized Project Discovery and Contract Hashing
+**Learning:** Redundant filesystem operations and cryptographic hashing are major bottlenecks in project discovery. Consolidating all file metadata (`mtime`, `size`) into a single-pass `os.walk` scan and using that metadata to gate expensive `stat()` calls and `hashlib` operations significantly improves performance.
+**Action:** Always prefer a single-pass scan that populates a comprehensive metadata cache. Use this cache to implement `mtime`-aware gating for any expensive per-file operations like content hashing or parsing.
