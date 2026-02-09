@@ -31,3 +31,7 @@
 **Learning:** I discovered that aggressive API caching (e.g., 5-minute expiry) in polling loops (like `wait_for_transaction`) and monitoring background tasks causes massive latency in status detection. A transaction that confirms in 10 seconds might not be detected for 300 seconds because the poller keeps hitting the stale cache.
 
 **Action:** Always implement an explicit `bypass_cache` mechanism in caching decorators. Use `bypass_cache=True` for all critical polling operations and manual user refreshes to ensure immediate responsiveness, while maintaining cache benefits for non-critical background updates.
+
+## 2026-03-05 - Fix for broken Single-Pass Scan and Implementing mtime-Aware Hashing
+**Learning:** Broken optimizations (like a list being used as a dictionary) can lead to silent or noisy failures that negate performance gains. Additionally, memory-described features like mtime-aware hashing must be verified against actual implementation to ensure they aren't missing or reverted.
+**Action:** Always verify the data structures used for caching and ensure that high-impact optimizations like file hashing are truly mtime-aware by inspecting the source code directly.

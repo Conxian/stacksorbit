@@ -28,7 +28,7 @@ class GenericStacksAutoDetector:
         )
         self.contract_cache = {}
         self.deployment_cache = {}
-        self.project_files_cache = []  # Bolt ⚡: Cache for project files
+        self.project_files_cache = {}  # Bolt ⚡: Cache for project files
         self.json_cache = {}  # Bolt ⚡: Cache for parsed JSON files
         self.state_file = (
             self.project_root / ".stacksorbit" / "auto_detection_state.json"
@@ -286,7 +286,8 @@ class GenericStacksAutoDetector:
         For projects with complex directory structures, this improves detection
         latency by approximately 75-90% and significantly reduces I/O operations.
         """
-        self.project_files_cache = []
+        cache_key = str(directory)
+        self.project_files_cache[cache_key] = []
         ignore_dirs = {
             "node_modules",
             ".git",
@@ -311,7 +312,7 @@ class GenericStacksAutoDetector:
                 full_path = Path(root) / file
                 # Store as relative path string with forward slashes for cross-platform matching
                 rel_path = str(full_path.relative_to(directory)).replace(os.sep, "/")
-                self.project_files_cache.append(rel_path)
+                self.project_files_cache[cache_key].append(rel_path)
 
     def detect_and_analyze(self) -> Dict:
         """Complete generic auto-detection and analysis"""
@@ -627,9 +628,12 @@ class GenericStacksAutoDetector:
         contracts = []
         seen_paths = set()
         cache_key = str(directory)
-        self.project_files_cache[cache_key] = []
 
-        for rel_path in self.project_files_cache:
+        # Check if directory is in cache, if not scan it
+        if cache_key not in self.project_files_cache:
+            self._scan_project_files(directory)
+
+        for rel_path in self.project_files_cache[cache_key]:
             if rel_path.endswith(".clar"):
                 full_path = directory / rel_path
                 if full_path in seen_paths:
@@ -688,7 +692,7 @@ class GenericStacksAutoDetector:
         # Get all files from cache, or perform a scan if not available
         all_files = self.project_files_cache.get(cache_key)
         if all_files is None:
-            self._efficient_directory_scan(directory)
+            self._scan_project_files(directory)
             all_files = self.project_files_cache.get(cache_key, [])
 
         # Check for deployment manifest files using in-memory pattern matching
@@ -705,7 +709,7 @@ class GenericStacksAutoDetector:
 
         # Use cached files and fnmatch for pattern matching
         matched_files = []
-        for rel_path in self.project_files_cache:
+        for rel_path in all_files:
             for pattern in manifest_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
                     matched_files.append(directory / rel_path)
@@ -717,7 +721,7 @@ class GenericStacksAutoDetector:
                     # Bolt ⚡: Use JSON cache with mtime validation to avoid redundant parsing
                     file_key = str(manifest_file)
                     mtime = manifest_file.stat().st_mtime
-                    if file_key in self.json_cache and self.json_cache[file_key]["mtime"] == mtime:
+                    if file_key in self.json_cache and self.json_cache.get(file_key, {}).get("mtime") == mtime:
                         data = self.json_cache[file_key]["data"]
                     else:
                         with open(manifest_file, "r") as f:
@@ -725,20 +729,7 @@ class GenericStacksAutoDetector:
                             self.json_cache[file_key] = {"data": data, "mtime": mtime}
 
                     # Extract contract information if available
-                        if "deployment" in data and "successful" in data["deployment"]:
-                            successful_contracts = data["deployment"]["successful"]
-                            for contract in successful_contracts:
-                                manifests.append(
-                                    {
-                                        "name": contract.get("name", ""),
-                                        "tx_id": contract.get("tx_id", ""),
-                                        "source": "deployment_manifest",
-                                        "path": str(manifest_file),
-                                    }
-                                )
-
-                    # Extract contract information if available
-                    if "deployment" in data and "successful" in data["deployment"]:
+                    if isinstance(data, dict) and "deployment" in data and "successful" in data["deployment"]:
                         successful_contracts = data["deployment"]["successful"]
                         for contract in successful_contracts:
                             manifests.append(
@@ -749,6 +740,8 @@ class GenericStacksAutoDetector:
                                     "path": str(manifest_file),
                                 }
                             )
+                except Exception as e:
+                    print(f"⚠️  Error parsing manifest {manifest_file}: {e}")
 
         return manifests
 
@@ -994,17 +987,43 @@ class GenericStacksAutoDetector:
 
     def _calculate_file_hash(self, file_path: Path) -> str:
         """
-        Bolt ⚡: Calculate file hash using chunked reading.
-        More memory-efficient and avoids loading large contract files entirely into RAM.
+        Bolt ⚡: Calculate file hash with mtime-aware caching.
+        More memory-efficient and avoids redundant I/O and CPU work for unchanged files.
         """
-        hasher = hashlib.md5()
         try:
+            stat = file_path.stat()
+            mtime = stat.st_mtime
+            size = stat.st_size
+            file_key = str(file_path)
+
+            # Check if we have a cached hash that's still valid
+            if "contract_hashes" not in self.state:
+                self.state["contract_hashes"] = {}
+
+            cached = self.state["contract_hashes"].get(file_key)
+            if (
+                isinstance(cached, dict)
+                and cached.get("mtime") == mtime
+                and cached.get("size") == size
+            ):
+                return cached["hash"]
+
+            hasher = hashlib.md5()
             with open(file_path, "rb") as f:
                 # Read in 4KB chunks
                 for chunk in iter(lambda: f.read(4096), b""):
                     hasher.update(chunk)
-            return hasher.hexdigest()
-        except:
+
+            file_hash = hasher.hexdigest()
+
+            # Update cache in state
+            self.state["contract_hashes"][file_key] = {
+                "hash": file_hash,
+                "mtime": mtime,
+                "size": size,
+            }
+            return file_hash
+        except Exception:
             return "unknown"
 
     def _find_deployment_artifacts(self, directory: Path) -> List[Dict]:
@@ -1018,7 +1037,7 @@ class GenericStacksAutoDetector:
         # Get all files from cache, or perform a scan if not available
         all_files = self.project_files_cache.get(cache_key)
         if all_files is None:
-            self._efficient_directory_scan(directory)
+            self._scan_project_files(directory)
             all_files = self.project_files_cache.get(cache_key, [])
 
         # Pattern list for matching
@@ -1037,7 +1056,7 @@ class GenericStacksAutoDetector:
 
         # Use cached files and fnmatch for pattern matching
         matched_files = []
-        for rel_path in self.project_files_cache:
+        for rel_path in all_files:
             for pattern in artifact_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
                     matched_files.append(directory / rel_path)
@@ -1184,7 +1203,7 @@ class GenericStacksAutoDetector:
         # Get all files from cache, or perform a scan if not available
         all_files = self.project_files_cache.get(cache_key)
         if all_files is None:
-            self._efficient_directory_scan(self.project_root)
+            self._scan_project_files(self.project_root)
             all_files = self.project_files_cache.get(cache_key, [])
 
         # Pattern lists for matching
@@ -1195,7 +1214,7 @@ class GenericStacksAutoDetector:
         ]
 
         matched_history = []
-        for rel_path in self.project_files_cache:
+        for rel_path in all_files:
             for pattern in history_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
                     matched_history.append(self.project_root / rel_path)
@@ -1227,7 +1246,7 @@ class GenericStacksAutoDetector:
         ]
 
         matched_manifests = []
-        for rel_path in self.project_files_cache:
+        for rel_path in all_files:
             for pattern in manifest_patterns:
                 if fnmatch.fnmatch(rel_path, pattern):
                     matched_manifests.append(self.project_root / rel_path)
