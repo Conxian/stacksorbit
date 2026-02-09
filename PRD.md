@@ -4,13 +4,21 @@
 
 StacksOrbit is a comprehensive deployment and management tool for the Stacks blockchain. This document outlines the project's migration to a modern, efficient, and synchronized development environment using the Clarinet SDK, Vitest, and Chainhooks. This "Root-Up" methodology ensures that documentation and implementation are always aligned.
 
-## 2. Current Architecture
+## 2. Current Architecture & Dependencies
 
-*   **Contracts:** The project currently contains a single placeholder Clarity contract (`contracts/placeholder.clar`).
-*   **Testing:** The existing test suite is a mix of Python and JavaScript-based tests, which will be migrated to Vitest.
-*   **Dependencies:** The project relies on a mix of Node.js and Python dependencies.
+### 2.1. Core Architecture
+StacksOrbit is built with a hybrid architecture:
+*   **Core Engine:** Python-based CLI and Textual TUI for orchestration, deployment management, and real-time monitoring.
+*   **Smart Contracts:** Clarity contracts managed by Clarinet.
+*   **Test Suite:** Native Vitest-based testing environment leveraging the Clarinet SDK for high-fidelity blockchain simulation.
+*   **Event Monitoring:** Chainhook-driven multi-network event tracking.
 
-## 3. Migration Roadmap
+### 2.2. Technical Dependencies
+*   **Blockchain Tooling:** Clarinet (Native), Clarinet SDK (Vitest integration).
+*   **JavaScript Environment:** Node.js, Vitest, `@stacks/clarinet-sdk`, `vitest-environment-clarinet`.
+*   **Python Environment:** Textual (TUI), Pytest (Tooling tests), `python-dotenv`, `requests`.
+
+## 3. Migration Roadmap (Vitest & Clarinet SDK)
 
 The primary goal is to refactor the project to use a modern, streamlined toolchain that leverages the Clarinet SDK for development and testing, and Chainhooks for multi-network event monitoring.
 
@@ -59,9 +67,9 @@ StacksOrbit is committed to supporting the latest Clarity language features.
 
 ## 5. Contract Registry
 
-| Contract | Devnet | Testnet | Mainnet |
-| :--- | :--- | :--- | :--- |
-| `placeholder` | `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.placeholder` | `ST000000000000000000002Q6VF78.placeholder` | `SP2J1BCZK8Q0CP3W4R1XX9TMKJ1N1S8QZ7K0B5N8.placeholder` |
+| Contract | Devnet | Testnet | Mainnet | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `placeholder` | `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.placeholder` | `ST000000000000000000002Q6VF78.placeholder` | `SP2J1BCZK8Q0CP3W4R1XX9TMKJ1N1S8QZ7K0B5N8.placeholder` | ✅ Verified |
 
 ## 5. Session Log
 
@@ -173,4 +181,15 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Updated `on_address_changed` and `on_privkey_changed` handlers to display specific error messages (prefix and length requirements) using Rich markup.
     *   Added automated tests in `tests/test_gui.py` to verify the validation logic and UI feedback.
     *   Ensured adherence to Palette persona constraints: no custom CSS, micro-UX focus (<50 lines).
+*   **Status:** Complete.
+
+### Session 12: Vitest Foundation & Root-Up Alignment
+
+*   **Objective:** Reinforce the project's foundation by aligning with the Clarinet SDK and Vitest native architecture under the Root-Up methodology.
+*   **Changes:**
+    *   Synchronized `PRD.md` with current architecture and dependencies.
+    *   Updated `package.json` with `@stacks/clarinet-sdk`, `vitest` (^4.0.18), and `vitest-environment-clarinet` (^3.0.2).
+    *   Created `vitest.config.ts` using an async configuration with dynamic imports to ensure ESM compatibility for the Clarinet SDK within a CJS project.
+    *   Removed the legacy `vitest.config.mts` in favor of the standardized `.ts` extension.
+    *   Verified all contract tests pass using the new configuration.
 *   **Status:** Complete.
