@@ -215,6 +215,7 @@ class StacksOrbitGUI(App):
                         )
                         yield Label("Show", classes="switch-label")
                         yield Switch(id="show-privkey")
+                    yield Label("", id="privkey-validation", classes="validation-msg")
                     yield Label("Stacks Address: [red]*[/red]", markup=True)
                     with Horizontal(classes="input-group"):
                         yield Input(
@@ -226,6 +227,7 @@ class StacksOrbitGUI(App):
                             "📋",
                             id="copy-address-btn",
                         )
+                    yield Label("", id="address-validation", classes="validation-msg")
                     yield Button(
                         "💾 Save",
                         id="save-config-btn",
@@ -506,12 +508,17 @@ class StacksOrbitGUI(App):
             # Bolt ⚡: Manual refresh always bypasses the cache for immediate responsiveness.
             await self.update_data(bypass_cache=True)
             self.notify("Data refreshed")
+
+            # Palette 🎨: Provide micro-UX success feedback on the button
+            refresh_btn = self.query_one("#refresh-btn", Button)
+            refresh_btn.label = "✅ Refreshed"
+            await asyncio.sleep(1.5)
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")
         finally:
             refresh_btn = self.query_one("#refresh-btn", Button)
             refresh_btn.disabled = False
-            refresh_btn.label = self._original_btn_label
+            refresh_btn.label = "🔄 Refresh"
             self.query("#overview LoadingIndicator").first().display = False
             self._manual_refresh_in_progress = False
 
@@ -589,23 +596,55 @@ class StacksOrbitGUI(App):
 
     @on(Input.Changed, "#address-input")
     def on_address_changed(self, event: Input.Changed) -> None:
-        """Real-time validation for Stacks address."""
+        """Real-time validation for Stacks address with descriptive feedback."""
+        msg_label = self.query_one("#address-validation", Label)
         if not event.value:
             event.input.remove_class("error")
+            msg_label.update("")
+            return
+
+        addr = event.value.strip().upper()
+        if self.network == "mainnet" and not addr.startswith("SP"):
+            msg = "Mainnet addresses must start with 'SP'"
+        elif self.network in ["testnet", "devnet"] and not addr.startswith("ST"):
+            msg = f"{self.network.capitalize()} addresses must start with 'ST'"
+        elif len(addr) != 41:
+            msg = f"Address length is {len(addr)}/41 characters"
+        elif not all(ch in "0123456789ABCDEFGHJKMNPQRSTVWXYZ" for ch in addr[2:]):
+            msg = "Invalid C32 characters (I, L, O, U are excluded)"
         elif validate_stacks_address(event.value, self.network):
             event.input.remove_class("error")
+            msg_label.update("[green]✓ Valid address[/green]")
+            return
         else:
-            event.input.add_class("error")
+            msg = "Invalid address format"
+
+        event.input.add_class("error")
+        msg_label.update(f"[red]⚠ {msg}[/red]")
 
     @on(Input.Changed, "#privkey-input")
     def on_privkey_changed(self, event: Input.Changed) -> None:
-        """Real-time validation for Private Key."""
+        """Real-time validation for Private Key with descriptive feedback."""
+        msg_label = self.query_one("#privkey-validation", Label)
         if not event.value or event.value == "your_private_key_here":
             event.input.remove_class("error")
+            msg_label.update("")
+            return
+
+        pk = event.value.strip()
+        if len(pk) not in (64, 66):
+            msg = f"Private key must be 64 or 66 chars (currently {len(pk)})"
+        elif not all(c in "0123456789abcdefABCDEF" for c in pk):
+            msg = "Private key must be a hexadecimal string"
         elif validate_private_key(event.value):
             event.input.remove_class("error")
+            msg_label.update("[green]✓ Valid private key format[/green]")
+            return
         else:
-            event.input.add_class("error")
+            msg = "Invalid private key"
+
+        event.input.add_class("error")
+        msg_label.update(f"[red]⚠ {msg}[/red]")
 
     @on(Button.Pressed, "#copy-address-btn")
     async def on_copy_address_pressed(self) -> None:

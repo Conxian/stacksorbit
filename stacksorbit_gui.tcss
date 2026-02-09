@@ -149,6 +149,12 @@ Input.error {
     border: round #cc3333;
 }
 
+.validation-msg {
+    margin: 0 0 1 2;
+    height: 1;
+    color: #a0a0a0;
+}
+
 .input-group {
     layout: horizontal;
     align: center middle;
