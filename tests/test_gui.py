@@ -33,3 +33,37 @@ async def test_contract_selection_triggers_details_fetch():
 
             # Assert
             mock_fetch.assert_called_once_with("ST123.test-contract")
+
+@pytest.mark.asyncio
+async def test_validation_error_messages():
+    """Test that validation error messages appear for invalid input."""
+    app = StacksOrbitGUI()
+    async with app.run_test() as pilot:
+        # Test Stacks Address validation
+        address_input = app.query_one("#address-input")
+        address_error = app.query_one("#address-error")
+
+        # Invalid address
+        address_input.value = "invalid-address"
+        # Manually trigger the event since pilot.type might be slow or tricky in some environments
+        app.on_address_changed(address_input.Changed(address_input, "invalid-address"))
+        assert "❌ Must be 41 chars" in str(address_error.render())
+
+        # Valid address (ST for testnet)
+        address_input.value = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
+        app.on_address_changed(address_input.Changed(address_input, address_input.value))
+        assert str(address_error.render()) == ""
+
+        # Test Private Key validation
+        privkey_input = app.query_one("#privkey-input")
+        privkey_error = app.query_one("#privkey-error")
+
+        # Invalid private key
+        privkey_input.value = "too-short"
+        app.on_privkey_changed(privkey_input.Changed(privkey_input, "too-short"))
+        assert "❌ Must be a 64 or 66 character hex string" in str(privkey_error.render())
+
+        # Valid private key
+        privkey_input.value = "a" * 64
+        app.on_privkey_changed(privkey_input.Changed(privkey_input, privkey_input.value))
+        assert str(privkey_error.render()) == ""

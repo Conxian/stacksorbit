@@ -164,3 +164,13 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Refactored `tests/test_bolt_performance.py` to eliminate race conditions in automated GUI testing.
     *   Added `tests/unit/test_bolt_cache_bypass.py` for comprehensive validation of the new caching logic.
 *   **Status:** Complete.
+
+### Session 11: Micro-UX Improvement & Inline Validation
+
+*   **Objective:** Implement a micro-UX improvement to the TUI to provide better user feedback during configuration.
+*   **Changes:**
+    *   Added inline validation error labels to the Settings tab in `stacksorbit_gui.py`.
+    *   Updated `on_address_changed` and `on_privkey_changed` handlers to display specific error messages (prefix and length requirements) using Rich markup.
+    *   Added automated tests in `tests/test_gui.py` to verify the validation logic and UI feedback.
+    *   Ensured adherence to Palette persona constraints: no custom CSS, micro-UX focus (<50 lines).
+*   **Status:** Complete.
