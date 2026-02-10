@@ -35,3 +35,9 @@
 ## 2026-02-08 - Optimized Project Discovery and Contract Hashing
 **Learning:** Redundant filesystem operations and cryptographic hashing are major bottlenecks in project discovery. Consolidating all file metadata (`mtime`, `size`) into a single-pass `os.walk` scan and using that metadata to gate expensive `stat()` calls and `hashlib` operations significantly improves performance.
 **Action:** Always prefer a single-pass scan that populates a comprehensive metadata cache. Use this cache to implement `mtime`-aware gating for any expensive per-file operations like content hashing or parsing.
+
+## 2026-02-21 - Optimization of Core Utilities and Verification Flow
+
+**Learning:** High-frequency utility functions (like `is_sensitive_key` or `validate_stacks_address`) can become significant bottlenecks when called in recursive processes (like config redaction) or UI event loops. Additionally, direct usage of `requests.get` bypassing available service-level caches (like in `DeploymentMonitor`) leads to redundant network I/O and slower verification cycles.
+
+**Action:** Always use `@functools.lru_cache` and $O(1)$ data structures (sets/dicts) for high-frequency utility functions. When working with external APIs, check for existing service classes that implement caching before making direct network calls. Hoist expensive calls (like `datetime.now(timezone.utc)`) out of loops to minimize redundant system calls and ensure consistency.
