@@ -67,3 +67,26 @@ async def test_validation_error_messages():
         privkey_input.value = "a" * 64
         app.on_privkey_changed(privkey_input.Changed(privkey_input, privkey_input.value))
         assert str(privkey_error.render()) == ""
+
+@pytest.mark.asyncio
+async def test_copy_source_code():
+    """Verify that clicking the copy source button copies the correct code."""
+    app = StacksOrbitGUI()
+    app.selected_contract_source = "clarity-code-here"
+
+    with patch.object(app, 'copy_to_clipboard') as mock_copy:
+        async with app.run_test() as pilot:
+            # Switch to Contracts tab
+            await pilot.press("f2")
+            await pilot.pause()
+
+            # Enable the button
+            btn = app.query_one("#copy-contract-source-btn")
+            btn.disabled = False
+
+            # Click the button
+            await pilot.click("#copy-contract-source-btn")
+            await pilot.pause()
+
+            # Assert
+            mock_copy.assert_called_once_with("clarity-code-here")

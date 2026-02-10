@@ -79,6 +79,7 @@ class StacksOrbitGUI(App):
         self.monitor = DeploymentMonitor(self.network, self.config)
         self._manual_refresh_in_progress = False
         self.selected_contract_id = None
+        self.selected_contract_source = None
         # Bolt ⚡: State tracking to avoid redundant UI re-renders
         self._last_contracts = None
         self._last_transactions = None
@@ -169,6 +170,7 @@ class StacksOrbitGUI(App):
                         Horizontal(
                             Label("Contract Details", classes="header"),
                             Button("📋", id="copy-contract-id-btn"),
+                            Button("📄", id="copy-contract-source-btn"),
                             id="contract-details-header",
                         ),
                         LoadingIndicator(),
@@ -273,6 +275,11 @@ class StacksOrbitGUI(App):
             "Copy selected contract ID"
         )
         self.query_one("#copy-contract-id-btn", Button).disabled = True
+
+        self.query_one("#copy-contract-source-btn", Button).tooltip = (
+            "Copy contract source code"
+        )
+        self.query_one("#copy-contract-source-btn", Button).disabled = True
 
         self.query_one("#save-config-btn", Button).tooltip = (
             "Save settings to .env file [s]"
@@ -405,7 +412,7 @@ class StacksOrbitGUI(App):
                         "", "No contracts found", "Deploy a contract to see it here."
                     )
                 else:
-                    contracts_table.add_row("Address not configured in .env file.")
+                    contracts_table.add_row("", "Address not configured", "")
                 self._last_contracts = deployed_contracts
 
             # Process transactions result
@@ -428,7 +435,7 @@ class StacksOrbitGUI(App):
                 elif self.address != "Not configured":
                     transactions_table.add_row("", "No transactions found", "", "")
                 else:
-                    transactions_table.add_row("Address not configured in .env file.")
+                    transactions_table.add_row("", "Address not configured", "", "")
                 self._last_transactions = transactions
 
         except Exception as e:
@@ -445,6 +452,7 @@ class StacksOrbitGUI(App):
         if contract_id:
             self.selected_contract_id = contract_id
             self.query_one("#copy-contract-id-btn", Button).disabled = False
+            self.query_one("#copy-contract-source-btn", Button).disabled = True
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
 
     @on(DataTable.RowSelected, "#transactions-table")
@@ -471,11 +479,15 @@ class StacksOrbitGUI(App):
         loader.display = True
         try:
             details = await self.monitor.get_contract_details(contract_id)
-            if details:
+            if details and details.get("source_code"):
+                self.selected_contract_source = details.get("source_code")
+                self.query_one("#copy-contract-source-btn", Button).disabled = False
                 md.update(
-                    f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```"
+                    f"**Source Code:**\n```clarity\n{self.selected_contract_source}\n```"
                 )
             else:
+                self.selected_contract_source = None
+                self.query_one("#copy-contract-source-btn", Button).disabled = True
                 md.update("Could not retrieve contract details.")
         finally:
             loader.display = False
@@ -633,6 +645,23 @@ class StacksOrbitGUI(App):
                 btn.label = "✅"
                 await asyncio.sleep(1)
                 btn.label = "📋"
+
+    @on(Button.Pressed, "#copy-contract-source-btn")
+    async def on_copy_contract_source_pressed(self) -> None:
+        """Handle contract source copy button press with visual feedback."""
+        if self.selected_contract_source:
+            self.copy_to_clipboard(self.selected_contract_source)
+            self.notify(
+                "Contract source code copied to clipboard",
+                severity="information",
+            )
+
+            # Micro-UX: Visual feedback
+            btn = self.query_one("#copy-contract-source-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📄"
 
     @on(Button.Pressed, "#copy-contract-id-btn")
     async def on_copy_contract_id_pressed(self) -> None:

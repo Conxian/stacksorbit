@@ -174,3 +174,14 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Added automated tests in `tests/test_gui.py` to verify the validation logic and UI feedback.
     *   Ensured adherence to Palette persona constraints: no custom CSS, micro-UX focus (<50 lines).
 *   **Status:** Complete.
+
+### Session 12: Micro-UX Expansion & Layout Robustness
+
+*   **Objective:** Enhance the user experience with new utility features and improve the visual robustness of the dashboard.
+*   **Changes:**
+    *   Implemented a "Copy Source Code" feature in the Contracts tab of `stacksorbit_gui.py`, allowing developers to quickly copy Clarity code.
+    *   Added visual feedback (checkmark icon) and tooltips to the new copy button, following existing design patterns.
+    *   Fixed a layout bug in `DataTable` row population where single-string messages were incorrectly added to multi-column tables.
+    *   Added a regression test `test_copy_source_code` to `tests/test_gui.py` to verify the new copy functionality.
+    *   Verified the UI changes via Textual SVG screenshots and ensured compliance with the Palette persona boundaries.
+*   **Status:** Complete.
