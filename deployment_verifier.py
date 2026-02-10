@@ -185,20 +185,19 @@ class DeploymentVerifier:
     ) -> Dict:
         """Verify recent transaction history"""
         try:
-            # Get account transactions
-            response = requests.get(
-                f"{self.monitor.api_url}/v2/accounts/{address}/transactions?limit=50",
-                timeout=10,
-            )
-            response.raise_for_status()
-            transactions = response.json().get("results", [])
+            # Bolt ⚡: Use cached monitor method instead of direct requests.get
+            transactions = self.monitor.get_recent_transactions(address, limit=50)
+
+            # Bolt ⚡: Move datetime.now outside the loop for consistency and efficiency
+            now = datetime.now(timezone.utc)
+            cutoff = now - timedelta(hours=24)
 
             # Analyze recent transactions
             recent_txs = [
                 tx
                 for tx in transactions
                 if datetime.fromisoformat(tx["burn_block_time"].replace("Z", "+00:00"))
-                > datetime.now(timezone.utc) - timedelta(hours=24)
+                > cutoff
             ]
 
             # Look for contract deployment transactions
@@ -278,21 +277,21 @@ class DeploymentVerifier:
         tested = []
         working = []
 
-        for contract in deployed_contracts:
-            contract_id = contract.get("contract_id", "")
-            contract_name = contract_id.split(".")[-1]
+        # Bolt ⚡: Create a lookup map to avoid O(N*M) search and improve performance
+        deployed_names_map = {
+            c.get("contract_id", "").split(".")[-1]: c.get("contract_id")
+            for c in deployed_contracts
+        }
 
-            if contract_name in test_contracts:
+        for contract_name in test_contracts:
+            if contract_name in deployed_names_map:
+                contract_id = deployed_names_map[contract_name]
                 tested.append(contract_name)
 
                 # Try to read contract interface
                 try:
-                    response = requests.get(
-                        f"{self.monitor.api_url}/v2/contracts/interface/{contract_id}",
-                        timeout=10,
-                    )
-
-                    if response.status_code == 200:
+                    # Bolt ⚡: Use cached monitor method instead of direct requests.get
+                    if self.monitor.get_contract_details(contract_id):
                         working.append(contract_name)
                     else:
                         print(f"⚠️  {contract_name}: Interface not accessible")

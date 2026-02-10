@@ -2,7 +2,9 @@
 Centralized list of secret keys for StacksOrbit.
 """
 
-SECRET_KEYS = [
+import functools
+
+SECRET_KEYS = {
     "HIRO_API_KEY",
     "DEPLOYER_PRIVKEY",
     "STACKS_DEPLOYER_PRIVKEY",
@@ -12,16 +14,17 @@ SECRET_KEYS = [
     "SYSTEM_MNEMONIC",
     "TESTNET_WALLET1_MNEMONIC",
     "TESTNET_WALLET2_MNEMONIC",
-]
+}
 
 # 🛡️ Sentinel: Sensitive substrings to identify potential secrets in configuration keys.
 SENSITIVE_SUBSTRINGS = ["KEY", "SECRET", "TOKEN", "PASSWORD", "MNEMONIC", "SEED"]
 
 
+@functools.lru_cache(maxsize=128)
 def is_sensitive_key(key: str) -> bool:
     """
     Check if a configuration key is considered sensitive.
-    A key is sensitive if it's in the known SECRET_KEYS list or
+    A key is sensitive if it's in the known SECRET_KEYS set or
     contains any of the SENSITIVE_SUBSTRINGS.
     """
     if not key:
@@ -58,9 +61,12 @@ def validate_stacks_address(address: str, network: str = None) -> bool:
         return False
 
     # C32 allowed charset (I, L, O, U are excluded)
-    allowed = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
     body = addr[2:]
-    return all(ch in allowed for ch in body)
+    return all(ch in ALLOWED_C32_CHARS for ch in body)
+
+
+# Bolt ⚡: Define C32 charset at module level to avoid redundant set creation.
+ALLOWED_C32_CHARS = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
 
 
 def validate_private_key(privkey: str) -> bool:
