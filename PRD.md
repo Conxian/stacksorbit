@@ -161,6 +161,16 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Verified the fix with a custom security hardening test script and existing test suites.
 *   **Status:** Complete.
 
+### Session 13: Local Server Hardening & Defensive Persistence (Sentinel)
+
+*   **Objective:** Harden the local wallet connection server and ensure defensive secret filtering during configuration updates.
+*   **Changes:**
+    *   Added critical security headers (`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`) to `wallet_connect.py` to prevent session token leakage and clickjacking.
+    *   Refactored `save_wallet_address` to utilize the centralized `is_sensitive_key` utility, ensuring that secrets are automatically stripped from the `.env` file during wallet connection updates.
+    *   Standardized HTML responses with explicit UTF-8 charset encoding.
+    *   Added unit tests in `tests/unit/test_sentinel_wallet_connect.py` to verify security headers and secret filtering.
+*   **Status:** Complete.
+
 ### Session 10: API Caching Optimization & Real-time Responsiveness
 
 *   **Objective:** Implement a high-impact performance optimization to the API caching strategy to eliminate latency in monitoring and deployment status updates.

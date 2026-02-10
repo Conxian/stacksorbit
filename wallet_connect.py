@@ -12,7 +12,11 @@ import threading
 import time
 import secrets
 from pathlib import Path
-from stacksorbit_secrets import validate_stacks_address, set_secure_permissions
+from stacksorbit_secrets import (
+    validate_stacks_address,
+    set_secure_permissions,
+    is_sensitive_key,
+)
 
 # HTML template for wallet connection
 WALLET_CONNECT_HTML = """
@@ -284,9 +288,11 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
 
         if path_part in ("/", "/index.html"):
             self.send_response(200)
-            self.send_header("Content-type", "text/html")
+            self.send_header("Content-type", "text/html; charset=utf-8")
             # 🛡️ Sentinel: Security Headers
             self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
             self.send_header(
                 "Content-Security-Policy",
                 "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.testnet.hiro.so; style-src 'self' 'unsafe-inline'; img-src 'self' data:;",
@@ -389,23 +395,44 @@ def start_wallet_connect_server(port=8765):
 def save_wallet_address(address):
     """Save the connected wallet address to .env"""
     env_path = Path('.env')
-    
+
     if env_path.exists():
         content = env_path.read_text()
-        if 'SYSTEM_ADDRESS=' in content:
-            # Update existing
-            lines = content.split('\n')
-            new_lines = []
-            for line in lines:
-                if line.startswith('SYSTEM_ADDRESS='):
-                    new_lines.append(f'SYSTEM_ADDRESS={address}')
+        lines = content.split('\n')
+        new_lines = []
+        address_updated = False
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                new_lines.append("")
+                continue
+
+            if line.startswith("#"):
+                new_lines.append(line)
+                continue
+
+            if "=" in line:
+                key, value = line.split("=", 1)
+                key = key.strip()
+
+                # 🛡️ Sentinel: Enforce security policy by filtering out secrets.
+                # This ensures that secrets are never accidentally re-saved to plaintext files.
+                if is_sensitive_key(key):
+                    continue
+
+                if key == "SYSTEM_ADDRESS":
+                    new_lines.append(f"SYSTEM_ADDRESS={address}")
+                    address_updated = True
                 else:
                     new_lines.append(line)
-            env_path.write_text('\n'.join(new_lines))
-        else:
-            # Append
-            with open(env_path, 'a') as f:
-                f.write(f'\nSYSTEM_ADDRESS={address}\n')
+            else:
+                new_lines.append(line)
+
+        if not address_updated:
+            new_lines.append(f"SYSTEM_ADDRESS={address}")
+
+        env_path.write_text('\n'.join(new_lines))
     else:
         # Create new
         env_path.write_text(f'SYSTEM_ADDRESS={address}\nNETWORK=testnet\n')
