@@ -26,3 +26,8 @@
 **Vulnerability:** Inconsistent and incomplete secret detection in configuration loaders across the codebase. Some loaders used a hardcoded list of secrets, missing pattern-matched secrets (e.g., keys containing 'PASSWORD' or 'TOKEN'), while others performed no secret checks at all when loading from disk.
 **Learning:** Implementation drift in security logic (like secret detection) can create holes where one interface is less secure than others. Pattern-based detection (e.g., `is_sensitive_key`) is more robust than hardcoded lists and should be enforced across all data entry points.
 **Prevention:** Always use the centralized `is_sensitive_key(key)` utility for all configuration loading and saving operations. Ensure that all loaders consistently reject non-placeholder sensitive values in plaintext files like `.env`.
+
+## 2026-02-05 - Local Server Hardening and Defensive Persistence
+**Vulnerability:** The local wallet connection server was leaking the session token via the `Referer` header to external APIs (e.g., Hiro API). Additionally, the `save_wallet_address` function lacked secret filtering, potentially preserving plaintext secrets in `.env` files.
+**Learning:** Local development servers with session tokens in the URL must explicitly set `Referrer-Policy: no-referrer` to prevent token leakage to 3rd-party APIs. Furthermore, every function that writes to configuration files must enforce the project's "no-secrets-in-plaintext" policy to maintain a consistent security posture.
+**Prevention:** Use restrictive security headers (`Referrer-Policy`, `X-Frame-Options`) on all local servers. Standardize all configuration-saving logic to utilize centralized secret detection (e.g., `is_sensitive_key`) for automatic cleanup of sensitive data.
