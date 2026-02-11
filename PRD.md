@@ -44,6 +44,11 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [x] Optimize API caching strategy for real-time responsiveness.
     *   [ ] Parallelize deployment verification.
 
+*   **Phase 7: UX & Accessibility Enhancements (In-Progress)**
+    *   [x] Implement visual feedback for copy actions.
+    *   [x] Add direct links to blockchain explorers from the TUI.
+    *   [x] Enhance contract details with source code management.
+
 ## 4. Feature Alignment
 
 ### 4.1. Full Development Cycle
@@ -191,6 +196,17 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Updated `on_address_changed` and `on_privkey_changed` handlers to display specific error messages (prefix and length requirements) using Rich markup.
     *   Added automated tests in `tests/test_gui.py` to verify the validation logic and UI feedback.
     *   Ensured adherence to Palette persona constraints: no custom CSS, micro-UX focus (<50 lines).
+*   **Status:** Complete.
+
+### Session 14: Micro-UX Improvement & Explorer Integration (Palette)
+
+*   **Objective:** Enhance the contract management experience in the TUI by providing direct access to source code and external explorer links.
+*   **Changes:**
+    *   Added "Copy Source" (📄) and "View on Explorer" (🌐) buttons to the Contract Details pane in `stacksorbit_gui.py`.
+    *   Implemented visual feedback for all copy actions, providing immediate icon-level confirmation (✅).
+    *   Integrated `webbrowser` to open Hiro Explorer links directly from the TUI, with network-aware URL generation and devnet safety checks.
+    *   Fixed a critical bug in `fetch_contract_details` where a synchronous monitor call was being mistakenly awaited, which would have caused UI freezes.
+    *   Added comprehensive tests in `tests/test_palette_ux_explorer.py` to verify the new UX components and worker logic.
 *   **Status:** Complete.
 
 ### Session 12: Vitest Foundation & Root-Up Alignment

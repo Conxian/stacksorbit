@@ -7,6 +7,7 @@ import asyncio
 import os
 import subprocess
 import threading
+import webbrowser
 from typing import Dict, List
 
 try:
@@ -79,6 +80,7 @@ class StacksOrbitGUI(App):
         self.monitor = DeploymentMonitor(self.network, self.config)
         self._manual_refresh_in_progress = False
         self.selected_contract_id = None
+        self.current_source_code = None
         # Bolt ⚡: State tracking to avoid redundant UI re-renders
         self._last_contracts = None
         self._last_transactions = None
@@ -169,6 +171,8 @@ class StacksOrbitGUI(App):
                         Horizontal(
                             Label("Contract Details", classes="header"),
                             Button("📋", id="copy-contract-id-btn"),
+                            Button("📄", id="copy-source-btn"),
+                            Button("🌐", id="view-explorer-btn"),
                             id="contract-details-header",
                         ),
                         LoadingIndicator(),
@@ -272,7 +276,14 @@ class StacksOrbitGUI(App):
         self.query_one("#copy-contract-id-btn", Button).tooltip = (
             "Copy selected contract ID"
         )
+        self.query_one("#copy-source-btn", Button).tooltip = "Copy contract source code"
+        self.query_one("#view-explorer-btn", Button).tooltip = (
+            "View contract on Hiro Explorer"
+        )
+
         self.query_one("#copy-contract-id-btn", Button).disabled = True
+        self.query_one("#copy-source-btn", Button).disabled = True
+        self.query_one("#view-explorer-btn", Button).disabled = True
 
         self.query_one("#save-config-btn", Button).tooltip = (
             "Save settings to .env file [s]"
@@ -445,6 +456,8 @@ class StacksOrbitGUI(App):
         if contract_id:
             self.selected_contract_id = contract_id
             self.query_one("#copy-contract-id-btn", Button).disabled = False
+            self.query_one("#copy-source-btn", Button).disabled = False
+            self.query_one("#view-explorer-btn", Button).disabled = False
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
 
     @on(DataTable.RowSelected, "#transactions-table")
@@ -469,11 +482,15 @@ class StacksOrbitGUI(App):
 
         md.update("")
         loader.display = True
+        self.current_source_code = None
         try:
-            details = await self.monitor.get_contract_details(contract_id)
+            details = await asyncio.to_thread(
+                self.monitor.get_contract_details, contract_id
+            )
             if details:
+                self.current_source_code = details.get("source_code")
                 md.update(
-                    f"**Source Code:**\n```clarity\n{details.get('source_code', 'Not available.')}\n```"
+                    f"**Source Code:**\n```clarity\n{self.current_source_code or 'Not available.'}\n```"
                 )
             else:
                 md.update("Could not retrieve contract details.")
@@ -650,6 +667,34 @@ class StacksOrbitGUI(App):
                 btn.label = "✅"
                 await asyncio.sleep(1)
                 btn.label = "📋"
+
+    @on(Button.Pressed, "#copy-source-btn")
+    async def on_copy_source_pressed(self) -> None:
+        """Handle copy source button press with visual feedback."""
+        if self.current_source_code:
+            self.copy_to_clipboard(self.current_source_code)
+            self.notify("Contract source code copied", severity="information")
+
+            # Micro-UX: Visual feedback
+            btn = self.query_one("#copy-source-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📄"
+
+    @on(Button.Pressed, "#view-explorer-btn")
+    async def on_view_explorer_pressed(self) -> None:
+        """Open the contract on the Hiro Explorer."""
+        if self.selected_contract_id:
+            if self.network == "devnet":
+                self.notify(
+                    "Hiro Explorer is not available for local devnet.", severity="warning"
+                )
+                return
+
+            url = f"https://explorer.hiro.so/txid/{self.selected_contract_id}?chain={self.network}"
+            webbrowser.open(url)
+            self.notify("Opening Explorer in browser...", severity="information")
 
     @on(Button.Pressed, "#save-config-btn")
     async def on_save_config_pressed(self) -> None:
