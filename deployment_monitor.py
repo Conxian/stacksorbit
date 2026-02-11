@@ -59,10 +59,15 @@ def cache_api_call(func):
 
         # Store the new result in the cache
         with self.cache_lock:
+            # Bolt ⚡: Optimization - Only save if the data has actually changed
+            # to avoid redundant disk writes for frequent identical updates (e.g. polling).
+            old_data = self.cache.get(cache_key, {}).get("data")
             self.cache[cache_key] = {"timestamp": time.time(), "data": result}
-            # Bolt ⚡: Save cache to disk after updating it.
-            # This makes the cache persistent across CLI runs.
-            self._save_cache()
+
+            if result != old_data:
+                # Bolt ⚡: Save cache to disk after updating it.
+                # This makes the cache persistent across CLI runs.
+                self._save_cache()
         return result
 
     return wrapper
@@ -451,6 +456,9 @@ class DeploymentMonitor:
         deployed_names = [
             c.get("contract_id", "").split(".")[-1] for c in deployed_contracts
         ]
+        # Bolt ⚡: Optimization - Use sets for O(1) lookup to avoid O(N^2) complexity.
+        deployed_names_set = set(deployed_names)
+        expected_contracts_set = set(expected_contracts)
 
         verification = {
             "timestamp": datetime.now().isoformat(),
@@ -465,7 +473,7 @@ class DeploymentMonitor:
 
         # Check expected contracts
         for contract in expected_contracts:
-            if contract in deployed_names:
+            if contract in deployed_names_set:
                 verification["verified"].append(contract)
                 self.logger.info(f"✅ {contract}")
             else:
@@ -474,7 +482,7 @@ class DeploymentMonitor:
 
         # Check for unexpected contracts
         for deployed in deployed_names:
-            if deployed not in expected_contracts:
+            if deployed not in expected_contracts_set:
                 verification["extra"].append(deployed)
                 self.logger.warning(f"⚠️  {deployed} (unexpected)")
 

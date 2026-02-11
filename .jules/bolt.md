@@ -41,3 +41,9 @@
 **Learning:** High-frequency utility functions (like `is_sensitive_key` or `validate_stacks_address`) can become significant bottlenecks when called in recursive processes (like config redaction) or UI event loops. Additionally, direct usage of `requests.get` bypassing available service-level caches (like in `DeploymentMonitor`) leads to redundant network I/O and slower verification cycles.
 
 **Action:** Always use `@functools.lru_cache` and $O(1)$ data structures (sets/dicts) for high-frequency utility functions. When working with external APIs, check for existing service classes that implement caching before making direct network calls. Hoist expensive calls (like `datetime.now(timezone.utc)`) out of loops to minimize redundant system calls and ensure consistency.
+
+## 2026-02-11 - Lifecycle and I/O Performance Consolidation
+
+**Learning:** I identified three high-frequency performance bottlenecks: 1) Redundant synchronous disk I/O in inner loops (contract hashing and API polling), 2) Algorithmic (N^2)$ complexity in verification lookups, and 3) Expensive redundant subprocess calls for tool version checking. These patterns are particularly impactful in Textual TUIs where background workers run frequently.
+
+**Action:** 1) Always batch disk writes to the end of a high-level operation or only trigger them on data change. 2) Prefer sets for (1)$ lookups when comparing large lists (e.g., expected vs. deployed contracts). 3) Implement process-wide or global caches for static information like external tool versions to avoid the overhead of spawning multiple subprocesses.

@@ -148,12 +148,14 @@ class DeploymentVerifier:
             deployed_names = [
                 c.get("contract_id", "").split(".")[-1] for c in deployed_contracts
             ]
+            # Bolt ⚡: Optimization - Use set for O(1) lookup to avoid O(N^2) complexity.
+            deployed_names_set = set(deployed_names)
 
             verified = []
             missing = []
 
             for contract in expected_contracts:
-                if contract in deployed_names:
+                if contract in deployed_names_set:
                     verified.append(contract)
                 else:
                     missing.append(contract)
