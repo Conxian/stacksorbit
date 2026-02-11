@@ -3,36 +3,7 @@ import sys
 import argparse
 import toml
 from dotenv import dotenv_values
-from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
-
-# --- Helper function for redaction ---
-
-
-def redact_sensitive_info(config_item, parent_key=""):
-    """
-    Recursively traverses a configuration dictionary or list to redact sensitive information.
-    """
-    if isinstance(config_item, dict):
-        # For dictionaries, iterate through items and redact if necessary.
-        return {
-            key: redact_sensitive_info(value, key) for key, value in config_item.items()
-        }
-    elif isinstance(config_item, list):
-        # For lists, apply redaction to each item.
-        return [redact_sensitive_info(item) for item in config_item]
-    else:
-        # Check if the parent key is a known secret or contains a sensitive substring.
-        if is_sensitive_key(parent_key) and config_item is not None:
-            # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
-            if isinstance(config_item, str) and config_item != "":
-                return "<redacted>"
-            elif isinstance(config_item, (int, float)):
-                return 0
-            elif isinstance(config_item, bool):
-                return False
-
-        # Return the original value if it's not sensitive.
-        return config_item
+from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key, redact_recursive
 
 
 class ConfigManager:
@@ -169,7 +140,7 @@ if __name__ == "__main__":
     loaded_configs = config_manager.scan_and_load_configs()
 
     # Redact sensitive information before printing.
-    redacted_configs = redact_sensitive_info(loaded_configs)
+    redacted_configs = redact_recursive(loaded_configs)
 
     print("\n--- Loaded Configurations (Redacted) ---")
 
