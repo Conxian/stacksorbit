@@ -18,6 +18,7 @@ from datetime import datetime
 from stacksorbit_secrets import (
     SECRET_KEYS,
     is_sensitive_key,
+    redact_recursive,
     validate_stacks_address,
     validate_private_key,
     set_secure_permissions,
@@ -692,7 +693,7 @@ class SetupWizard:
             f"STACKS_CORE_PATH={stacks_core_path}",
             "",
             "# Optional Variables (Recommended)",
-            "HIRO_API_KEY=your_hiro_api_key_here",
+            "HIRO_API_KEY=your_hiro_api_key",
             "CORE_API_URL=https://api.testnet.hiro.so",
             "STACKS_API_BASE=https://api.testnet.hiro.so",
             "",
@@ -1323,7 +1324,7 @@ class UltimateStacksOrbit:
         """Apply deployment template"""
         # (Bolt ⚡: configuration manager available via shared property)
 
-        template_name = options.get("name")
+        template_name = options.get("template")
         if not template_name:
             print(f"{Fore.RED}❌ Template name required{Style.RESET_ALL}")
             print("Available templates:")
@@ -1346,11 +1347,10 @@ class UltimateStacksOrbit:
 
         print(f"\n⚙️  Configuration:")
         config = template["config"]
-        for key, value in config.items():
-            if is_sensitive_key(key):
-                print(f"   {key}: <set>")
-            else:
-                print(f"   {key}: {value}")
+        # 🛡️ Sentinel: Standardize redaction for templates, ensuring nested secrets are also protected.
+        redacted_config = redact_recursive(config)
+        for key, value in redacted_config.items():
+            print(f"   {key}: {value}")
 
         print(f"\n📋 Deployment Steps:")
         for i, step in enumerate(template["steps"], 1):

@@ -18,7 +18,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 # Import our enhanced modules
-from stacksorbit_secrets import is_sensitive_key
+from stacksorbit_secrets import is_sensitive_key, redact_recursive
 from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
 from deployment_monitor import DeploymentMonitor
 from deployment_verifier import DeploymentVerifier, load_expected_contracts
@@ -282,11 +282,10 @@ class ConxianTestnetDeployer:
 
         # Environment
         print("\n🔧 Environment:")
-        for key, value in config.items():
-            if is_sensitive_key(key):
-                print(f"   {key}: <set>")
-            else:
-                print(f"   {key}: {value}")
+        # 🛡️ Sentinel: Standardize redaction for diagnostics, ensuring nested secrets are also protected.
+        redacted_config = redact_recursive(config)
+        for key, value in redacted_config.items():
+            print(f"   {key}: {value}")
 
         # Pre-checks
         print("\n🔍 Pre-deployment Checks:")

@@ -17,7 +17,51 @@ SECRET_KEYS = {
 }
 
 # 🛡️ Sentinel: Sensitive substrings to identify potential secrets in configuration keys.
-SENSITIVE_SUBSTRINGS = ["KEY", "SECRET", "TOKEN", "PASSWORD", "MNEMONIC", "SEED"]
+# We include broad terms like 'PRIVATE', 'PWD', and 'PASS' to catch common secret naming conventions.
+SENSITIVE_SUBSTRINGS = [
+    "KEY",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "MNEMONIC",
+    "SEED",
+    "PRIVATE",
+    "PWD",
+    "PASS",
+    "AUTH",
+]
+
+
+def redact_recursive(item, parent_key=""):
+    """
+    🛡️ Sentinel: Recursively traverses a configuration dictionary or list to redact sensitive information.
+    This ensures that even nested secrets (e.g., in loaded templates or manifests) are protected.
+    """
+    if isinstance(item, dict):
+        return {key: redact_recursive(value, key) for key, value in item.items()}
+    elif isinstance(item, list):
+        return [redact_recursive(sub_item) for sub_item in item]
+    else:
+        # Check if the parent key is a known secret or contains a sensitive substring.
+        if is_sensitive_key(parent_key) and item is not None:
+            # Skip empty values or common non-secret placeholders
+            if str(item).strip() == "" or str(item).lower() in (
+                "your_private_key_here",
+                "your_hiro_api_key",
+                "your_stacks_address_here",
+            ):
+                return item
+
+            # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
+            if isinstance(item, str):
+                return "<redacted>"
+            elif isinstance(item, (int, float)):
+                return 0
+            elif isinstance(item, bool):
+                return False
+
+        # Return the original value if it's not sensitive.
+        return item
 
 
 @functools.lru_cache(maxsize=128)
