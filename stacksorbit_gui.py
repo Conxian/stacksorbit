@@ -80,6 +80,7 @@ class StacksOrbitGUI(App):
         self.monitor = DeploymentMonitor(self.network, self.config)
         self._manual_refresh_in_progress = False
         self.selected_contract_id = None
+        self.selected_tx_id = None
         self.current_source_code = None
         # Bolt ⚡: State tracking to avoid redundant UI re-renders
         self._last_contracts = None
@@ -186,6 +187,10 @@ class StacksOrbitGUI(App):
             with TabPane("📜 Transactions", id="transactions"):
                 yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
+                with Horizontal(id="transaction-actions"):
+                    yield Label("Select a transaction to see actions", id="tx-status-label")
+                    yield Button("📋", id="copy-selected-tx-btn")
+                    yield Button("🌐", id="view-selected-tx-explorer-btn")
 
             with TabPane("🚀 Deploy", id="deployment"):
                 with Vertical():
@@ -284,6 +289,14 @@ class StacksOrbitGUI(App):
         self.query_one("#copy-contract-id-btn", Button).disabled = True
         self.query_one("#copy-source-btn", Button).disabled = True
         self.query_one("#view-explorer-btn", Button).disabled = True
+
+        # Transaction actions initialization
+        self.query_one("#copy-selected-tx-btn", Button).disabled = True
+        self.query_one("#view-selected-tx-explorer-btn", Button).disabled = True
+        self.query_one("#copy-selected-tx-btn", Button).tooltip = "Copy full transaction ID"
+        self.query_one("#view-selected-tx-explorer-btn", Button).tooltip = (
+            "View transaction on Hiro Explorer"
+        )
 
         self.query_one("#save-config-btn", Button).tooltip = (
             "Save settings to .env file [s]"
@@ -462,12 +475,20 @@ class StacksOrbitGUI(App):
 
     @on(DataTable.RowSelected, "#transactions-table")
     def on_transactions_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Handle transaction row selection - copy full TX ID to clipboard."""
+        """Handle transaction row selection."""
         tx_id = event.row_key.value
         if tx_id:
+            self.selected_tx_id = tx_id
+            self.query_one("#copy-selected-tx-btn", Button).disabled = False
+            self.query_one("#view-selected-tx-explorer-btn", Button).disabled = False
+            self.query_one("#tx-status-label", Label).update(
+                f"Selected: [cyan]{tx_id[:16]}...[/cyan]"
+            )
+
+            # Auto-copy for immediate use
             self.copy_to_clipboard(tx_id)
             self.notify(
-                f"Transaction ID copied: {tx_id[:10]}...", severity="information"
+                f"Transaction ID copied: {tx_id}", severity="information"
             )
 
     def action_switch_tab(self, tab_id: str) -> None:
@@ -693,6 +714,36 @@ class StacksOrbitGUI(App):
                 return
 
             url = f"https://explorer.hiro.so/txid/{self.selected_contract_id}?chain={self.network}"
+            webbrowser.open(url)
+            self.notify("Opening Explorer in browser...", severity="information")
+
+    @on(Button.Pressed, "#copy-selected-tx-btn")
+    async def on_copy_selected_tx_pressed(self) -> None:
+        """Handle transaction ID copy button press with visual feedback."""
+        if self.selected_tx_id:
+            self.copy_to_clipboard(self.selected_tx_id)
+            self.notify(
+                f"Transaction ID copied: {self.selected_tx_id}", severity="information"
+            )
+
+            # Micro-UX: Visual feedback
+            btn = self.query_one("#copy-selected-tx-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📋"
+
+    @on(Button.Pressed, "#view-selected-tx-explorer-btn")
+    async def on_view_selected_tx_explorer_pressed(self) -> None:
+        """Open the selected transaction on the Hiro Explorer."""
+        if self.selected_tx_id:
+            if self.network == "devnet":
+                self.notify(
+                    "Hiro Explorer is not available for local devnet.", severity="warning"
+                )
+                return
+
+            url = f"https://explorer.hiro.so/txid/{self.selected_tx_id}?chain={self.network}"
             webbrowser.open(url)
             self.notify("Opening Explorer in browser...", severity="information")
 
