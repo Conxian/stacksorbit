@@ -40,7 +40,7 @@ def redact_recursive(item, parent_key=""):
     if isinstance(item, dict):
         return {key: redact_recursive(value, key) for key, value in item.items()}
     elif isinstance(item, list):
-        return [redact_recursive(sub_item) for sub_item in item]
+        return [redact_recursive(sub_item, parent_key) for sub_item in item]
     else:
         # Check if the parent key is a known secret or contains a sensitive substring.
         if is_sensitive_key(parent_key) and item is not None:
