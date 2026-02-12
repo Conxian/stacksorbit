@@ -67,3 +67,41 @@ async def test_validation_error_messages():
         privkey_input.value = "a" * 64
         app.on_privkey_changed(privkey_input.Changed(privkey_input, privkey_input.value))
         assert str(privkey_error.render()) == ""
+
+@pytest.mark.asyncio
+async def test_transaction_selection_enables_buttons():
+    """Verify that selecting a transaction enables the action buttons."""
+    app = StacksOrbitGUI()
+    async with app.run_test() as pilot:
+        transactions_table = app.query_one("#transactions-table")
+        copy_btn = app.query_one("#copy-selected-tx-btn")
+        explorer_btn = app.query_one("#view-selected-tx-explorer-btn")
+        status_label = app.query_one("#tx-status-label")
+
+        # Initial state: disabled
+        assert copy_btn.disabled is True
+        assert explorer_btn.disabled is True
+        assert "Select a transaction" in str(status_label.render())
+
+        # Simulate transaction data for the Bolt ⚡ optimization logic
+        app._last_transactions = [{"tx_id": "0x1234567890abcdef"}]
+
+        # Add a row to the table
+        transactions_table.add_row("0x1234...", "token-transfer", "success", "100", key="0x1234567890abcdef")
+        await pilot.pause()
+
+        # Simulate the row selection event
+        app.on_transactions_row_selected(
+            transactions_table.RowSelected(
+                data_table=transactions_table,
+                row_key=RowKey("0x1234567890abcdef"),
+                cursor_row=0
+            )
+        )
+        await pilot.pause()
+
+        # Assert: buttons are enabled and label is updated
+        assert copy_btn.disabled is False
+        assert explorer_btn.disabled is False
+        assert "0x1234567890abcd" in str(status_label.render())
+        assert app.selected_tx_id == "0x1234567890abcdef"

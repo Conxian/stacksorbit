@@ -205,3 +205,23 @@ LoadingIndicator {
     margin: 0;
     padding: 0 1;
 }
+
+#transaction-actions {
+    height: auto;
+    align: left middle;
+    margin-top: 1;
+    padding: 0 1;
+    background: #1e1e20;
+    border: solid #2a2a2c;
+}
+
+#transaction-actions Label {
+    width: 1fr;
+    margin: 0;
+}
+
+#transaction-actions Button {
+    min-width: 6;
+    margin: 0 1;
+    padding: 0 1;
+}

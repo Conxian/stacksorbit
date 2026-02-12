@@ -219,3 +219,15 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Removed the legacy `vitest.config.mts` in favor of the standardized `.ts` extension.
     *   Verified all contract tests pass using the new configuration.
 *   **Status:** Complete.
+
+### Session 15: Micro-UX Improvement & Transaction Actions (Palette)
+
+*   **Objective:** Enhance the transaction history experience in the TUI by providing contextual actions and consistent deep-linking.
+*   **Changes:**
+    *   Added a "Transaction Actions" bar to the Transactions tab in `stacksorbit_gui.py`.
+    *   Implemented "Copy Full TX ID" (📋) and "View on Explorer" (🌐) buttons for selected transactions.
+    *   Added a real-time status label (`#tx-status-label`) to confirm the selected transaction ID.
+    *   Standardized visual feedback for transaction copy actions (✅).
+    *   Added CSS for consistent styling and alignment of the new action bar.
+    *   Implemented automated tests in `tests/test_gui.py` to verify transaction selection and button states.
+*   **Status:** Complete.
