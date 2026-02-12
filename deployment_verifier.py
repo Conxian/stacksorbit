@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 import argparse
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Import monitoring components
 from deployment_monitor import DeploymentMonitor
@@ -29,6 +31,7 @@ class DeploymentVerifier:
             "verbose", False
         )
         self.monitor = DeploymentMonitor(network, config)
+        self.print_lock = threading.Lock()
 
         # Verification results
         self.verification_results = {
@@ -40,11 +43,16 @@ class DeploymentVerifier:
             "recommendations": [],
         }
 
+    def _safe_print(self, *args, **kwargs):
+        """Thread-safe printing"""
+        with self.print_lock:
+            print(*args, **kwargs)
+
     def run_comprehensive_verification(
         self, expected_contracts: Optional[List[str]] = None
     ) -> Dict:
         """Run comprehensive deployment verification"""
-        print("🔍 Starting comprehensive deployment verification...\n")
+        self._safe_print("🔍 Starting comprehensive deployment verification...\n")
 
         address = self.config.get("SYSTEM_ADDRESS")
         if not address:
@@ -63,32 +71,41 @@ class DeploymentVerifier:
 
         all_passed = True
 
-        for check_name, check_func in checks:
-            print(f"🔍 {check_name}...")
+        # Bolt ⚡: Parallelize verification checks to reduce total latency.
+        # This is especially effective when network calls are involved.
+        with ThreadPoolExecutor(max_workers=len(checks)) as executor:
+            future_to_check = {
+                executor.submit(check_func, address, expected_contracts): check_name
+                for check_name, check_func in checks
+            }
 
-            try:
-                result = check_func(address, expected_contracts)
-                self.verification_results["checks"][check_name] = result
+            for future in as_completed(future_to_check):
+                check_name = future_to_check[future]
+                try:
+                    result = future.result()
+                    self.verification_results["checks"][check_name] = result
 
-                if not result["passed"]:
+                    if not result["passed"]:
+                        all_passed = False
+                        self._safe_print(
+                            f"❌ {check_name} failed: {result.get('error', 'Unknown error')}"
+                        )
+                    else:
+                        self._safe_print(f"✅ {check_name} passed")
+
+                except Exception as e:
+                    # 🛡️ Sentinel: Prevent sensitive information disclosure.
+                    if self.verbose:
+                        self._safe_print(f"❌ {check_name} error: {e}")
+                    else:
+                        self._safe_print(
+                            f"❌ {check_name} error (use --verbose for details)"
+                        )
+                    self.verification_results["checks"][check_name] = {
+                        "passed": False,
+                        "error": str(e),
+                    }
                     all_passed = False
-                    print(
-                        f"❌ {check_name} failed: {result.get('error', 'Unknown error')}"
-                    )
-                else:
-                    print(f"✅ {check_name} passed")
-
-            except Exception as e:
-                # 🛡️ Sentinel: Prevent sensitive information disclosure.
-                if self.verbose:
-                    print(f"❌ {check_name} error: {e}")
-                else:
-                    print(f"❌ {check_name} error (use --verbose for details)")
-                self.verification_results["checks"][check_name] = {
-                    "passed": False,
-                    "error": str(e),
-                }
-                all_passed = False
 
         # Overall status
         self.verification_results["overall_status"] = (
@@ -285,23 +302,43 @@ class DeploymentVerifier:
             for c in deployed_contracts
         }
 
+        # Bolt ⚡: Parallelize contract interface verification to reduce latency.
+        # This is particularly useful when checking multiple contracts.
+        contract_tasks = []
         for contract_name in test_contracts:
             if contract_name in deployed_names_map:
                 contract_id = deployed_names_map[contract_name]
                 tested.append(contract_name)
+                contract_tasks.append((contract_name, contract_id))
 
-                # Try to read contract interface
-                try:
-                    # Bolt ⚡: Use cached monitor method instead of direct requests.get
-                    if self.monitor.get_contract_details(contract_id):
-                        working.append(contract_name)
+        def check_contract(name, cid):
+            try:
+                if self.monitor.get_contract_details(cid):
+                    return name, True, None
+                else:
+                    return name, False, "Interface not accessible"
+            except Exception as e:
+                return name, False, str(e)
+
+        if contract_tasks:
+            with ThreadPoolExecutor(max_workers=len(contract_tasks)) as executor:
+                future_to_contract = {
+                    executor.submit(check_contract, name, cid): name
+                    for name, cid in contract_tasks
+                }
+
+                for future in as_completed(future_to_contract):
+                    name, is_working, error = future.result()
+                    if is_working:
+                        working.append(name)
                     else:
-                        print(f"⚠️  {contract_name}: Interface not accessible")
-
-                except Exception as e:
-                    # 🛡️ Sentinel: Prevent sensitive information disclosure.
-                    if self.verbose:
-                        print(f"⚠️  {contract_name}: Error checking interface: {e}")
+                        if error:
+                            if self.verbose:
+                                self._safe_print(
+                                    f"⚠️  {name}: Error checking interface: {error}"
+                                )
+                            else:
+                                self._safe_print(f"⚠️  {name}: {error}")
 
         passed = len(working) > 0  # At least some contracts should be working
 
@@ -356,46 +393,46 @@ class DeploymentVerifier:
         with open(results_path, "w") as f:
             json.dump(self.verification_results, f, indent=2)
 
-        print(f"💾 Verification results saved to {results_path}")
+        self._safe_print(f"💾 Verification results saved to {results_path}")
 
     def print_verification_summary(self):
         """Print comprehensive verification summary"""
-        print("\n" + "=" * 60)
-        print("📊 DEPLOYMENT VERIFICATION SUMMARY")
-        print("=" * 60)
+        self._safe_print("\n" + "=" * 60)
+        self._safe_print("📊 DEPLOYMENT VERIFICATION SUMMARY")
+        self._safe_print("=" * 60)
 
-        print(f"🕐 Timestamp: {self.verification_results['timestamp']}")
-        print(f"🌐 Network: {self.verification_results['network']}")
-        print(
+        self._safe_print(f"🕐 Timestamp: {self.verification_results['timestamp']}")
+        self._safe_print(f"🌐 Network: {self.verification_results['network']}")
+        self._safe_print(
             f"📊 Overall Status: {self.verification_results['overall_status'].upper()}"
         )
 
-        print("\n🔍 Individual Checks:")
+        self._safe_print("\n🔍 Individual Checks:")
         for check_name, result in self.verification_results["checks"].items():
             status = "✅ PASS" if result.get("passed") else "❌ FAIL"
             error = result.get("error", "")
-            print(f"   {status} {check_name}")
+            self._safe_print(f"   {status} {check_name}")
             if error and not result.get("passed"):
-                print(f"       Error: {error}")
+                self._safe_print(f"       Error: {error}")
 
-        print("📦 Contract Status:")
+        self._safe_print("📦 Contract Status:")
         contract_check = self.verification_results["checks"].get(
             "Contract Deployment", {}
         )
         details = contract_check.get("details", {})
 
         if details:
-            print(f"   Total deployed: {details.get('total_deployed', 0)}")
-            print(f"   Expected: {details.get('expected', 0)}")
-            print(f"   Verified: {details.get('verified', 0)}")
-            print(f"   Missing: {details.get('missing', 0)}")
+            self._safe_print(f"   Total deployed: {details.get('total_deployed', 0)}")
+            self._safe_print(f"   Expected: {details.get('expected', 0)}")
+            self._safe_print(f"   Verified: {details.get('verified', 0)}")
+            self._safe_print(f"   Missing: {details.get('missing', 0)}")
 
         if self.verification_results["recommendations"]:
-            print("💡 Recommendations:")
+            self._safe_print("💡 Recommendations:")
             for rec in self.verification_results["recommendations"]:
-                print(f"   • {rec}")
+                self._safe_print(f"   • {rec}")
 
-        print("\n" + "=" * 60)
+        self._safe_print("\n" + "=" * 60)
 
 
 def load_expected_contracts() -> List[str]:

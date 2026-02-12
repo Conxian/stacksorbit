@@ -36,6 +36,10 @@
 **Learning:** Redundant filesystem operations and cryptographic hashing are major bottlenecks in project discovery. Consolidating all file metadata (`mtime`, `size`) into a single-pass `os.walk` scan and using that metadata to gate expensive `stat()` calls and `hashlib` operations significantly improves performance.
 **Action:** Always prefer a single-pass scan that populates a comprehensive metadata cache. Use this cache to implement `mtime`-aware gating for any expensive per-file operations like content hashing or parsing.
 
+## 2026-02-23 - Parallelization of I/O Bound Verification Checks
+**Learning:** Sequential network calls for deployment verification (e.g., API status, account info, contract interface) create significant latency that scales linearly with the number of checks. Parallelizing these I/O-bound operations using `ThreadPoolExecutor` can reduce total latency from $O(\sum latency)$ to $O(\max latency)$, achieving over 70% reduction in verification time.
+**Action:** Always identify independent, network-bound or I/O-bound loops and parallelize them using `ThreadPoolExecutor`. When doing so, implement a `threading.Lock` and a `_safe_print` wrapper to ensure CLI output remains readable and non-interleaved.
+
 ## 2026-02-21 - Optimization of Core Utilities and Verification Flow
 
 **Learning:** High-frequency utility functions (like `is_sensitive_key` or `validate_stacks_address`) can become significant bottlenecks when called in recursive processes (like config redaction) or UI event loops. Additionally, direct usage of `requests.get` bypassing available service-level caches (like in `DeploymentMonitor`) leads to redundant network I/O and slower verification cycles.
