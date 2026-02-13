@@ -51,3 +51,7 @@
 **Learning:** I identified three high-frequency performance bottlenecks: 1) Redundant synchronous disk I/O in inner loops (contract hashing and API polling), 2) Algorithmic (N^2)$ complexity in verification lookups, and 3) Expensive redundant subprocess calls for tool version checking. These patterns are particularly impactful in Textual TUIs where background workers run frequently.
 
 **Action:** 1) Always batch disk writes to the end of a high-level operation or only trigger them on data change. 2) Prefer sets for (1)$ lookups when comparing large lists (e.g., expected vs. deployed contracts). 3) Implement process-wide or global caches for static information like external tool versions to avoid the overhead of spawning multiple subprocesses.
+
+## 2026-03-01 - Optimized Project Scanning and Secret Detection
+**Learning:** Replacing `os.walk` and `pathlib.Path` with a recursive `os.scandir` implementation significantly reduces overhead in project discovery by leveraging cached `DirEntry` stat information and avoiding slow object instantiation. Additionally, using a pre-compiled regex for multi-substring secret detection (`is_sensitive_key`) is faster than iterative `any()` checks in high-frequency validation loops.
+**Action:** Always prefer `os.scandir` for recursive filesystem traversals where performance is critical. Use pre-compiled regular expressions for multi-pattern matching in hot paths.
