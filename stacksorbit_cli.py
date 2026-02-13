@@ -22,6 +22,7 @@ from stacksorbit_secrets import (
     validate_stacks_address,
     validate_private_key,
     set_secure_permissions,
+    is_safe_path,
 )
 
 try:
@@ -578,6 +579,10 @@ class SetupWizard:
             )
 
             for contract_name, contract_path in contract_matches:
+                # 🛡️ Sentinel: Path traversal protection.
+                if not is_safe_path(str(clarinet_path.parent), contract_path):
+                    continue
+
                 full_path = clarinet_path.parent / contract_path
                 if full_path.exists():
                     contracts.append(

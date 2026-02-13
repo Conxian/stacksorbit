@@ -36,3 +36,8 @@
 **Vulnerability:** The `redact_recursive` function failed to redact sensitive values when they were contained within lists. This happened because the recursive call for list items did not pass the `parent_key` context, causing the sensitive key detection to fail for the list's contents.
 **Learning:** Context-aware recursive functions must explicitly preserve and pass down the context (e.g., the parent key) to all child elements, including those in lists, to ensure security policies are applied consistently across nested data structures.
 **Prevention:** Always pass the identifying key or context into recursive calls for both dictionary values and list elements. Test redaction logic specifically with nested lists and complex data structures to ensure no context is lost during traversal.
+
+## 2026-02-13 - Path Traversal in Clarinet.toml Parsing
+**Vulnerability:** The application was resolving contract paths from `Clarinet.toml` without validation, allowing a malicious configuration file to point to sensitive files outside the project directory (e.g., `../../etc/passwd`).
+**Learning:** Configuration files that specify file paths are a common vector for path traversal attacks. Path joining alone is not secure as it can resolve to absolute paths or traverse upwards.
+**Prevention:** Always use a safety utility (like `is_safe_path`) that resolves paths and ensures they stay within an intended base directory using `os.path.commonpath` or equivalent. Reject absolute paths in configuration-based file resolution.

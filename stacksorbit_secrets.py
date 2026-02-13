@@ -2,6 +2,7 @@
 Centralized list of secret keys for StacksOrbit.
 """
 
+import os
 import functools
 
 SECRET_KEYS = {
@@ -139,9 +140,30 @@ def set_secure_permissions(filepath: str):
     This prevents other users on the same machine from reading sensitive configuration files.
     """
     try:
-        import os
-        if os.name == 'posix' and os.path.exists(filepath):
+        if os.name == "posix" and os.path.exists(filepath):
             os.chmod(filepath, 0o600)
     except Exception:
         # Fail gracefully if permissions cannot be set
         pass
+
+
+def is_safe_path(base_dir: str, target_path: str) -> bool:
+    """
+    🛡️ Sentinel: Check if a target path is safe and stays within the base directory.
+    Prevents path traversal attacks by ensuring the resolved path is within the base.
+    """
+    if not target_path or not base_dir:
+        return False
+    try:
+        # Reject absolute paths immediately for configuration-based file resolution.
+        if os.path.isabs(target_path):
+            return False
+
+        base = os.path.abspath(base_dir)
+        target = os.path.abspath(os.path.join(base, target_path))
+
+        # os.path.commonpath returns the longest common sub-path of each passed pathname.
+        # If it matches the base, then target is within base.
+        return os.path.commonpath([base, target]) == base
+    except Exception:
+        return False
