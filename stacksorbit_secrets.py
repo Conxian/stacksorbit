@@ -31,6 +31,10 @@ SENSITIVE_SUBSTRINGS = [
     "AUTH",
 ]
 
+# Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.
+import re
+SENSITIVE_RE = re.compile("|".join(SENSITIVE_SUBSTRINGS))
+
 
 def redact_recursive(item, parent_key=""):
     """
@@ -75,7 +79,8 @@ def is_sensitive_key(key: str) -> bool:
         return False
 
     k = key.upper()
-    return k in SECRET_KEYS or any(sub in k for sub in SENSITIVE_SUBSTRINGS)
+    # Bolt ⚡: Use regex search for faster multi-substring matching compared to 'any' with a loop.
+    return k in SECRET_KEYS or bool(SENSITIVE_RE.search(k))
 
 
 def validate_stacks_address(address: str, network: str = None) -> bool:

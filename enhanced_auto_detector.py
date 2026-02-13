@@ -312,26 +312,57 @@ class GenericStacksAutoDetector:
             "env",
         }
 
-        for root, dirs, files in os.walk(directory):
-            # Prune directories in-place
-            dirs[:] = [
-                d for d in dirs if d not in ignore_dirs and not d.startswith(".")
-            ]
+        # Bolt ⚡: Use a highly optimized recursive scanner with os.scandir.
+        # This replaces os.walk + Path object creation, which is significantly slower.
+        # By using DirEntry objects directly, we leverage cached stat information
+        # provided by the OS, avoiding redundant system calls. We also calculate
+        # relative paths manually to avoid the overhead of Path.relative_to.
+        base_dir_str = str(directory)
+        # Pre-calculate separator check for cross-platform performance
+        use_replace = os.sep != "/"
 
-            for file in files:
-                full_path = Path(root) / file
-                # Store as relative path string with forward slashes for cross-platform matching
-                rel_path = str(full_path.relative_to(directory)).replace(os.sep, "/")
-                try:
-                    stat = full_path.stat()
-                    self.project_files_cache[cache_key].append({
-                        "rel_path": rel_path,
-                        "mtime": stat.st_mtime,
-                        "size": stat.st_size
-                    })
-                except (OSError, IOError):
-                    # Skip files that can't be stat'd
-                    continue
+        def _recursive_scan(curr_dir_str, rel_prefix=""):
+            try:
+                with os.scandir(curr_dir_str) as it:
+                    for entry in it:
+                        # Calculate relative path for current entry
+                        rel_path = (
+                            os.path.join(rel_prefix, entry.name)
+                            if rel_prefix
+                            else entry.name
+                        )
+
+                        # Bolt ⚡: Explicitly don't follow symlinks to match os.walk behavior
+                        # and prevent infinite recursion or out-of-project scanning.
+                        if entry.is_dir(follow_symlinks=False):
+                            # Skip ignored directories and hidden ones
+                            if entry.name in ignore_dirs or entry.name.startswith("."):
+                                continue
+                            _recursive_scan(entry.path, rel_path)
+                        elif entry.is_file(follow_symlinks=False):
+                            try:
+                                # entry.stat() is often cached by the OS during scandir
+                                st = entry.stat()
+
+                                # Bolt ⚡: Only replace separator on systems that need it (Windows)
+                                if use_replace:
+                                    normalized_path = rel_path.replace(os.sep, "/")
+                                else:
+                                    normalized_path = rel_path
+
+                                self.project_files_cache[cache_key].append(
+                                    {
+                                        "rel_path": normalized_path,
+                                        "mtime": st.st_mtime,
+                                        "size": st.st_size,
+                                    }
+                                )
+                            except (OSError, IOError):
+                                continue
+            except (OSError, IOError):
+                pass
+
+        _recursive_scan(base_dir_str)
 
     def detect_and_analyze(self) -> Dict:
         """Complete generic auto-detection and analysis"""
