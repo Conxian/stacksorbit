@@ -11,3 +11,7 @@
 ## 2025-05-16 - Contextual Transaction Action Bar
 **Learning:** A "Transaction Action Bar" pattern (Horizontal container below a DataTable) is an excellent way to provide contextual deep-links (Explorer) and utility actions (Copy ID) without cluttering the table rows. Using a status label in the bar helps confirm which item is selected in truncated views.
 **Action:** When displaying complex identifiers in a table, implement a contextual action bar with status feedback to enable detailed interactions without row-level complexity.
+
+## 2025-05-17 - Interactive Dashboard Metrics and Label Toggling
+**Learning:** In a Textual TUI, making informational metric cards clickable to navigate between tabs significantly enhances discoverability and intuition. Similarly, making labels for toggles (like switches) clickable mirrors familiar web accessibility patterns and improves ease of use. Using emojis and colorized statuses in data tables drastically improves scannability for complex technical data.
+**Action:** Always consider if summary metrics can serve as navigation shortcuts to detail views. Ensure form labels are clickable where possible to toggle their associated inputs.
