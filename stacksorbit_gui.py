@@ -30,6 +30,7 @@ try:
     from textual.containers import Container, Horizontal, Vertical, VerticalScroll, Grid
     from textual.reactive import reactive
     from textual.binding import Binding
+    from textual.events import Click
     from textual import on
 
     GUI_AVAILABLE = True
@@ -140,24 +141,31 @@ class StacksOrbitGUI(App):
                         Label("Network Status"),
                         Static("N/A", id="network-status"),
                         classes="metric-card",
+                        id="metric-network",
                     )
                     yield Container(
                         Label("Contracts Deployed"),
                         Static("0", id="contract-count"),
                         classes="metric-card",
+                        id="metric-contracts",
                     )
                     yield Container(
                         Label("Balance"),
                         Static("0 STX", id="balance"),
                         classes="metric-card",
+                        id="metric-balance",
                     )
                     yield Container(
-                        Label("Nonce"), Static("0", id="nonce"), classes="metric-card"
+                        Label("Nonce"),
+                        Static("0", id="nonce"),
+                        classes="metric-card",
+                        id="metric-nonce",
                     )
                     yield Container(
                         Label("Block Height"),
                         Static("0", id="block-height"),
                         classes="metric-card",
+                        id="metric-height",
                     )
                 with Horizontal(id="overview-buttons"):
                     yield Button(
@@ -223,7 +231,7 @@ class StacksOrbitGUI(App):
                             id="privkey-input",
                             password=True,
                         )
-                        yield Label("Show", classes="switch-label")
+                        yield Label("Show", classes="switch-label", id="show-privkey-label")
                         yield Switch(id="show-privkey")
                     yield Label("", id="privkey-error", markup=True)
                     yield Label("Stacks Address: [red]*[/red]", markup=True)
@@ -325,6 +333,13 @@ class StacksOrbitGUI(App):
         self.query("#block-height").first().parent.tooltip = (
             "Current Stacks blockchain height"
         )
+
+        # Dashboard navigation tooltips
+        self.query_one("#metric-contracts").tooltip = "Click to view deployed contracts [F2]"
+        self.query_one("#metric-balance").tooltip = "Click to view transaction history [F3]"
+        self.query_one("#metric-nonce").tooltip = "Click to view transaction history [F3]"
+        self.query_one("#metric-height").tooltip = "Click to view transaction history [F3]"
+        self.query_one("#show-privkey-label").tooltip = "Toggle private key visibility"
 
         self._setup_tables()
         self.set_interval(10.0, self.update_data)
@@ -429,7 +444,9 @@ class StacksOrbitGUI(App):
                         "", "No contracts found", "Deploy a contract to see it here."
                     )
                 else:
-                    contracts_table.add_row("Address not configured in .env file.")
+                    contracts_table.add_row(
+                        "⚠️", "Config missing", "Address not configured in .env file."
+                    )
                 self._last_contracts = deployed_contracts
 
             # Process transactions result
@@ -442,17 +459,29 @@ class StacksOrbitGUI(App):
                 transactions_table.clear()
                 if transactions:
                     for tx in transactions:
+                        status = tx.get("tx_status", "")
+                        # PALETTE: Colorize status with emojis for better scannability
+                        display_status = status
+                        if status == "success":
+                            display_status = "[green]✅ success[/]"
+                        elif "pending" in status:
+                            display_status = "[yellow]⏳ pending[/]"
+                        elif "abort" in status or status == "failed":
+                            display_status = "[red]❌ failed[/]"
+
                         transactions_table.add_row(
                             tx.get("tx_id", "")[:10] + "...",
                             tx.get("tx_type", ""),
-                            tx.get("tx_status", ""),
+                            display_status,
                             str(tx.get("block_height", "")),
                             key=tx.get("tx_id"),
                         )
                 elif self.address != "Not configured":
                     transactions_table.add_row("", "No transactions found", "", "")
                 else:
-                    transactions_table.add_row("Address not configured in .env file.")
+                    transactions_table.add_row(
+                        "⚠️", "Config missing", "Address not configured in .env", ""
+                    )
                 self._last_transactions = transactions
 
         except Exception as e:
@@ -490,6 +519,23 @@ class StacksOrbitGUI(App):
             self.notify(
                 f"Transaction ID copied: {tx_id}", severity="information"
             )
+
+    @on(Click, "#metric-contracts")
+    def on_contracts_metric_click(self) -> None:
+        """Navigate to contracts tab when contract metric is clicked."""
+        self.query_one(TabbedContent).active = "contracts"
+
+    @on(Click, "#metric-balance")
+    @on(Click, "#metric-nonce")
+    @on(Click, "#metric-height")
+    def on_transactions_metric_click(self) -> None:
+        """Navigate to transactions tab when account metrics are clicked."""
+        self.query_one(TabbedContent).active = "transactions"
+
+    @on(Click, "#show-privkey-label")
+    def on_show_privkey_label_click(self) -> None:
+        """Toggle private key visibility when its label is clicked."""
+        self.query_one("#show-privkey", Switch).toggle()
 
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
