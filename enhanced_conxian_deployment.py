@@ -22,6 +22,7 @@ from stacksorbit_secrets import (
     validate_stacks_address,
     validate_private_key,
     set_secure_permissions,
+    is_safe_path,
 )
 from deployment_monitor import DeploymentMonitor
 
@@ -810,7 +811,12 @@ class EnhancedConxianDeployer:
 
                     # Handle path
                     if key == "path":
-                        current_data["path"] = value.strip("\"'")
+                        path_val = value.strip("\"'")
+                        # 🛡️ Sentinel: Path traversal protection.
+                        if is_safe_path(str(clarinet_path.parent), path_val):
+                            current_data["path"] = path_val
+                        else:
+                            current_data["path"] = None
 
                     # Handle depends_on = ["a", "b"]
                     elif key == "depends_on":
@@ -827,7 +833,7 @@ class EnhancedConxianDeployer:
                 current_data["name"] = current_contract
                 current_data["full_path"] = (
                     str(clarinet_path.parent / current_data["path"])
-                    if "path" in current_data
+                        if current_data.get("path")
                     else ""
                 )
                 contracts.append(current_data)

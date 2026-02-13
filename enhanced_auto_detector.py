@@ -14,6 +14,7 @@ import fnmatch
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
+from stacksorbit_secrets import is_safe_path
 
 # Bolt ⚡: Global cache for Clarinet version to avoid redundant subprocess calls.
 _CLARINET_VERSION_CACHE: Optional[str] = None
@@ -593,6 +594,11 @@ class GenericStacksAutoDetector:
                 for contract_name, contract_config in toml_data["contracts"].items():
                     if isinstance(contract_config, dict) and "path" in contract_config:
                         contract_path = contract_config["path"]
+
+                        # 🛡️ Sentinel: Path traversal protection.
+                        if not is_safe_path(str(directory), contract_path):
+                            continue
+
                         full_path = directory / contract_path
 
                         if full_path.exists():
@@ -652,6 +658,10 @@ class GenericStacksAutoDetector:
                         if len(match) >= 2:
                             contract_name = match[0]
                             contract_path = match[1]
+
+                            # 🛡️ Sentinel: Path traversal protection.
+                            if not is_safe_path(str(clarinet_path.parent), contract_path):
+                                continue
 
                             full_path = clarinet_path.parent / contract_path
                             if full_path.exists():
