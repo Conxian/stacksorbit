@@ -78,6 +78,11 @@ Tab.--current {
     border: round #007acc;
 }
 
+#address-bar { height: auto; align: center middle; padding: 1 2; background: #1e1e20; border: solid #2a2a2c; margin-bottom: 1; }
+#address-bar Label { margin: 0 1 0 0; text-style: bold; color: #a0a0a0; }
+#address-bar Static { color: #007acc; margin-right: 1; text-style: bold; }
+#address-bar Button { min-width: 4; padding: 0 1; margin: 0; height: 3; }
+
 #overview-buttons {
     padding: 1 0;
     align: center middle;

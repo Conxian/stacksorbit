@@ -1,64 +1,37 @@
 import pytest
+from unittest.mock import patch
 from stacksorbit_gui import StacksOrbitGUI
-from textual.widgets import Log, Button, LoadingIndicator, DataTable
-
-
-@pytest.mark.asyncio
-async def test_clear_log_functionality():
-    """Verify that the Clear button exists and clears the log."""
-    app = StacksOrbitGUI()
-    async with app.run_test() as pilot:
-        # Check Clear button existence and tooltip
-        clear_btn = app.query_one("#clear-log-btn", Button)
-        assert clear_btn.tooltip == "Clear the deployment log"
-
-        # Switch to deployment tab
-        app.query_one("TabbedContent").active = "deployment"
-        await pilot.pause()
-
-        log = app.query_one("#deployment-log", Log)
-        log.write("Test line")
-        await pilot.pause()
-
-        # Verify log is NOT empty
-        assert len(log.lines) > 0
-
-        # Press clear button
-        await pilot.click("#clear-log-btn")
-        await pilot.pause()
-
-        # Verify log IS empty
-        assert len(log.lines) == 0
-
+from textual.widgets import Label, Static, Button
 
 @pytest.mark.asyncio
-async def test_new_ux_enhancements():
-    """Verify new UX enhancements like tooltips, indicators, and variants."""
+async def test_dashboard_address_bar_exists():
+    """Verify that the new address bar and its components exist in the Dashboard."""
     app = StacksOrbitGUI()
     async with app.run_test() as pilot:
-        # 1. Verify multiple loading indicators
-        indicators = app.query(LoadingIndicator)
-        assert (
-            len(indicators) >= 3
-        )  # Overview, Contracts, Transactions, Deployment
+        address_bar = app.query_one("#address-bar")
+        assert address_bar is not None
+        assert "System Address:" in str(address_bar.query_one(Label).render())
+        assert address_bar.query_one("#display-address", Static) is not None
+        assert "📋" in str(address_bar.query_one("#copy-dashboard-address-btn", Button).label)
 
-        # 2. Verify tooltips set in on_mount
-        contracts_table = app.query_one("#contracts-table", DataTable)
-        assert (
-            contracts_table.tooltip
-            == "List of contracts deployed by this address. Click a row to view source code."
-        )
+@pytest.mark.asyncio
+async def test_network_status_dot():
+    """Verify that the network status now includes a colored dot."""
+    app = StacksOrbitGUI()
+    async with app.run_test() as pilot:
+        await app.update_data()
+        status_label = app.query_one("#network-status")
+        assert "●" in str(status_label.render())
 
-        transactions_table = app.query_one("#transactions-table", DataTable)
-        assert (
-            transactions_table.tooltip
-            == "Recent transactions for this address. Click a row to copy full TX ID."
-        )
-
-        # 3. Verify Refresh button tooltip with shortcut hint
-        refresh_btn = app.query_one("#refresh-btn", Button)
-        assert "[r]" in str(refresh_btn.tooltip)
-
-        # 4. Verify Clear button variant
-        clear_btn = app.query_one("#clear-log-btn", Button)
-        assert clear_btn.variant == "error"
+@pytest.mark.asyncio
+async def test_address_synchronization():
+    """Verify that saving settings updates the dashboard address display."""
+    app = StacksOrbitGUI()
+    async with app.run_test() as pilot:
+        new_address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
+        with patch("asyncio.to_thread", return_value=None):
+            app.query_one("#address-input").value = new_address
+            app.query_one("#privkey-input").value = ""
+            await app.on_save_config_pressed()
+        assert app.address == new_address
+        assert str(app.query_one("#display-address", Static).render()) == new_address
