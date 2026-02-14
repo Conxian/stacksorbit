@@ -136,6 +136,10 @@ class StacksOrbitGUI(App):
         with TabbedContent(initial="overview"):
             with TabPane("📊 Dashboard", id="overview"):
                 yield LoadingIndicator()
+                with Horizontal(id="address-bar"):
+                    yield Label("System Address:")
+                    yield Static(self.address, id="display-address")
+                    yield Button("📋", id="copy-dashboard-address-btn")
                 with Grid(id="metrics-grid"):
                     yield Container(
                         Label("Network Status"),
@@ -286,6 +290,9 @@ class StacksOrbitGUI(App):
         self.query_one("#copy-address-btn", Button).tooltip = (
             "Copy address to clipboard"
         )
+        self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
+            "Copy your Stacks address to clipboard"
+        )
         self.query_one("#copy-contract-id-btn", Button).tooltip = (
             "Copy selected contract ID"
         )
@@ -401,9 +408,9 @@ class StacksOrbitGUI(App):
             # Process API status result
             if isinstance(api_status, Exception):
                 raise api_status  # Propagate exception to be caught by the main handler
-            self.query_one("#network-status").update(
-                api_status.get("status", "unknown").upper()
-            )
+            status = api_status.get("status", "unknown").upper()
+            dot = "[green]●[/]" if status == "ONLINE" else "[red]●[/]"
+            self.query_one("#network-status").update(f"{dot} {status}")
             self.query_one("#block-height").update(
                 str(api_status.get("block_height", 0))
             )
@@ -718,6 +725,18 @@ class StacksOrbitGUI(App):
                 await asyncio.sleep(1)
                 btn.label = "📋"
 
+    @on(Button.Pressed, "#copy-dashboard-address-btn")
+    async def on_copy_dashboard_address_pressed(self) -> None:
+        """Handle dashboard address copy button press with visual feedback."""
+        if self.address and self.address != "Not configured":
+            self.copy_to_clipboard(self.address)
+            self.notify("Address copied to clipboard", severity="information")
+            btn = self.query_one("#copy-dashboard-address-btn", Button)
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📋"
+
     @on(Button.Pressed, "#copy-contract-id-btn")
     async def on_copy_contract_id_pressed(self) -> None:
         """Handle contract ID copy button press with visual feedback."""
@@ -855,6 +874,10 @@ class StacksOrbitGUI(App):
         try:
             # 🛡️ Sentinel: Only save non-sensitive settings to the file.
             await asyncio.to_thread(_save_config_io, address_val)
+            self.address = address_val
+            try:
+                self.query_one("#display-address", Static).update(address_val)
+            except Exception: pass
 
             if is_secret_provided:
                 # 🛡️ Sentinel: Inform the user that secrets are not saved to disk.

@@ -15,3 +15,7 @@
 ## 2025-05-17 - Interactive Dashboard Metrics and Label Toggling
 **Learning:** In a Textual TUI, making informational metric cards clickable to navigate between tabs significantly enhances discoverability and intuition. Similarly, making labels for toggles (like switches) clickable mirrors familiar web accessibility patterns and improves ease of use. Using emojis and colorized statuses in data tables drastically improves scannability for complex technical data.
 **Action:** Always consider if summary metrics can serve as navigation shortcuts to detail views. Ensure form labels are clickable where possible to toggle their associated inputs.
+
+## 2025-05-18 - Immediate UI Synchronization for Primary Identity
+**Learning:** For primary user identity elements (like the Stacks Address), providing a high-visibility, persistent display on the main dashboard (rather than hiding it in Settings) drastically reduces user friction. When this identity is updated in settings, performing "immediate UI synchronization" across all active tabs ensures the user feels in control and avoids confusion from stale data.
+**Action:** Identify primary identity or state elements and promote them to the main dashboard. Always synchronize these elements immediately across the UI when they are modified in specialized settings views.
