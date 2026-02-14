@@ -99,7 +99,7 @@ WALLET_CONNECT_HTML = """
         .hidden { display: none; }
         .balance { font-size: 24px; color: #22c55e; margin: 10px 0; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" integrity="sha384-HGmnkDZJy7mRkoARekrrj0VjEFSh9a0Z8qxGri/kTTAJkgR8hqD1lHsYSh3JdzRi" crossorigin="anonymous"></script>
 </head>
 <body>
     <div class="container">
@@ -281,7 +281,8 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
         query = urllib.parse.parse_qs(query_part)
         token = query.get("token", [None])[0]
 
-        if token != WalletConnectHandler.session_token:
+        # 🛡️ Sentinel: Use secrets.compare_digest to prevent timing attacks
+        if not token or not WalletConnectHandler.session_token or not secrets.compare_digest(token, WalletConnectHandler.session_token):
             print("⚠️  Unauthorized GET attempt: Invalid session token")
             self.send_error(403, "Invalid session token")
             return
@@ -315,7 +316,8 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
                 data = json.loads(post_data.decode())
 
                 # 🛡️ Sentinel: Validate session token to prevent unauthorized overrides
-                if not data.get('token') or data.get('token') != WalletConnectHandler.session_token:
+                # Use secrets.compare_digest to prevent timing attacks
+                if not data.get('token') or not WalletConnectHandler.session_token or not secrets.compare_digest(data.get('token'), WalletConnectHandler.session_token):
                     print("⚠️  Unauthorized connection attempt: Invalid session token")
                     self.send_error(403, "Invalid session token")
                     return
