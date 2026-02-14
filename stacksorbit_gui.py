@@ -86,6 +86,7 @@ class StacksOrbitGUI(App):
         # Bolt ⚡: State tracking to avoid redundant UI re-renders
         self._last_contracts = None
         self._last_transactions = None
+        self._last_metrics = {}
 
     def _load_config(self) -> Dict:
         """Load configuration from file and environment, enforcing security policies."""
@@ -401,16 +402,22 @@ class StacksOrbitGUI(App):
             # Process API status result
             if isinstance(api_status, Exception):
                 raise api_status  # Propagate exception to be caught by the main handler
-            self.query_one("#network-status").update(
-                api_status.get("status", "unknown").upper()
-            )
-            self.query_one("#block-height").update(
-                str(api_status.get("block_height", 0))
-            )
+
+            # Bolt ⚡: Optimized - Only update widgets if values have changed to reduce UI re-renders.
+            new_status = api_status.get("status", "unknown").upper()
+            if new_status != self._last_metrics.get("network-status"):
+                self.query_one("#network-status").update(new_status)
+                self._last_metrics["network-status"] = new_status
+
+            new_height = str(api_status.get("block_height", 0))
+            if new_height != self._last_metrics.get("block-height"):
+                self.query_one("#block-height").update(new_height)
+                self._last_metrics["block-height"] = new_height
 
             # Process account info result
             if isinstance(account_info, Exception):
                 raise account_info
+
             if account_info:
                 balance_raw = account_info.get("balance", 0)
                 balance_stx = (
@@ -418,16 +425,28 @@ class StacksOrbitGUI(App):
                     if isinstance(balance_raw, str) and balance_raw.startswith("0x")
                     else int(balance_raw)
                 ) / 1_000_000
-                self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
-                self.query_one("#nonce").update(str(account_info.get("nonce", 0)))
+                new_balance = f"{balance_stx:,.6f} STX"
+                new_nonce = str(account_info.get("nonce", 0))
             else:
-                self.query_one("#balance").update("0 STX")
-                self.query_one("#nonce").update("0")
+                new_balance = "0 STX"
+                new_nonce = "0"
+
+            if new_balance != self._last_metrics.get("balance"):
+                self.query_one("#balance").update(new_balance)
+                self._last_metrics["balance"] = new_balance
+
+            if new_nonce != self._last_metrics.get("nonce"):
+                self.query_one("#nonce").update(new_nonce)
+                self._last_metrics["nonce"] = new_nonce
 
             # Process deployed contracts result
             if isinstance(deployed_contracts, Exception):
                 raise deployed_contracts
-            self.query_one("#contract-count").update(str(len(deployed_contracts)))
+
+            new_count = str(len(deployed_contracts))
+            if new_count != self._last_metrics.get("contract-count"):
+                self.query_one("#contract-count").update(new_count)
+                self._last_metrics["contract-count"] = new_count
 
             # ⚡ Bolt: Only clear and repopulate contracts table if data changed
             if deployed_contracts != self._last_contracts:

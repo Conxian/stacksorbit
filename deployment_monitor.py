@@ -330,7 +330,13 @@ class DeploymentMonitor:
         try:
             response = self.session.get(f"{self.api_url}/v2/accounts/{address}")
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            # Bolt ⚡: Strip large API response to only required fields to reduce memory and disk usage.
+            return {
+                "balance": data.get("balance", "0"),
+                "locked": data.get("locked", "0"),
+                "nonce": data.get("nonce", 0),
+            }
 
         except Exception as e:
             self.logger.error(f"Error getting account info: {e}")
@@ -342,7 +348,14 @@ class DeploymentMonitor:
         try:
             response = self.session.get(f"{self.api_url}/v2/transactions/{tx_id}")
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            # Bolt ⚡: Strip large API response to only required fields to reduce memory and disk usage.
+            return {
+                "tx_id": data.get("tx_id"),
+                "tx_status": data.get("tx_status"),
+                "tx_result": data.get("tx_result"),
+                "tx_type": data.get("tx_type"),
+            }
 
         except Exception as e:
             self.logger.error(f"Error getting transaction info: {e}")
@@ -408,7 +421,11 @@ class DeploymentMonitor:
             response.raise_for_status()
             data = response.json()
 
-            contracts = data.get("contracts", [])
+            # Bolt ⚡: Strip large API response to only required fields to reduce memory and disk usage.
+            contracts = [
+                {"contract_id": c.get("contract_id")}
+                for c in data.get("contracts", [])
+            ]
             self.logger.info(f"📦 Found {len(contracts)} deployed contracts")
             return contracts
 
@@ -426,7 +443,17 @@ class DeploymentMonitor:
             )
             response.raise_for_status()
             data = response.json()
-            return data.get("results", [])
+            # Bolt ⚡: Strip large API response to only required fields to reduce memory and disk usage.
+            return [
+                {
+                    "tx_id": tx.get("tx_id"),
+                    "tx_type": tx.get("tx_type"),
+                    "tx_status": tx.get("tx_status"),
+                    "block_height": tx.get("block_height"),
+                    "burn_block_time": tx.get("burn_block_time"),
+                }
+                for tx in data.get("results", [])
+            ]
         except Exception as e:
             self.logger.error(f"Error getting recent transactions: {e}")
             return []

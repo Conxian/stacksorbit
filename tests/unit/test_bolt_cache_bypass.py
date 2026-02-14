@@ -33,7 +33,8 @@ class TestBoltCacheBypass(unittest.TestCase):
         # Mock response
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"status": "success"}
+        # Bolt ⚡: Updated mock to match actual Hiro API field names used in stripping.
+        mock_response.json.return_value = {"tx_status": "success"}
         mock_get.return_value = mock_response
 
         tx_id = "0x" + "a" * 64
@@ -58,26 +59,27 @@ class TestBoltCacheBypass(unittest.TestCase):
         # First API response
         mock_response1 = MagicMock()
         mock_response1.status_code = 200
-        mock_response1.json.return_value = {"status": "pending"}
+        # Bolt ⚡: Updated mock to match actual Hiro API field names used in stripping.
+        mock_response1.json.return_value = {"tx_status": "pending"}
 
         # Second API response
         mock_response2 = MagicMock()
         mock_response2.status_code = 200
-        mock_response2.json.return_value = {"status": "success"}
+        mock_response2.json.return_value = {"tx_status": "success"}
 
         mock_get.side_effect = [mock_response1, mock_response2]
 
         # 1. Initial call - caches "pending"
         res1 = self.monitor.get_transaction_info(tx_id)
-        self.assertEqual(res1['status'], "pending")
+        self.assertEqual(res1['tx_status'], "pending")
 
         # 2. Bypassed call - fetches "success" and updates cache
         res2 = self.monitor.get_transaction_info(tx_id, bypass_cache=True)
-        self.assertEqual(res2['status'], "success")
+        self.assertEqual(res2['tx_status'], "success")
 
         # 3. Subsequent call without bypass - should now get "success" from cache
         res3 = self.monitor.get_transaction_info(tx_id)
-        self.assertEqual(res3['status'], "success")
+        self.assertEqual(res3['tx_status'], "success")
         self.assertEqual(mock_get.call_count, 2)
 
 if __name__ == '__main__':
