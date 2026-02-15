@@ -408,7 +408,10 @@ class DeploymentMonitor:
             response.raise_for_status()
             data = response.json()
 
-            contracts = data.get("contracts", [])
+            # Bolt ⚡: Robustly extract contracts from either 'contracts' or 'results' key.
+            # Hiro API responses vary by version/endpoint.
+            contracts = data.get("contracts") or data.get("results", [])
+
             self.logger.info(f"📦 Found {len(contracts)} deployed contracts")
             return contracts
 
@@ -427,6 +430,7 @@ class DeploymentMonitor:
             response.raise_for_status()
             data = response.json()
             return data.get("results", [])
+
         except Exception as e:
             self.logger.error(f"Error getting recent transactions: {e}")
             return []
