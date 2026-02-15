@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Import monitoring components
 from deployment_monitor import DeploymentMonitor
-from stacksorbit_secrets import is_sensitive_key
+from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
 
 
 class DeploymentVerifier:
@@ -498,6 +498,17 @@ def main():
                         f"   Example: export {key}='your_secret_value_here'"
                     )
                     raise ValueError(error_message)
+                config[key] = value
+
+        # 🛡️ Sentinel: Secure and broadened environment variable loading.
+        # Load any environment variable that is in the .env file OR matches our
+        # specific app secrets (SECRET_KEYS) OR has a safe app-specific prefix.
+        for key, value in os.environ.items():
+            if (
+                key in config
+                or key in SECRET_KEYS
+                or key.startswith(("STACKS_", "STACKSORBIT_"))
+            ):
                 config[key] = value
 
         # Override with command line arguments

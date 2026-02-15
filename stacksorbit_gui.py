@@ -114,13 +114,16 @@ class StacksOrbitGUI(App):
                                 )
                             config[k] = v
 
-            # 🛡️ Sentinel: Selectively load environment variables to override file config.
-            # This uses an allow-list (keys from .env + known secrets) to prevent
-            # leaking unrelated environment variables.
-            allowed_keys = set(config.keys()) | set(SECRET_KEYS)
-            for key in allowed_keys:
-                if key in os.environ:
-                    config[key] = os.environ[key]
+            # 🛡️ Sentinel: Secure and broadened environment variable loading.
+            # Load any environment variable that is in the .env file OR matches our
+            # specific app secrets (SECRET_KEYS) OR has a safe app-specific prefix.
+            for key, value in os.environ.items():
+                if (
+                    key in config
+                    or key in SECRET_KEYS
+                    or key.startswith(("STACKS_", "STACKSORBIT_"))
+                ):
+                    config[key] = value
 
         except ValueError as e:
             # Re-raise Sentinel security errors to prevent app from starting insecurely
