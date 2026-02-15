@@ -41,3 +41,8 @@
 **Vulnerability:** The application was resolving contract paths from `Clarinet.toml` without validation, allowing a malicious configuration file to point to sensitive files outside the project directory (e.g., `../../etc/passwd`).
 **Learning:** Configuration files that specify file paths are a common vector for path traversal attacks. Path joining alone is not secure as it can resolve to absolute paths or traverse upwards.
 **Prevention:** Always use a safety utility (like `is_safe_path`) that resolves paths and ensures they stay within an intended base directory using `os.path.commonpath` or equivalent. Reject absolute paths in configuration-based file resolution.
+
+## 2026-02-14 - Timing Attack Mitigation and Resource Integrity
+**Vulnerability:** The local wallet connection server used standard string comparison (`!=`) for session tokens, potentially exposing the application to timing attacks. Additionally, external CDN-hosted scripts were loaded without integrity checks, posing a risk of supply chain attacks.
+**Learning:** Security tokens must always be compared using constant-time functions (like `secrets.compare_digest`) to prevent side-channel leaks. Furthermore, third-party resources from CDNs should be protected by Subresource Integrity (SRI) hashes to ensure that the delivered content matches the expected version and hasn't been tampered with.
+**Prevention:** Use `secrets.compare_digest` for all authentication token comparisons. Always include `integrity` and `crossorigin` attributes when including scripts from external CDNs.
