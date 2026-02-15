@@ -86,6 +86,7 @@ class StacksOrbitGUI(App):
         # Bolt ⚡: State tracking to avoid redundant UI re-renders
         self._last_contracts = None
         self._last_transactions = None
+        self._last_metrics = {}
 
     def _load_config(self) -> Dict:
         """Load configuration from file and environment, enforcing security policies."""
@@ -408,16 +409,28 @@ class StacksOrbitGUI(App):
             # Process API status result
             if isinstance(api_status, Exception):
                 raise api_status  # Propagate exception to be caught by the main handler
+
+            # Bolt ⚡: Conditional UI updates for dashboard metrics.
+            # Static.update() is expensive; only call it if the value has changed.
             status = api_status.get("status", "unknown").upper()
             dot = "[green]●[/]" if status == "ONLINE" else "[red]●[/]"
-            self.query_one("#network-status").update(f"{dot} {status}")
-            self.query_one("#block-height").update(
-                str(api_status.get("block_height", 0))
-            )
+            status_display = f"{dot} {status}"
+            if self._last_metrics.get("status") != status_display:
+                self.query_one("#network-status").update(status_display)
+                self._last_metrics["status"] = status_display
+
+            height = str(api_status.get("block_height", 0))
+            if self._last_metrics.get("height") != height:
+                self.query_one("#block-height").update(height)
+                self._last_metrics["height"] = height
 
             # Process account info result
             if isinstance(account_info, Exception):
                 raise account_info
+
+            balance_stx_display = "0 STX"
+            nonce_display = "0"
+
             if account_info:
                 balance_raw = account_info.get("balance", 0)
                 balance_stx = (
@@ -425,16 +438,25 @@ class StacksOrbitGUI(App):
                     if isinstance(balance_raw, str) and balance_raw.startswith("0x")
                     else int(balance_raw)
                 ) / 1_000_000
-                self.query_one("#balance").update(f"{balance_stx:,.6f} STX")
-                self.query_one("#nonce").update(str(account_info.get("nonce", 0)))
-            else:
-                self.query_one("#balance").update("0 STX")
-                self.query_one("#nonce").update("0")
+                balance_stx_display = f"{balance_stx:,.6f} STX"
+                nonce_display = str(account_info.get("nonce", 0))
+
+            if self._last_metrics.get("balance") != balance_stx_display:
+                self.query_one("#balance").update(balance_stx_display)
+                self._last_metrics["balance"] = balance_stx_display
+
+            if self._last_metrics.get("nonce") != nonce_display:
+                self.query_one("#nonce").update(nonce_display)
+                self._last_metrics["nonce"] = nonce_display
 
             # Process deployed contracts result
             if isinstance(deployed_contracts, Exception):
                 raise deployed_contracts
-            self.query_one("#contract-count").update(str(len(deployed_contracts)))
+
+            count_display = str(len(deployed_contracts))
+            if self._last_metrics.get("contract-count") != count_display:
+                self.query_one("#contract-count").update(count_display)
+                self._last_metrics["contract-count"] = count_display
 
             # ⚡ Bolt: Only clear and repopulate contracts table if data changed
             if deployed_contracts != self._last_contracts:
