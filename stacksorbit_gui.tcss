@@ -88,6 +88,12 @@ Tab.--current {
     align: center middle;
 }
 
+#last-updated-label {
+    padding: 1 2;
+    color: #808080;
+    height: 3;
+}
+
 Button {
     margin: 0 1;
     padding: 1 2;

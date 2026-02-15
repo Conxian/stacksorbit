@@ -8,6 +8,7 @@ import os
 import subprocess
 import threading
 import webbrowser
+from datetime import datetime
 from typing import Dict, List
 
 try:
@@ -177,6 +178,7 @@ class StacksOrbitGUI(App):
                         "🔄 Refresh",
                         id="refresh-btn",
                     )
+                    yield Label("", id="last-updated-label")
 
             with TabPane("📄 Contracts", id="contracts"):
                 with Horizontal():
@@ -263,6 +265,11 @@ class StacksOrbitGUI(App):
         """Initialize the GUI"""
         self.title = "StacksOrbit"
         self.sub_title = f"Deployment Dashboard [{self.network.upper()}]"
+
+        # PALETTE: Handle 'Not configured' state visually
+        if self.address == "Not configured":
+            self.query_one("#display-address", Static).update("[dim]Not configured[/]")
+
         for indicator in self.query(LoadingIndicator):
             indicator.display = False
 
@@ -482,6 +489,10 @@ class StacksOrbitGUI(App):
             if isinstance(transactions, Exception):
                 raise transactions
 
+            # Update last updated label
+            now = datetime.now().strftime("%H:%M:%S")
+            self.query_one("#last-updated-label", Label).update(f" [dim]Last updated: {now}[/]")
+
             # ⚡ Bolt: Only clear and repopulate transactions table if data changed
             if transactions != self._last_transactions:
                 transactions_table = self.query_one("#transactions-table", DataTable)
@@ -498,9 +509,20 @@ class StacksOrbitGUI(App):
                         elif "abort" in status or status == "failed":
                             display_status = "[red]❌ failed[/]"
 
+                        tx_type = tx.get("tx_type", "")
+                        display_type = tx_type
+                        if tx_type == "smart_contract":
+                            display_type = "[cyan]contract[/]"
+                        elif tx_type == "contract_call":
+                            display_type = "[magenta]call[/]"
+                        elif tx_type == "token_transfer":
+                            display_type = "[yellow]transfer[/]"
+                        elif tx_type == "coinbase":
+                            display_type = "[green]coinbase[/]"
+
                         transactions_table.add_row(
                             tx.get("tx_id", "")[:10] + "...",
-                            tx.get("tx_type", ""),
+                            display_type,
                             display_status,
                             str(tx.get("block_height", "")),
                             key=tx.get("tx_id"),
@@ -526,6 +548,10 @@ class StacksOrbitGUI(App):
         contract_id = event.row_key.value
         if contract_id:
             self.selected_contract_id = contract_id
+            # Update detail header with contract name
+            name = contract_id.split(".")[1] if "." in contract_id else contract_id
+            self.query_one("#contract-details-header Label").update(f"Details: [cyan]{name}[/]")
+
             self.query_one("#copy-contract-id-btn", Button).disabled = False
             self.query_one("#copy-source-btn", Button).disabled = False
             self.query_one("#view-explorer-btn", Button).disabled = False
