@@ -87,11 +87,18 @@ class EnhancedConfigManager:
         # to be overridden by environment variables.
         combined_config = {}
         combined_config.update(file_config)
+        # 🛡️ Sentinel: Secure and broadened environment variable loading.
+        # Load any environment variable that is in the .env file OR matches our
+        # specific app secrets (SECRET_KEYS) OR has a safe app-specific prefix.
+        # This allows users to provide secrets via environment variables while
+        # preventing the ingestion of unrelated system secrets.
         combined_config.update(
             {
                 k: v
                 for k, v in os.environ.items()
-                if k in file_config or k in SECRET_KEYS
+                if k in file_config
+                or k in SECRET_KEYS
+                or k.startswith(("STACKS_", "STACKSORBIT_"))
             }
         )
 

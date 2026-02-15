@@ -52,11 +52,16 @@ class ConfigManager:
         # 3. Build the config, starting with file variables.
         self.config.update(file_vars)
 
-        # 4. Selectively load environment variables to override file config.
-        # This uses an allow-list (keys from .env + known secrets) to prevent
-        # leaking unrelated sensitive environment variables into the application config.
-        allowed_keys = set(file_vars.keys()) | set(SECRET_KEYS)
-        env_overrides = {k: v for k, v in os.environ.items() if k in allowed_keys}
+        # 🛡️ Sentinel: Secure and broadened environment variable loading.
+        # Load any environment variable that is in the .env file OR matches our
+        # specific app secrets (SECRET_KEYS) OR has a safe app-specific prefix.
+        env_overrides = {
+            k: v
+            for k, v in os.environ.items()
+            if k in file_vars
+            or k in SECRET_KEYS
+            or k.startswith(("STACKS_", "STACKSORBIT_"))
+        }
         self.config.update(env_overrides)
 
         # Load .toml files (e.g., Clarinet.toml)
