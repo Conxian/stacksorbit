@@ -4,7 +4,7 @@
   "contract_hashes": {
     "/app/contracts/placeholder.clar": {
       "hash": "9095c5a8dcd82810e0f89805de0ca10e",
-      "mtime": 1770524216.8462834,
+      "mtime": 1771215046.9241354,
       "size": 183
     }
   },
@@ -12,5 +12,5 @@
   "directory_history": [],
   "clarinet_version": "unknown",
   "sdk_compatibility": "3.8",
-  "last_updated": 1770524720.9578836
+  "last_updated": 1771215341.460211
 }
