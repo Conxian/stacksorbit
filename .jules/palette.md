@@ -19,3 +19,7 @@
 ## 2025-05-18 - Immediate UI Synchronization for Primary Identity
 **Learning:** For primary user identity elements (like the Stacks Address), providing a high-visibility, persistent display on the main dashboard (rather than hiding it in Settings) drastically reduces user friction. When this identity is updated in settings, performing "immediate UI synchronization" across all active tabs ensures the user feels in control and avoids confusion from stale data.
 **Action:** Identify primary identity or state elements and promote them to the main dashboard. Always synchronize these elements immediately across the UI when they are modified in specialized settings views.
+
+## 2025-05-19 - Real-time Character Counts for Strict Inputs
+**Learning:** For inputs with strict length requirements (like Stacks addresses or private keys), displaying a real-time character count (e.g., (41/41)) directly in the feedback label significantly reduces user friction and anxiety. It allows users to catch typos or incomplete pastes immediately without waiting for a final validation check.
+**Action:** Always include real-time character count indicators for any TUI input field that has a specific required length or range.
