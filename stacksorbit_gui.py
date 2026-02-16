@@ -57,8 +57,8 @@ class StacksOrbitGUI(App):
     BINDINGS = [
         Binding("d", "toggle_dark", "Toggle dark mode"),
         Binding("q", "quit", "Quit"),
-        Binding("r", "refresh", "Refresh data"),
-        Binding("s", "save_settings", "Save settings"),
+        Binding("r", "refresh", "Refresh", show=True),
+        Binding("s", "save_settings", "Save", show=True),
         Binding("f1", "switch_tab('overview')", "Dashboard", show=True),
         Binding("f2", "switch_tab('contracts')", "Contracts", show=True),
         Binding("f3", "switch_tab('transactions')", "Transactions", show=True),
@@ -282,6 +282,9 @@ class StacksOrbitGUI(App):
         )
         self.query_one("#transactions-table", DataTable).tooltip = (
             "Recent transactions for this address. Click a row to copy full TX ID."
+        )
+        self.query_one("#deployment-log", Log).tooltip = (
+            "Deployment process logs and output"
         )
 
         # Buttons and interactive elements tooltips
@@ -734,32 +737,45 @@ class StacksOrbitGUI(App):
 
     @on(Input.Changed, "#address-input")
     def on_address_changed(self, event: Input.Changed) -> None:
-        """Real-time validation for Stacks address."""
+        """Real-time validation for Stacks address with character count."""
         error_label = self.query_one("#address-error", Label)
+        count = len(event.value)
+        # PALETTE: Include character count in feedback
+        count_display = f" [dim]({count}/41)[/]" if event.value else ""
+
         if not event.value:
             event.input.remove_class("error")
             error_label.update("")
         elif validate_stacks_address(event.value, self.network):
             event.input.remove_class("error")
-            error_label.update("")
+            error_label.update(f"[green]✅ Valid[/]{count_display}")
         else:
             event.input.add_class("error")
             prefix = "SP" if self.network == "mainnet" else "ST"
-            error_label.update(f"[red]❌ Must be 41 chars and start with {prefix}[/red]")
+            # PALETTE: Accurate validation range from stacksorbit_secrets.py
+            error_label.update(
+                f"[red]❌ Must be 28-41 chars and start with {prefix}[/red]{count_display}"
+            )
 
     @on(Input.Changed, "#privkey-input")
     def on_privkey_changed(self, event: Input.Changed) -> None:
-        """Real-time validation for Private Key."""
+        """Real-time validation for Private Key with character count."""
         error_label = self.query_one("#privkey-error", Label)
+        count = len(event.value)
+        # PALETTE: Include character count in feedback
+        count_display = f" [dim]({count}/64 or 66)[/]" if event.value else ""
+
         if not event.value or event.value == "your_private_key_here":
             event.input.remove_class("error")
             error_label.update("")
         elif validate_private_key(event.value):
             event.input.remove_class("error")
-            error_label.update("")
+            error_label.update(f"[green]✅ Valid[/]{count_display}")
         else:
             event.input.add_class("error")
-            error_label.update("[red]❌ Must be a 64 or 66 character hex string[/red]")
+            error_label.update(
+                f"[red]❌ Must be a 64 or 66 character hex string[/red]{count_display}"
+            )
 
     @on(Button.Pressed, "#copy-address-btn")
     async def on_copy_address_pressed(self) -> None:
