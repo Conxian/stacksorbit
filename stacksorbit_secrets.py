@@ -122,6 +122,56 @@ ALLOWED_C32_CHARS = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
 C32_RE = re.compile(r"^[0-9ABCDEFGHJKMNPQRSTVWXYZ]+$")
 
 
+def save_secure_config(filepath: str, config: object):
+    """
+    🛡️ Sentinel: Atomically and securely save configuration to a file.
+    Uses a temporary file and os.replace for atomicity, and ensures
+    secure file permissions (0600) from the start.
+    """
+    if not filepath:
+        return
+
+    temp_path = f"{filepath}.tmp"
+    try:
+        # Bolt ⚡: Use umask to ensure the file is created with restricted permissions (0600).
+        # This is more secure than chmod-ing after creation as there is no window of exposure.
+        old_umask = None
+        if os.name == "posix":
+            old_umask = os.umask(0o077)
+
+        try:
+            with open(temp_path, "w", encoding="utf-8") as f:
+                # Handle both dict and string content
+                if isinstance(config, dict):
+                    for key, value in config.items():
+                        # 🛡️ Sentinel: Security Enforcer.
+                        # Explicitly skip any known secrets or potential sensitive keys.
+                        if not is_sensitive_key(str(key)):
+                            f.write(f"{key}={value}\n")
+                else:
+                    # If it's a string (pre-formatted), we just write it.
+                    # Caller is responsible for filtering secrets if passing a string.
+                    f.write(str(config))
+        finally:
+            if old_umask is not None:
+                os.umask(old_umask)
+
+        # Atomic swap: os.replace is atomic on most systems.
+        os.replace(temp_path, filepath)
+
+        # Double-check permissions just in case
+        set_secure_permissions(filepath)
+
+    except Exception as e:
+        # Clean up temp file on failure
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+        raise e
+
+
 def validate_private_key(privkey: str) -> bool:
     """
     Validate Stacks private key format (64 or 66 chars hex).
