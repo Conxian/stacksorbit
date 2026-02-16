@@ -46,3 +46,8 @@
 **Vulnerability:** The local wallet connection server used standard string comparison (`!=`) for session tokens, potentially exposing the application to timing attacks. Additionally, external CDN-hosted scripts were loaded without integrity checks, posing a risk of supply chain attacks.
 **Learning:** Security tokens must always be compared using constant-time functions (like `secrets.compare_digest`) to prevent side-channel leaks. Furthermore, third-party resources from CDNs should be protected by Subresource Integrity (SRI) hashes to ensure that the delivered content matches the expected version and hasn't been tampered with.
 **Prevention:** Use `secrets.compare_digest` for all authentication token comparisons. Always include `integrity` and `crossorigin` attributes when including scripts from external CDNs.
+
+## 2026-02-15 - Atomic Persistence and Secure Creation
+**Vulnerability:** Configuration updates followed a "truncate and write" pattern, which is not atomic and can lead to file corruption on failure. Additionally, the "create then chmod" pattern for securing files leaves a small window of exposure where the file has default world-readable permissions.
+**Learning:** Robust security architecture requires atomic operations for sensitive data persistence. Furthermore, file permissions should be restricted at the moment of creation (e.g., via `os.umask`) rather than after the fact, to eliminate race conditions. Centralizing this logic ensures consistent enforcement across CLI, GUI, and API interfaces.
+**Prevention:** Always use a centralized utility for configuration saving that implements atomic writes (via `os.replace` on a temporary file) and pre-emptive permission restriction (via `os.umask` on POSIX).

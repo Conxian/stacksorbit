@@ -16,6 +16,7 @@ from stacksorbit_secrets import (
     validate_stacks_address,
     set_secure_permissions,
     is_sensitive_key,
+    save_secure_config,
 )
 
 # HTML template for wallet connection
@@ -397,50 +398,21 @@ def start_wallet_connect_server(port=8765):
 def save_wallet_address(address):
     """Save the connected wallet address to .env"""
     env_path = Path('.env')
+    config = {}
 
     if env_path.exists():
-        content = env_path.read_text()
-        lines = content.split('\n')
-        new_lines = []
-        address_updated = False
+        # Load existing config to preserve other non-sensitive settings
+        from dotenv import dotenv_values
+        config = dotenv_values(dotenv_path=env_path)
 
-        for line in lines:
-            line = line.strip()
-            if not line:
-                new_lines.append("")
-                continue
+    # Update with new address
+    config["SYSTEM_ADDRESS"] = address
+    if "NETWORK" not in config:
+        config["NETWORK"] = "testnet"
 
-            if line.startswith("#"):
-                new_lines.append(line)
-                continue
-
-            if "=" in line:
-                key, value = line.split("=", 1)
-                key = key.strip()
-
-                # 🛡️ Sentinel: Enforce security policy by filtering out secrets.
-                # This ensures that secrets are never accidentally re-saved to plaintext files.
-                if is_sensitive_key(key):
-                    continue
-
-                if key == "SYSTEM_ADDRESS":
-                    new_lines.append(f"SYSTEM_ADDRESS={address}")
-                    address_updated = True
-                else:
-                    new_lines.append(line)
-            else:
-                new_lines.append(line)
-
-        if not address_updated:
-            new_lines.append(f"SYSTEM_ADDRESS={address}")
-
-        env_path.write_text('\n'.join(new_lines))
-    else:
-        # Create new
-        env_path.write_text(f'SYSTEM_ADDRESS={address}\nNETWORK=testnet\n')
-    
-    # 🛡️ Sentinel: Enforce secure file permissions
-    set_secure_permissions(str(env_path))
+    # 🛡️ Sentinel: Use centralized atomic and secure config saver.
+    # This automatically filters secrets and ensures atomic, secure write.
+    save_secure_config(str(env_path), config)
 
     print(f"\n✅ Saved wallet address to .env: {address}")
 

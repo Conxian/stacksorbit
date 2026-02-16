@@ -38,11 +38,13 @@ def test_save_wallet_address_filters_secrets(tmp_path):
     env_file.write_text("SYSTEM_ADDRESS=old_address\nDEPLOYER_PRIVKEY=secret_key\nOTHER_VAR=value\n")
 
     with patch("wallet_connect.Path", return_value=env_file), \
-         patch("wallet_connect.set_secure_permissions") as mock_chmod:
+         patch("wallet_connect.save_secure_config") as mock_save:
         save_wallet_address("new_address")
 
-    content = env_file.read_text()
-    assert "SYSTEM_ADDRESS=new_address" in content
-    assert "OTHER_VAR=value" in content
-    assert "DEPLOYER_PRIVKEY" not in content  # Should be filtered out
-    mock_chmod.assert_called_once()
+    # In our refactored version, save_wallet_address uses save_secure_config
+    # which handles filtering and permissions.
+    mock_save.assert_called_once()
+    args, _ = mock_save.call_args
+    assert args[0] == str(env_file)
+    assert args[1]["SYSTEM_ADDRESS"] == "new_address"
+    assert args[1]["OTHER_VAR"] == "value"

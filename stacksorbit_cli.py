@@ -23,6 +23,7 @@ from stacksorbit_secrets import (
     validate_private_key,
     set_secure_permissions,
     is_safe_path,
+    save_secure_config,
 )
 
 try:
@@ -276,11 +277,8 @@ class SetupWizard:
         env_content = self._generate_env_config()
 
         env_path = self.project_root / ".env"
-        with open(env_path, "w") as f:
-            f.write(env_content)
-
-        # 🛡️ Sentinel: Enforce secure file permissions
-        set_secure_permissions(str(env_path))
+        # 🛡️ Sentinel: Use centralized atomic and secure config saver.
+        save_secure_config(str(env_path), env_content)
 
         print(f"✅ Configuration saved to {env_path}")
         print()

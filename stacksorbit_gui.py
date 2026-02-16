@@ -46,6 +46,7 @@ from stacksorbit_secrets import (
     validate_stacks_address,
     validate_private_key,
     set_secure_permissions,
+    save_secure_config,
 )
 
 
@@ -927,16 +928,9 @@ class StacksOrbitGUI(App):
             # Update non-sensitive configuration
             config["SYSTEM_ADDRESS"] = p_address
 
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                for key, value in config.items():
-                    # 🛡️ Sentinel: Security Enforcer.
-                    # Explicitly skip any known secrets or potential sensitive keys before saving to disk.
-                    # This prevents accidental persistence of secrets to plaintext files.
-                    if not is_sensitive_key(key):
-                        f.write(f"{key}={value}\n")
-
-            # 🛡️ Sentinel: Enforce secure file permissions
-            set_secure_permissions(self.config_path)
+            # 🛡️ Sentinel: Use centralized atomic and secure config saver.
+            # This automatically filters secrets and ensures atomic, secure write.
+            save_secure_config(str(self.config_path), config)
 
         try:
             # 🛡️ Sentinel: Only save non-sensitive settings to the file.
