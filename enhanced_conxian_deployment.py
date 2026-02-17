@@ -209,15 +209,15 @@ class EnhancedConxianDeployer:
         self,
         config: Dict,
         verbose: bool = False,
-        run_npm_tests: bool = False,
-        npm_test_script: str = "test",
+        run_pnpm_tests: bool = False,
+        pnpm_test_script: str = "test",
         clarinet_check_timeout: int = 300,
         monitor: Optional[DeploymentMonitor] = None,
     ):
         self.config = config
         self.verbose = verbose
-        self.run_npm_tests = run_npm_tests
-        self.npm_test_script = npm_test_script
+        self.run_pnpm_tests = run_pnpm_tests
+        self.pnpm_test_script = pnpm_test_script
         self.clarinet_check_timeout = clarinet_check_timeout
         self.pre_check_results: Dict[str, bool] = {}
         # Bolt ⚡: Use a shared monitor instance to leverage caching
@@ -296,8 +296,8 @@ class EnhancedConxianDeployer:
             ("Compilation", self._check_compilation),
         ]
 
-        if self.run_npm_tests:
-            checks.append(("NPM Tests", self._check_npm_tests))
+        if self.run_pnpm_tests:
+            checks.append(("PNPM Tests", self._check_pnpm_tests))
 
         checks.extend(
             [
@@ -411,23 +411,23 @@ class EnhancedConxianDeployer:
                 print("[ERROR] Could not run compilation check (use --verbose for details)")
             return False
 
-    def _check_npm_tests(self) -> bool:
-        """Run npm tests for the project"""
-        print("Running npm tests...")
+    def _check_pnpm_tests(self) -> bool:
+        """Run pnpm tests for the project"""
+        print("Running pnpm tests...")
 
         project_dir = self._get_project_dir()
         package_json = project_dir / "package.json"
         if not package_json.exists():
-            print("[INFO] package.json not found - skipping npm tests")
+            print("[INFO] package.json not found - skipping pnpm tests")
             return True
 
-        script = self.npm_test_script or "test"
+        script = self.pnpm_test_script or "test"
         if script == "test":
-            command = ["npm", "test"]
+            command = ["pnpm", "test"]
         else:
-            command = ["npm", "run", script]
+            command = ["pnpm", "run", script]
 
-        timeout = int(self.config.get("NPM_TEST_TIMEOUT", 1800))
+        timeout = int(self.config.get("PNPM_TEST_TIMEOUT", 1800))
 
         try:
             result = subprocess.run(
@@ -439,10 +439,10 @@ class EnhancedConxianDeployer:
             )
 
             if result.returncode == 0:
-                print(f"[SUCCESS] npm tests passed (script: {script})")
+                print(f"[SUCCESS] pnpm tests passed (script: {script})")
                 return True
 
-            print(f"[ERROR] npm tests failed (script: {script})")
+            print(f"[ERROR] pnpm tests failed (script: {script})")
             output = ((result.stdout or "") + (result.stderr or "")).strip()
             if output:
                 if self.verbose:
@@ -455,18 +455,18 @@ class EnhancedConxianDeployer:
 
         except subprocess.TimeoutExpired:
             print(
-                f"[ERROR] npm tests timed out after {timeout} seconds (script: {script})"
+                f"[ERROR] pnpm tests timed out after {timeout} seconds (script: {script})"
             )
             return False
         except FileNotFoundError:
-            print("[ERROR] npm not found (is Node.js installed and on PATH?)")
+            print("[ERROR] pnpm not found (is Node.js installed and on PATH?)")
             return False
         except Exception as e:
             # 🛡️ Sentinel: Prevent sensitive information disclosure.
             if self.verbose:
-                print(f"[ERROR] Could not run npm tests: {e}")
+                print(f"[ERROR] Could not run pnpm tests: {e}")
             else:
-                print("[ERROR] Could not run npm tests (use --verbose for details)")
+                print("[ERROR] Could not run pnpm tests (use --verbose for details)")
             return False
 
     def _check_balance(self) -> bool:

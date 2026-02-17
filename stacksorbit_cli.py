@@ -905,16 +905,16 @@ class UltimateStacksOrbit:
         # Initialize deployer
         from enhanced_conxian_deployment import EnhancedConxianDeployer
 
-        run_npm_tests = bool(options.get("run_npm_tests")) or bool(
+        run_pnpm_tests = bool(options.get("run_pnpm_tests")) or bool(
             options.get("dry_run")
         )
-        npm_test_script = options.get("npm_test_script") or "test"
+        pnpm_test_script = options.get("pnpm_test_script") or "test"
         clarinet_check_timeout = int(options.get("clarinet_check_timeout", 300))
         deployer = EnhancedConxianDeployer(
             config,
             options.get("verbose", False),
-            run_npm_tests=run_npm_tests,
-            npm_test_script=npm_test_script,
+            run_pnpm_tests=run_pnpm_tests,
+            pnpm_test_script=pnpm_test_script,
             clarinet_check_timeout=clarinet_check_timeout,
             monitor=self.monitor,
         )
@@ -1413,10 +1413,10 @@ class UltimateStacksOrbit:
 
                 # Check if node_modules exists
                 if not (self.project_root / "node_modules").exists():
-                    print(f"{Fore.YELLOW}📦 node_modules not found. Running npm install...{Style.RESET_ALL}")
-                    subprocess.run(["npm", "install"], cwd=self.project_root, check=True)
+                    print(f"{Fore.YELLOW}📦 node_modules not found. Running pnpm install...{Style.RESET_ALL}")
+                    subprocess.run(["pnpm", "install"], cwd=self.project_root, check=True)
 
-                test_command = ["npm", "run", "test:vitest"]
+                test_command = ["pnpm", "run", "test:vitest"]
 
                 if options.get("test_coverage"):
                     test_command = ["npx", "vitest", "run", "--coverage"]
@@ -1624,14 +1624,14 @@ def main():
     )
     parser.add_argument("--force", action="store_true", help="Force deployment")
     parser.add_argument(
-        "--run-npm-tests",
+        "--run-pnpm-tests",
         action="store_true",
-        help="Run npm tests during pre-deployment checks",
+        help="Run pnpm tests during pre-deployment checks",
     )
     parser.add_argument(
-        "--npm-test-script",
+        "--pnpm-test-script",
         default="test",
-        help="npm script to run (e.g. test, test:all)",
+        help="pnpm script to run (e.g. test, test:all)",
     )
     parser.add_argument(
         "--clarinet-check-timeout",
@@ -1714,8 +1714,8 @@ def main():
             "dry_run": args.dry_run,
             "skip_checks": args.skip_checks,
             "force": args.force,
-            "run_npm_tests": args.run_npm_tests,
-            "npm_test_script": args.npm_test_script,
+            "run_pnpm_tests": args.run_pnpm_tests,
+            "pnpm_test_script": args.pnpm_test_script,
             "clarinet_check_timeout": args.clarinet_check_timeout,
             "follow": args.follow,
             "api_only": args.api_only,

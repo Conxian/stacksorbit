@@ -23,3 +23,7 @@
 ## 2025-05-19 - Real-time Character Counts for Strict Inputs
 **Learning:** For inputs with strict length requirements (like Stacks addresses or private keys), displaying a real-time character count (e.g., (41/41)) directly in the feedback label significantly reduces user friction and anxiety. It allows users to catch typos or incomplete pastes immediately without waiting for a final validation check.
 **Action:** Always include real-time character count indicators for any TUI input field that has a specific required length or range.
+
+## 2025-05-20 - Constraining Loading Indicators for TUI Layout Stability
+**Learning:** Standard Textual `LoadingIndicator` widgets can default to `height: 100%`, which may push all subsequent content out of the viewport if placed at the top of a layout. This not only ruins the UX by hiding the interface during initial load but also causes `OutOfBounds` errors in automated `pilot.click` tests.
+**Action:** Always constrain `LoadingIndicator` height in CSS (e.g., `height: 3;`) to ensure it remains a localized feedback element rather than a layout-disrupting overlay.

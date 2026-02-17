@@ -185,8 +185,9 @@ Input.error {
 }
 
 LoadingIndicator {
-    height: 100%;
-    align: center middle;
+    height: 3;
+    content-align: center middle;
+    width: 100%;
 }
 
 .details-pane {
