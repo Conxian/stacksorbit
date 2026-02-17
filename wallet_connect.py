@@ -49,7 +49,11 @@ WALLET_CONNECT_HTML = """
         }
         h1 { margin-bottom: 10px; font-size: 28px; }
         .subtitle { color: #888; margin-bottom: 30px; }
-        .logo { font-size: 60px; margin-bottom: 20px; }
+        .logo { font-size: 60px; margin-bottom: 20px; animation: fadeInScale 0.8s ease-out; }
+        @keyframes fadeInScale {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
         .btn {
             background: linear-gradient(135deg, #5546ff 0%, #7c3aed 100%);
             color: white;
@@ -58,8 +62,9 @@ WALLET_CONNECT_HTML = """
             font-size: 18px;
             border-radius: 12px;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.2s ease;
             margin: 10px;
+            box-shadow: 0 4px 15px rgba(85,70,255,0.2);
         }
         .btn:hover {
             transform: translateY(-2px);
@@ -79,15 +84,32 @@ WALLET_CONNECT_HTML = """
         }
         .status.success { background: rgba(34,197,94,0.2); border: 1px solid #22c55e; }
         .status.error { background: rgba(239,68,68,0.2); border: 1px solid #ef4444; }
+        .address-container {
+            display: flex;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
         .address {
             font-family: monospace;
             font-size: 14px;
             word-break: break-all;
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
+            text-align: left;
+            flex-grow: 1;
         }
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .copy-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .info { margin-top: 20px; font-size: 14px; color: #888; }
         .qr-section { margin: 20px 0; }
         #qrcode { 
@@ -199,15 +221,26 @@ WALLET_CONNECT_HTML = """
             status.className = 'status success';
             status.innerHTML = `
                 <p>✅ Wallet Connected!</p>
-                <div class="address">${address}</div>
+                <div class="address-container">
+                    <div class="address" id="connected-addr">${address}</div>
+                    <button class="copy-btn" onclick="copyAddress()" title="Copy Address">📋</button>
+                </div>
                 <p style="margin-top: 15px; color: #22c55e;">
                     Address saved. You can close this window and return to StacksOrbit CLI.
                 </p>
             `;
             status.classList.remove('hidden');
             
-            // Fetch balance
             fetchBalance(address);
+        }
+
+        function copyAddress() {
+            const addr = document.getElementById('connected-addr').textContent;
+            navigator.clipboard.writeText(addr);
+            const copyBtn = document.querySelector('.copy-btn');
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✅';
+            setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
         }
         
         function showError(message) {

@@ -9,7 +9,7 @@ async def test_dashboard_metric_navigation():
     """Verify that clicking dashboard metric cards navigates to the correct tabs."""
     app = StacksOrbitGUI()
     # Increase screen height to ensure metrics are within bounds
-    async with app.run_test(size=(120, 60)) as pilot:
+    async with app.run_test(size=(120, 100)) as pilot:
         tabs = app.query_one(TabbedContent)
 
         # 1. Click Contracts metric
