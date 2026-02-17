@@ -50,11 +50,7 @@ def redact_recursive(item, parent_key=""):
         # Check if the parent key is a known secret or contains a sensitive substring.
         if is_sensitive_key(parent_key) and item is not None:
             # Skip empty values or common non-secret placeholders
-            if str(item).strip() == "" or str(item).lower() in (
-                "your_private_key_here",
-                "your_hiro_api_key",
-                "your_stacks_address_here",
-            ):
+            if is_placeholder(str(item)):
                 return item
 
             # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
@@ -119,6 +115,23 @@ def validate_stacks_address(address: str, network: str = None) -> bool:
 
 # Bolt ⚡: Define C32 charset at module level to avoid redundant set creation.
 ALLOWED_C32_CHARS = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+# 🛡️ Sentinel: Centralized list of safe placeholders for secrets.
+SAFE_PLACEHOLDERS = {
+    "",
+    "your_private_key_here",
+    "your_hiro_api_key",
+    "your_stacks_address_here",
+}
+
+
+def is_placeholder(value: str) -> bool:
+    """
+    🛡️ Sentinel: Check if a value is a known safe placeholder or empty.
+    This ensures consistent, case-insensitive handling across all loaders.
+    """
+    if value is None:
+        return True
+    return str(value).strip().lower() in SAFE_PLACEHOLDERS
 # Bolt ⚡: Pre-compile regex for faster C32 charset validation (~4.5x faster than loop).
 C32_RE = re.compile(r"^[0-9ABCDEFGHJKMNPQRSTVWXYZ]+$")
 # Bolt ⚡: Pre-compile regex for faster hex character validation.

@@ -87,6 +87,18 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Migrated initial placeholder tests.
 *   **Status:** Complete.
 
+### Session 18: XSS Mitigation & Standardized Secret Handling (Sentinel)
+
+*   **Objective:** Harden the local wallet connection server against XSS and unify secret placeholder logic across all configuration loaders.
+*   **Changes:**
+    *   Mitigated XSS vulnerability in `wallet_connect.py` by replacing `innerHTML` with `textContent` for displaying Stacks addresses and error messages in the frontend template.
+    *   Centralized secret placeholder logic in `stacksorbit_secrets.py` via the `is_placeholder` utility, ensuring consistent, case-insensitive handling of safe defaults (e.g., `your_private_key_here`).
+    *   Standardized all configuration loaders (`EnhancedConfigManager`, `StacksOrbitGUI`, `DeploymentMonitor`, and `DeploymentVerifier`) to utilize `is_placeholder` for security enforcement.
+    *   Hardened file persistence in `EnhancedConfigManager` by using `save_secure_config` for default configuration creation, eliminating world-readable race conditions.
+    *   Enhanced `DeploymentVerifier` to use `save_secure_config` with recursive redaction for restricted `0600` permissions on verification artifact output.
+    *   Verified the XSS fix with a targeted Playwright script and confirmed system integrity via full pytest and vitest suites.
+*   **Status:** Complete.
+
 ### Session 2: Chainhook Expansion & Security Hardening
 
 *   **Objective:** Expand Chainhook support for multi-network monitoring and fix configuration validation bugs.

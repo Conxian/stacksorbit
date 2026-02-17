@@ -222,13 +222,14 @@ WALLET_CONNECT_HTML = """
             status.innerHTML = `
                 <p>✅ Wallet Connected!</p>
                 <div class="address-container">
-                    <div class="address" id="connected-addr">${address}</div>
+                    <div class="address" id="connected-addr"></div>
                     <button class="copy-btn" onclick="copyAddress()" title="Copy Address">📋</button>
                 </div>
                 <p style="margin-top: 15px; color: #22c55e;">
                     Address saved. You can close this window and return to StacksOrbit CLI.
                 </p>
             `;
+            document.getElementById('connected-addr').textContent = address;
             status.classList.remove('hidden');
             
             fetchBalance(address);
@@ -246,7 +247,8 @@ WALLET_CONNECT_HTML = """
         function showError(message) {
             const status = document.getElementById('status');
             status.className = 'status error';
-            status.innerHTML = `<p>❌ ${message}</p>`;
+            status.innerHTML = `<p id="error-text"></p>`;
+            document.getElementById('error-text').textContent = '❌ ' + message;
             status.classList.remove('hidden');
         }
         

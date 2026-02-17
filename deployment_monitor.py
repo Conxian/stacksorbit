@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 import argparse
+from stacksorbit_secrets import is_sensitive_key, is_placeholder
 
 # Setup colored logging
 try:
@@ -606,7 +607,16 @@ def main():
                     line = line.strip()
                     if line and not line.startswith("#") and "=" in line:
                         key, value = line.split("=", 1)
-                        config[key.strip()] = value.strip().strip('"')
+                        k, v = key.strip(), value.strip().strip('"')
+                        # 🛡️ Sentinel: Enforce security policy - no secrets in .env
+                        if is_sensitive_key(k) and not is_placeholder(v):
+                            error_message = (
+                                f"🛡️ Sentinel Security Error: Secret key '{k}' found in .env file.\n"
+                                "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
+                                f"   Example: export {k}='your_secret_value_here'"
+                            )
+                            raise ValueError(error_message)
+                        config[k] = v
 
         # Override with command line arguments
         if args.network:
