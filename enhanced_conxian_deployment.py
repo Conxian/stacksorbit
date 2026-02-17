@@ -19,6 +19,7 @@ from dotenv import dotenv_values
 from stacksorbit_secrets import (
     SECRET_KEYS,
     is_sensitive_key,
+    is_placeholder,
     validate_stacks_address,
     validate_private_key,
     set_secure_permissions,
@@ -69,11 +70,7 @@ class EnhancedConfigManager:
 
         # 🛡️ Sentinel: Enforce security policy - no secrets in .env
         for key, value in file_config.items():
-            if is_sensitive_key(key) and value not in (
-                "",
-                "your_private_key_here",
-                "your_hiro_api_key",
-            ):
+            if is_sensitive_key(key) and not is_placeholder(value):
                 error_message = (
                     f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
                     "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
@@ -151,11 +148,9 @@ CONFIRMATION_TIMEOUT=300
 """
 
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.config_path, "w") as f:
-            f.write(default_config)
-
-        # 🛡️ Sentinel: Enforce secure file permissions
-        set_secure_permissions(str(self.config_path))
+        # 🛡️ Sentinel: Use centralized atomic and secure config saver.
+        # This eliminates the race condition between creation and chmod.
+        save_secure_config(str(self.config_path), default_config)
 
     def save_config(self, config: Dict):
         """Save configuration to file"""

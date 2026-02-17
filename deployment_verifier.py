@@ -18,7 +18,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Import monitoring components
 from deployment_monitor import DeploymentMonitor
-from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key
+from stacksorbit_secrets import (
+    SECRET_KEYS,
+    is_sensitive_key,
+    is_placeholder,
+    save_secure_config,
+    redact_recursive,
+)
 
 
 class DeploymentVerifier:
@@ -390,8 +396,9 @@ class DeploymentVerifier:
         results_path = Path("logs") / "verification_results.json"
         results_path.parent.mkdir(exist_ok=True)
 
-        with open(results_path, "w") as f:
-            json.dump(self.verification_results, f, indent=2)
+        # 🛡️ Sentinel: Use secure persistence with redaction for restricted permissions.
+        redacted_results = redact_recursive(self.verification_results)
+        save_secure_config(str(results_path), json.dumps(redacted_results, indent=2))
 
         self._safe_print(f"💾 Verification results saved to {results_path}")
 
@@ -486,11 +493,7 @@ def main():
 
             # Enforce security policy - no secrets in .env
             for key, value in file_config.items():
-                if is_sensitive_key(key) and value not in (
-                    "",
-                    "your_private_key_here",
-                    "your_hiro_api_key",
-                ):
+                if is_sensitive_key(key) and not is_placeholder(value):
                     error_message = (
                         f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
                         "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"

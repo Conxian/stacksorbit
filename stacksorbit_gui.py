@@ -43,6 +43,7 @@ from deployment_monitor import DeploymentMonitor
 from stacksorbit_secrets import (
     SECRET_KEYS,
     is_sensitive_key,
+    is_placeholder,
     validate_stacks_address,
     validate_private_key,
     set_secure_permissions,
@@ -103,11 +104,7 @@ class StacksOrbitGUI(App):
                             k, v = key.strip(), value.strip().strip('"').strip("'")
 
                             # 🛡️ Sentinel: Enforce security policy - no secrets in .env
-                            if is_sensitive_key(k) and v not in (
-                                "",
-                                "your_private_key_here",
-                                "your_hiro_api_key",
-                            ):
+                            if is_sensitive_key(k) and not is_placeholder(v):
                                 raise ValueError(
                                     f"🛡️ Sentinel Security Error: Secret key '{k}' found in .env file.\n"
                                     "   Storing secrets in plaintext files is a critical security risk.\n"
