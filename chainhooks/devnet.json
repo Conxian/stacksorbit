@@ -8,7 +8,7 @@
   "then": {
     "http_post": {
       "url": "http://localhost:3000/webhook",
-      "authorization_header": "Bearer dev-token"
+      "authorization_header": "Bearer ${DEVNET_WEBHOOK_TOKEN}"
     }
   }
 }

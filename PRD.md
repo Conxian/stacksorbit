@@ -76,7 +76,7 @@ StacksOrbit is committed to supporting the latest Clarity language features.
 | :--- | :--- | :--- | :--- | :--- |
 | `placeholder` | `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.placeholder` | `ST000000000000000000002Q6VF78.placeholder` | `SP2J1BCZK8Q0CP3W4R1XX9TMKJ1N1S8QZ7K0B5N8.placeholder` | ✅ Verified |
 
-## 5. Session Log
+## 6. Session Log
 
 ### Session 1: Initialization & Alignment
 
@@ -198,28 +198,6 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Ensured adherence to Palette persona constraints: no custom CSS, micro-UX focus (<50 lines).
 *   **Status:** Complete.
 
-### Session 15: Parallel Verification & Concurrency Optimization (Bolt)
-
-*   **Objective:** Parallelize the deployment verification suite to reduce latency and improve CLI responsiveness.
-*   **Changes:**
-    *   Implemented `ThreadPoolExecutor` in `DeploymentVerifier.run_comprehensive_verification` to run high-level checks in parallel.
-    *   Parallelized the internal contract interface verification loop in `_verify_contract_functionality`.
-    *   Introduced `_safe_print` and `threading.Lock` to ensure thread-safe, non-interleaved console output.
-    *   Achieved a ~74% reduction in verification time (from 4.0s to 1.0s in simulated benchmarks).
-    *   Updated the Bolt performance journal with learnings on I/O-bound parallelization.
-*   **Status:** Complete.
-
-### Session 14: Micro-UX Improvement & Explorer Integration (Palette)
-
-*   **Objective:** Enhance the contract management experience in the TUI by providing direct access to source code and external explorer links.
-*   **Changes:**
-    *   Added "Copy Source" (📄) and "View on Explorer" (🌐) buttons to the Contract Details pane in `stacksorbit_gui.py`.
-    *   Implemented visual feedback for all copy actions, providing immediate icon-level confirmation (✅).
-    *   Integrated `webbrowser` to open Hiro Explorer links directly from the TUI, with network-aware URL generation and devnet safety checks.
-    *   Fixed a critical bug in `fetch_contract_details` where a synchronous monitor call was being mistakenly awaited, which would have caused UI freezes.
-    *   Added comprehensive tests in `tests/test_palette_ux_explorer.py` to verify the new UX components and worker logic.
-*   **Status:** Complete.
-
 ### Session 12: Vitest Foundation & Root-Up Alignment
 
 *   **Objective:** Reinforce the project's foundation by aligning with the Clarinet SDK and Vitest native architecture under the Root-Up methodology.
@@ -231,7 +209,29 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Verified all contract tests pass using the new configuration.
 *   **Status:** Complete.
 
-### Session 15: Micro-UX Improvement & Transaction Actions (Palette)
+### Session 14: Parallel Verification & Concurrency Optimization (Bolt)
+
+*   **Objective:** Parallelize the deployment verification suite to reduce latency and improve CLI responsiveness.
+*   **Changes:**
+    *   Implemented `ThreadPoolExecutor` in `DeploymentVerifier.run_comprehensive_verification` to run high-level checks in parallel.
+    *   Parallelized the internal contract interface verification loop in `_verify_contract_functionality`.
+    *   Introduced `_safe_print` and `threading.Lock` to ensure thread-safe, non-interleaved console output.
+    *   Achieved a ~74% reduction in verification time (from 4.0s to 1.0s in simulated benchmarks).
+    *   Updated the Bolt performance journal with learnings on I/O-bound parallelization.
+*   **Status:** Complete.
+
+### Session 15: Micro-UX Improvement & Explorer Integration (Palette)
+
+*   **Objective:** Enhance the contract management experience in the TUI by providing direct access to source code and external explorer links.
+*   **Changes:**
+    *   Added "Copy Source" (📄) and "View on Explorer" (🌐) buttons to the Contract Details pane in `stacksorbit_gui.py`.
+    *   Implemented visual feedback for all copy actions, providing immediate icon-level confirmation (✅).
+    *   Integrated `webbrowser` to open Hiro Explorer links directly from the TUI, with network-aware URL generation and devnet safety checks.
+    *   Fixed a critical bug in `fetch_contract_details` where a synchronous monitor call was being mistakenly awaited, which would have caused UI freezes.
+    *   Added comprehensive tests in `tests/test_palette_ux_explorer.py` to verify the new UX components and worker logic.
+*   **Status:** Complete.
+
+### Session 16: Micro-UX Improvement & Transaction Actions (Palette)
 
 *   **Objective:** Enhance the transaction history experience in the TUI by providing contextual actions and consistent deep-linking.
 *   **Changes:**
@@ -241,4 +241,15 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Standardized visual feedback for transaction copy actions (✅).
     *   Added CSS for consistent styling and alignment of the new action bar.
     *   Implemented automated tests in `tests/test_gui.py` to verify transaction selection and button states.
+*   **Status:** Complete.
+
+### Session 17: Initialization & Alignment (Root-Up)
+
+*   **Objective:** Reinforce the project foundation by aligning with the Clarinet SDK and Vitest native architecture, following the Root-Up Protocol.
+*   **Changes:**
+    *   Upgraded `@stacks/clarinet-sdk` to `^3.14.0` in `package.json`.
+    *   Standardized `vitest.config.ts` for Clarinet SDK integration, ensuring ESM compatibility.
+    *   Established/refreshed `/chainhooks` JSON predicates for Devnet, Testnet, and Mainnet.
+    *   Updated and verified the Contract Registry for the `placeholder` contract.
+    *   Synchronized `PRD.md` with the current architecture and established the Root-Up workflow.
 *   **Status:** Complete.
