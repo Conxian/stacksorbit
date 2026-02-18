@@ -250,6 +250,10 @@ class StacksOrbitGUI(App):
                             id="address-input",
                         )
                         yield Button(
+                            "🔗 Connect",
+                            id="connect-wallet-btn",
+                        )
+                        yield Button(
                             "📋",
                             id="copy-address-btn",
                         )
@@ -301,6 +305,9 @@ class StacksOrbitGUI(App):
         )
         self.query_one("#copy-address-btn", Button).tooltip = (
             "Copy address to clipboard"
+        )
+        self.query_one("#connect-wallet-btn", Button).tooltip = (
+            "Connect your wallet via browser"
         )
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
             "Copy your Stacks address to clipboard"
@@ -774,6 +781,45 @@ class StacksOrbitGUI(App):
             error_label.update(
                 f"[red]❌ Must be a 64 or 66 character hex string[/red]{count_display}"
             )
+
+    @on(Button.Pressed, "#connect-wallet-btn")
+    def on_connect_wallet_pressed(self) -> None:
+        """Launch the wallet connection wizard."""
+        self.notify("Launching Wallet Connect in your browser...", severity="information")
+        self.run_worker(self._run_wallet_connect())
+
+    async def _run_wallet_connect(self) -> None:
+        """Worker to run the wallet connect server and update UI."""
+        from wallet_connect import start_wallet_connect_server
+        import contextlib
+        import io
+
+        btn = self.query_one("#connect-wallet-btn", Button)
+        original_label = btn.label
+        btn.disabled = True
+        btn.label = "🔗 Waiting..."
+
+        try:
+            # Run the server in a thread and suppress stdout to keep TUI clean
+            with contextlib.redirect_stdout(io.StringIO()):
+                address = await asyncio.to_thread(start_wallet_connect_server)
+
+            if address:
+                # Update inputs and internal state
+                self.query_one("#address-input", Input).value = address
+                self.address = address
+                try:
+                    self.query_one("#display-address", Static).update(address)
+                except Exception:
+                    pass
+                self.notify(f"Wallet connected: {address}", severity="success")
+                btn.label = "✅ Done"
+                await asyncio.sleep(2)
+        except Exception as e:
+            self.notify(f"Wallet connection failed: {e}", severity="error")
+        finally:
+            btn.disabled = False
+            btn.label = original_label
 
     @on(Button.Pressed, "#copy-address-btn")
     async def on_copy_address_pressed(self) -> None:
