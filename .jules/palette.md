@@ -27,3 +27,7 @@
 ## 2025-05-20 - Constraining Loading Indicators for TUI Layout Stability
 **Learning:** Standard Textual `LoadingIndicator` widgets can default to `height: 100%`, which may push all subsequent content out of the viewport if placed at the top of a layout. This not only ruins the UX by hiding the interface during initial load but also causes `OutOfBounds` errors in automated `pilot.click` tests.
 **Action:** Always constrain `LoadingIndicator` height in CSS (e.g., `height: 3;`) to ensure it remains a localized feedback element rather than a layout-disrupting overlay.
+
+## 2025-05-21 - Asynchronous Wallet Connect Integration
+**Learning:** Integrating a web-based connection wizard directly into a TUI via an asynchronous background worker and thread-safe UI updates significantly reduces user friction by keeping the user within the main application flow. Using `asyncio.to_thread` for blocking operations (like an HTTP server) and `contextlib.redirect_stdout` to suppress background noise ensures the TUI remains responsive and visual integrity is maintained.
+**Action:** For any external authentication or complex configuration tasks, provide a direct "Connect" or "Launch" button in the TUI that orchestrates the process asynchronously and updates the interface in real-time upon completion.

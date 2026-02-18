@@ -145,3 +145,29 @@ async def test_validation_includes_char_count():
         app.on_privkey_changed(privkey_input.Changed(privkey_input, valid_pk))
         assert f"({len(valid_pk)}/64 or 66)" in str(privkey_error.render())
         assert "✅ Valid" in str(privkey_error.render())
+
+@pytest.mark.asyncio
+async def test_wallet_connect_button_triggers_worker():
+    """Verify that clicking the wallet connect button triggers the worker."""
+    app = StacksOrbitGUI()
+    with patch("wallet_connect.start_wallet_connect_server", return_value="ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM") as mock_server:
+        async with app.run_test() as pilot:
+            # Switch to settings tab
+            await pilot.press("f5")
+            await pilot.pause()
+
+            connect_btn = app.query_one("#connect-wallet-btn")
+            address_input = app.query_one("#address-input")
+
+            # Click the button
+            await pilot.click("#connect-wallet-btn")
+            # The worker runs start_wallet_connect_server in a thread
+            # We need to wait for it to complete.
+            # Since we mocked it to return immediately, it should be fast.
+            await pilot.pause(1.0)
+
+            # Assert server was called
+            mock_server.assert_called_once()
+            # Assert UI was updated
+            assert address_input.value == "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
+            assert app.address == "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
