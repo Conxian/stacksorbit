@@ -18,7 +18,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 # Import our enhanced modules
-from stacksorbit_secrets import is_sensitive_key, redact_recursive
+from stacksorbit_secrets import is_sensitive_key, redact_recursive, save_secure_config
 from enhanced_conxian_deployment import EnhancedConfigManager, EnhancedConxianDeployer
 from deployment_monitor import DeploymentMonitor
 from deployment_verifier import DeploymentVerifier, load_expected_contracts
@@ -136,8 +136,8 @@ class ConxianTestnetDeployer:
         manifest_path = Path("deployment") / "testnet_complete_manifest.json"
         manifest_path.parent.mkdir(exist_ok=True)
 
-        with open(manifest_path, "w") as f:
-            json.dump(manifest, f, indent=2)
+        # 🛡️ Sentinel: Use secure persistence with automatic redaction for restricted permissions.
+        save_secure_config(str(manifest_path), manifest, json_format=True)
 
         print(f"💾 Complete deployment manifest saved to {manifest_path}")
 

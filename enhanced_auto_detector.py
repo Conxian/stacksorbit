@@ -14,7 +14,7 @@ import fnmatch
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
-from stacksorbit_secrets import is_safe_path
+from stacksorbit_secrets import is_safe_path, save_secure_config
 
 # Bolt ⚡: Global cache for Clarinet version to avoid redundant subprocess calls.
 _CLARINET_VERSION_CACHE: Optional[str] = None
@@ -1510,8 +1510,8 @@ class GenericStacksAutoDetector:
         """Save auto-detection state"""
         self.state["last_updated"] = time.time()
 
-        with open(self.state_file, "w") as f:
-            json.dump(self.state, f, indent=2)
+        # 🛡️ Sentinel: Use secure persistence with automatic redaction for restricted permissions.
+        save_secure_config(str(self.state_file), self.state, json_format=True)
 
     def handle_directory_change(self, new_directory: Path) -> Dict:
         """Handle directory change and update detection"""

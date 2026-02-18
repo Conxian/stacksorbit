@@ -4,6 +4,7 @@ Centralized list of secret keys for StacksOrbit.
 
 import os
 import functools
+import json
 
 SECRET_KEYS = {
     "HIRO_API_KEY",
@@ -138,11 +139,12 @@ C32_RE = re.compile(r"^[0-9ABCDEFGHJKMNPQRSTVWXYZ]+$")
 HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
 
-def save_secure_config(filepath: str, config: object):
+def save_secure_config(filepath: str, config: object, json_format: bool = False):
     """
     🛡️ Sentinel: Atomically and securely save configuration to a file.
     Uses a temporary file and os.replace for atomicity, and ensures
     secure file permissions (0600) from the start.
+    If json_format is True, the config is automatically redacted and saved as JSON.
     """
     if not filepath:
         return
@@ -157,8 +159,12 @@ def save_secure_config(filepath: str, config: object):
 
         try:
             with open(temp_path, "w", encoding="utf-8") as f:
+                if json_format:
+                    # 🛡️ Sentinel: Automatically redact before saving as JSON
+                    redacted = redact_recursive(config)
+                    json.dump(redacted, f, indent=2)
                 # Handle both dict and string content
-                if isinstance(config, dict):
+                elif isinstance(config, dict):
                     for key, value in config.items():
                         # 🛡️ Sentinel: Security Enforcer.
                         # Explicitly skip any known secrets or potential sensitive keys.

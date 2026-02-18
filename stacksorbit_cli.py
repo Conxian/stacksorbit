@@ -1301,8 +1301,8 @@ class UltimateStacksOrbit:
         # Save diagnosis
         diagnosis_path = Path("logs") / f"diagnosis_{int(time.time())}.json"
         diagnosis_path.parent.mkdir(exist_ok=True)
-        with open(diagnosis_path, "w") as f:
-            json.dump(diagnosis, f, indent=2)
+        # 🛡️ Sentinel: Use secure persistence with automatic redaction for restricted permissions.
+        save_secure_config(str(diagnosis_path), diagnosis, json_format=True)
 
         print(f"\n💾 Diagnosis saved to {diagnosis_path}")
 

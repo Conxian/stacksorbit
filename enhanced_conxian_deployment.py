@@ -970,8 +970,8 @@ class EnhancedConxianDeployer:
 
         history.append(deployment_data)
 
-        with open(history_path, "w") as f:
-            json.dump(history, f, indent=2)
+        # 🛡️ Sentinel: Use secure persistence with automatic redaction for restricted permissions.
+        save_secure_config(str(history_path), history, json_format=True)
 
         print(f"[INFO] Deployment results saved to {history_path}")
 
