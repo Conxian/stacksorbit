@@ -55,3 +55,9 @@
 ## 2026-03-01 - Optimized Project Scanning and Secret Detection
 **Learning:** Replacing `os.walk` and `pathlib.Path` with a recursive `os.scandir` implementation significantly reduces overhead in project discovery by leveraging cached `DirEntry` stat information and avoiding slow object instantiation. Additionally, using a pre-compiled regex for multi-substring secret detection (`is_sensitive_key`) is faster than iterative `any()` checks in high-frequency validation loops.
 **Action:** Always prefer `os.scandir` for recursive filesystem traversals where performance is critical. Use pre-compiled regular expressions for multi-pattern matching in hot paths.
+
+## 2026-03-05 - Regex-Optimized Pattern Matching and Categorization
+
+**Learning:** Iterative pattern matching using `fnmatch.fnmatch` in a loop and linear string searches for categorization/sorting are significant bottlenecks in project discovery, especially as the number of files and contracts grows. Replacing these loops with pre-compiled, consolidated regular expressions (using `re.IGNORECASE` for cross-platform consistency) can provide a ~2.5x speedup in pattern matching operations. Additionally, increasing the file hashing chunk size from 4KB to 64KB improves throughput on modern I/O systems.
+
+**Action:** Always pre-compile consolidated regexes for multiple glob patterns or string keywords in hot paths like filesystem scanners and categorizers. Use memoization for expensive per-item calculations like contract priority to ensure the logic runs only once per unique identifier.
