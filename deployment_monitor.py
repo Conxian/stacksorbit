@@ -15,7 +15,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 import argparse
-from stacksorbit_secrets import is_sensitive_key, is_placeholder
+from stacksorbit_secrets import (
+    is_sensitive_key,
+    is_placeholder,
+    save_secure_config,
+    set_secure_permissions,
+)
 
 # Setup colored logging
 try:
@@ -118,9 +123,9 @@ class DeploymentMonitor:
         """Save API cache to a file."""
         try:
             self.cache_path.parent.mkdir(exist_ok=True)
-            with open(self.cache_path, "w") as f:
-                json.dump(self.cache, f)
-        except IOError as e:
+            # 🛡️ Sentinel: Use secure persistence with automatic redaction and 0600 permissions.
+            save_secure_config(str(self.cache_path), self.cache, json_format=True)
+        except Exception as e:
             self.logger.error(f"Could not save cache file: {e}")
 
     def _get_api_url(self) -> str:
@@ -154,6 +159,8 @@ class DeploymentMonitor:
                 log_dir / f"deployment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
             )
             file_handler = logging.FileHandler(log_file)
+            # 🛡️ Sentinel: Ensure log files have secure permissions (0600).
+            set_secure_permissions(str(log_file))
             file_handler.setLevel(log_level)
             file_formatter = logging.Formatter(
                 "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -543,8 +550,9 @@ class DeploymentMonitor:
         }
 
         summary_path = Path("logs") / "monitoring_summary.json"
-        with open(summary_path, "w") as f:
-            json.dump(summary, f, indent=2)
+        summary_path.parent.mkdir(exist_ok=True)
+        # 🛡️ Sentinel: Use secure persistence with automatic redaction and 0600 permissions.
+        save_secure_config(str(summary_path), summary, json_format=True)
 
         self.logger.info(f"💾 Monitoring summary saved to {summary_path}")
 

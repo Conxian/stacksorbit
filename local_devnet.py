@@ -9,6 +9,7 @@ import sys
 import subprocess
 import time
 from pathlib import Path
+from stacksorbit_secrets import set_secure_permissions
 
 try:
     import psutil
@@ -46,6 +47,8 @@ class LocalDevnet:
 
         with open(self.pid_file, "w") as f:
             f.write(str(process.pid))
+        # 🛡️ Sentinel: Ensure PID file has secure permissions (0600).
+        set_secure_permissions(str(self.pid_file))
 
         print("Local development network started.")
 

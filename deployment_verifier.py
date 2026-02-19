@@ -396,9 +396,11 @@ class DeploymentVerifier:
         results_path = Path("logs") / "verification_results.json"
         results_path.parent.mkdir(exist_ok=True)
 
-        # 🛡️ Sentinel: Use secure persistence with redaction for restricted permissions.
-        redacted_results = redact_recursive(self.verification_results)
-        save_secure_config(str(results_path), json.dumps(redacted_results, indent=2))
+        # 🛡️ Sentinel: Use secure persistence with standardized automatic redaction and 0600 permissions.
+        # Passing the dictionary directly with json_format=True is more robust and consistent.
+        save_secure_config(
+            str(results_path), self.verification_results, json_format=True
+        )
 
         self._safe_print(f"💾 Verification results saved to {results_path}")
 
