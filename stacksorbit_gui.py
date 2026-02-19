@@ -74,6 +74,11 @@ class StacksOrbitGUI(App):
     def watch_network(self, network: str) -> None:
         """Watch the network reactive variable and update subtitle."""
         self.sub_title = f"Deployment Dashboard [{network.upper()}]"
+        try:
+            # PALETTE: Toggle faucet button visibility based on network
+            self.query_one("#faucet-btn").display = (network == "testnet")
+        except Exception:
+            pass
 
     def __init__(self, config_path: str = ".env", **kwargs):
         super().__init__(**kwargs)
@@ -178,6 +183,11 @@ class StacksOrbitGUI(App):
                     yield Button(
                         "🔄 Refresh",
                         id="refresh-btn",
+                    )
+                    yield Button(
+                        "🚰 Faucet",
+                        id="faucet-btn",
+                        variant="warning",
                     )
                     yield Label("", id="last-updated-label")
 
@@ -335,6 +345,11 @@ class StacksOrbitGUI(App):
         self.query_one("#save-config-btn", Button).tooltip = (
             "Save settings to .env file [s]"
         )
+
+        # PALETTE: Faucet button initialization
+        faucet_btn = self.query_one("#faucet-btn", Button)
+        faucet_btn.tooltip = "Get STX from the Testnet Faucet"
+        faucet_btn.display = (self.network == "testnet")
 
         # Add tooltips to tabs for better discoverability
         self.query_one("#overview").tooltip = "Dashboard overview [F1]"
@@ -637,6 +652,12 @@ class StacksOrbitGUI(App):
         """Action to save settings from keyboard shortcut."""
         self.query_one(TabbedContent).active = "settings"
         await self.on_save_config_pressed()
+
+    @on(Button.Pressed, "#faucet-btn")
+    def on_faucet_pressed(self) -> None:
+        """Open the Hiro Faucet in the browser."""
+        webbrowser.open("https://faucet.hiro.so/")
+        self.notify("Opening Testnet Faucet...", severity="information")
 
     @on(Button.Pressed, "#refresh-btn")
     def action_refresh(self) -> None:

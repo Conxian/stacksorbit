@@ -31,3 +31,7 @@
 ## 2025-05-21 - Asynchronous Wallet Connect Integration
 **Learning:** Integrating a web-based connection wizard directly into a TUI via an asynchronous background worker and thread-safe UI updates significantly reduces user friction by keeping the user within the main application flow. Using `asyncio.to_thread` for blocking operations (like an HTTP server) and `contextlib.redirect_stdout` to suppress background noise ensures the TUI remains responsive and visual integrity is maintained.
 **Action:** For any external authentication or complex configuration tasks, provide a direct "Connect" or "Launch" button in the TUI that orchestrates the process asynchronously and updates the interface in real-time upon completion.
+
+## 2025-05-22 - Context-Aware External Deep-Links
+**Learning:** Adding context-aware external links (e.g., a Testnet Faucet) that only appear when relevant (e.g., when the network is set to testnet) significantly reduces UI noise while providing high-value assistance exactly when needed. Using Textual's reactive system (`watch_network`) to toggle widget visibility ensures the UI stays synchronized with the application's underlying state.
+**Action:** Identify environment-specific friction points (like obtaining test tokens) and provide prominent, context-aware assistance buttons that only appear in those specific environments.
