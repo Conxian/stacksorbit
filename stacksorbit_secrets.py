@@ -38,18 +38,24 @@ import re
 SENSITIVE_RE = re.compile("|".join(SENSITIVE_SUBSTRINGS))
 
 
-def redact_recursive(item, parent_key=""):
+def redact_recursive(item, parent_key="", is_sensitive=None):
     """
     🛡️ Sentinel: Recursively traverses a configuration dictionary or list to redact sensitive information.
     This ensures that even nested secrets (e.g., in loaded templates or manifests) are protected.
     """
+    # Bolt ⚡: Determine sensitivity once per key/level to avoid redundant O(N) checks in lists.
+    if is_sensitive is None:
+        is_sensitive = is_sensitive_key(parent_key)
+
     if isinstance(item, dict):
+        # Reset sensitivity for dict children as they have their own keys
         return {key: redact_recursive(value, key) for key, value in item.items()}
     elif isinstance(item, list):
-        return [redact_recursive(sub_item, parent_key) for sub_item in item]
+        # Pass current sensitivity to list items as they inherit the parent key's sensitivity
+        return [redact_recursive(sub_item, parent_key, is_sensitive) for sub_item in item]
     else:
         # Check if the parent key is a known secret or contains a sensitive substring.
-        if is_sensitive_key(parent_key) and item is not None:
+        if is_sensitive and item is not None:
             # Skip empty values or common non-secret placeholders
             if is_placeholder(str(item)):
                 return item
@@ -66,19 +72,24 @@ def redact_recursive(item, parent_key=""):
         return item
 
 
-@functools.lru_cache(maxsize=128)
+@functools.lru_cache(maxsize=1024)
+def _is_sensitive_normalized(k: str) -> bool:
+    """Bolt ⚡: Internal cached check for normalized (uppercase) keys."""
+    return k in SECRET_KEYS or bool(SENSITIVE_RE.search(k))
+
+
 def is_sensitive_key(key: str) -> bool:
     """
     Check if a configuration key is considered sensitive.
     A key is sensitive if it's in the known SECRET_KEYS set or
     contains any of the SENSITIVE_SUBSTRINGS.
     """
-    if not key:
+    if not key or not isinstance(key, str):
         return False
 
-    k = key.upper()
-    # Bolt ⚡: Use regex search for faster multi-substring matching compared to 'any' with a loop.
-    return k in SECRET_KEYS or bool(SENSITIVE_RE.search(k))
+    # Bolt ⚡: Normalize to upper case BEFORE the cache hit to maximize cache efficiency.
+    # This ensures "key" and "KEY" hit the same cache entry.
+    return _is_sensitive_normalized(key.upper())
 
 
 def validate_stacks_address(address: str, network: str = None) -> bool:
