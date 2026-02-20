@@ -31,3 +31,7 @@
 ## 2025-05-21 - Asynchronous Wallet Connect Integration
 **Learning:** Integrating a web-based connection wizard directly into a TUI via an asynchronous background worker and thread-safe UI updates significantly reduces user friction by keeping the user within the main application flow. Using `asyncio.to_thread` for blocking operations (like an HTTP server) and `contextlib.redirect_stdout` to suppress background noise ensures the TUI remains responsive and visual integrity is maintained.
 **Action:** For any external authentication or complex configuration tasks, provide a direct "Connect" or "Launch" button in the TUI that orchestrates the process asynchronously and updates the interface in real-time upon completion.
+
+## 2025-05-22 - Context-Aware Utility Buttons
+**Learning:** Adding context-aware utility buttons (like a "Faucet" link that only appears on Testnet) provides immediate value to specific user segments (developers) without cluttering the interface for others. Using specialized visual variants (like orange `.warning` for external links) creates a clear visual hierarchy and helps users distinguish between internal app actions and external transitions.
+**Action:** Identify network-specific or state-specific utilities and implement them as dynamic UI elements. Use distinct visual styles for external links to manage user expectations about navigation.

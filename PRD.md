@@ -48,6 +48,7 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [x] Implement visual feedback for copy actions.
     *   [x] Add direct links to blockchain explorers from the TUI.
     *   [x] Enhance contract details with source code management.
+    *   [x] Add context-aware Testnet Faucet links with visual hierarchy.
 
 ## 4. Feature Alignment
 
@@ -287,4 +288,15 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Secured the local devnet PID file in `local_devnet.py` with `0600` permissions to prevent unauthorized discovery.
     *   Standardized verification result persistence in `deployment_verifier.py` to use `save_secure_config` with `json_format=True`, ensuring consistent deep redaction across all deployment artifacts.
     *   Verified the fix with targeted permission-check scripts and existing system tests.
+*   **Status:** Complete.
+
+### Session 21: Context-Aware Faucet Integration & Visual Hierarchy (Palette)
+
+*   **Objective:** Enhance the developer experience by providing immediate, context-aware access to the Stacks Testnet Faucet from the TUI.
+*   **Changes:**
+    *   Added a "🚰 Faucet" button to both the Dashboard and Settings tabs in `stacksorbit_gui.py`.
+    *   Implemented dynamic visibility logic to ensure the Faucet buttons are only displayed when the network is set to `testnet`.
+    *   Introduced a `.warning` button variant (orange) in `stacksorbit_gui.tcss` to provide visual hierarchy for external links.
+    *   Added descriptive tooltips and notification feedback for faucet link activation.
+    *   Verified the implementation with a custom TUI verification script and existing GUI test suites.
 *   **Status:** Complete.

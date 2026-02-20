@@ -120,6 +120,11 @@ Button.success {
     color: white;
 }
 
+Button.warning {
+    background: #f39c12; /* Orange */
+    color: white;
+}
+
 Button.error {
     background: #cc3333; /* Red */
     color: white;
