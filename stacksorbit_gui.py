@@ -74,6 +74,14 @@ class StacksOrbitGUI(App):
     def watch_network(self, network: str) -> None:
         """Watch the network reactive variable and update subtitle."""
         self.sub_title = f"Deployment Dashboard [{network.upper()}]"
+        try:
+            # PALETTE: Context-aware visibility for Faucet buttons (Testnet only)
+            is_testnet = network == "testnet"
+            self.query_one("#faucet-btn").display = is_testnet
+            self.query_one("#settings-faucet-btn").display = is_testnet
+        except Exception:
+            # Widgets might not be mounted yet
+            pass
 
     def __init__(self, config_path: str = ".env", **kwargs):
         super().__init__(**kwargs)
@@ -143,6 +151,7 @@ class StacksOrbitGUI(App):
                     yield Label("System Address:")
                     yield Static(self.address, id="display-address")
                     yield Button("📋", id="copy-dashboard-address-btn")
+                    yield Button("🚰 Faucet", id="faucet-btn", variant="warning")
                 with Grid(id="metrics-grid"):
                     yield Container(
                         Label("Network Status"),
@@ -257,6 +266,11 @@ class StacksOrbitGUI(App):
                             "📋",
                             id="copy-address-btn",
                         )
+                        yield Button(
+                            "🚰 Faucet",
+                            id="settings-faucet-btn",
+                            variant="warning",
+                        )
                     yield Label("", id="address-error", markup=True)
                     yield Button(
                         "💾 Save",
@@ -312,6 +326,12 @@ class StacksOrbitGUI(App):
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
             "Copy your Stacks address to clipboard"
         )
+        self.query_one("#faucet-btn", Button).tooltip = (
+            "Get free STX from the Hiro Testnet Faucet"
+        )
+        self.query_one("#settings-faucet-btn", Button).tooltip = (
+            "Get free STX from the Hiro Testnet Faucet"
+        )
         self.query_one("#copy-contract-id-btn", Button).tooltip = (
             "Copy selected contract ID"
         )
@@ -366,6 +386,14 @@ class StacksOrbitGUI(App):
         self.query_one("#metric-nonce").tooltip = "Click to view transaction history [F3]"
         self.query_one("#metric-height").tooltip = "Click to view transaction history [F3]"
         self.query_one("#show-privkey-label").tooltip = "Toggle private key visibility"
+
+        # PALETTE: Initialize Faucet button visibility
+        try:
+            is_testnet = self.network == "testnet"
+            self.query_one("#faucet-btn").display = is_testnet
+            self.query_one("#settings-faucet-btn").display = is_testnet
+        except Exception:
+            pass
 
         self._setup_tables()
         self.set_interval(10.0, self.update_data)
@@ -835,6 +863,14 @@ class StacksOrbitGUI(App):
                 btn.label = "✅"
                 await asyncio.sleep(1)
                 btn.label = "📋"
+
+    @on(Button.Pressed, "#faucet-btn")
+    @on(Button.Pressed, "#settings-faucet-btn")
+    def on_faucet_pressed(self) -> None:
+        """Open the Hiro Testnet Faucet in the browser."""
+        url = "https://explorer.hiro.so/sandbox/faucet?chain=testnet"
+        webbrowser.open(url)
+        self.notify("Opening Testnet Faucet in browser...", severity="information")
 
     @on(Button.Pressed, "#copy-dashboard-address-btn")
     async def on_copy_dashboard_address_pressed(self) -> None:
