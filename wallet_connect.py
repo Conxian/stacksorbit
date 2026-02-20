@@ -11,6 +11,7 @@ import json
 import threading
 import time
 import secrets
+import urllib.parse
 from pathlib import Path
 from stacksorbit_secrets import (
     validate_stacks_address,
@@ -270,6 +271,11 @@ WALLET_CONNECT_HTML = """
         }
         
         async function fetchBalance(address) {
+            // 🛡️ Sentinel: Validate address before fetching to prevent malformed requests
+            if (!address || !/^[ST][0-9ABCDEFGHJKMNPQRSTVWXYZ]{26,45}$/i.test(address)) {
+                console.warn('Invalid address skipped for balance fetch:', address);
+                return;
+            }
             try {
                 const response = await fetch(
                     `https://api.testnet.hiro.so/extended/v1/address/${address}/balances`
@@ -312,8 +318,6 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         path_part, query_part = self.path.split("?", 1)
-        import urllib.parse
-
         query = urllib.parse.parse_qs(query_part)
         token = query.get("token", [None])[0]
 
@@ -327,8 +331,11 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/html; charset=utf-8")
             # 🛡️ Sentinel: Security Headers
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+            self.send_header("Pragma", "no-cache")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Frame-Options", "DENY")
+            self.send_header("X-XSS-Protection", "0")
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header(
                 "Content-Security-Policy",
@@ -369,10 +376,15 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
                 print(f"\n✅ Wallet connected and validated: {WalletConnectHandler.connected_address}")
 
                 self.send_response(200)
-                self.send_header('Content-type', 'application/json')
+                self.send_header("Content-type", "application/json; charset=utf-8")
+                # 🛡️ Sentinel: Security Headers
+                self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("X-XSS-Protection", "0")
                 self.end_headers()
                 self.wfile.write(json.dumps({'status': 'ok'}).encode())
-            except (json.JSONDecodeError, ValueError, KeyError) as e:
+            except (json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
                 print(f"⚠️  Error processing wallet connection: {e}")
                 self.send_error(400, "Bad Request")
         else:

@@ -31,6 +31,12 @@ SENSITIVE_SUBSTRINGS = [
     "PWD",
     "PASS",
     "AUTH",
+    "CERTIFICATE",
+    "CREDENTIAL",
+    "PKCS",
+    "SSH",
+    "PGP",
+    "GPG",
 ]
 
 # Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.

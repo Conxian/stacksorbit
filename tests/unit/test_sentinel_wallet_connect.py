@@ -31,6 +31,29 @@ def test_wallet_connect_headers():
     assert headers["Referrer-Policy"] == "no-referrer"
     assert "Content-type" in headers
     assert "charset=utf-8" in headers["Content-type"]
+    assert headers.get("Cache-Control") == "no-store, no-cache, must-revalidate"
+    assert headers.get("Pragma") == "no-cache"
+    assert headers.get("X-XSS-Protection") == "0"
+
+def test_wallet_connect_post_invalid_token_type():
+    """Test that do_POST handles non-string tokens without crashing."""
+    handler = MagicMock(spec=WalletConnectHandler)
+    handler.path = "/wallet-connected"
+    WalletConnectHandler.session_token = "test_token"
+
+    # Mock post data with a list as the token
+    invalid_data = json.dumps({"address": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM", "token": ["not", "a", "string"]})
+    handler.headers = {"Content-Length": str(len(invalid_data))}
+    handler.rfile = MagicMock()
+    handler.rfile.read.return_value = invalid_data.encode()
+
+    handler.send_error = MagicMock()
+
+    # Call do_POST
+    WalletConnectHandler.do_POST(handler)
+
+    # Verify that it sent a 400 error due to TypeError in comparison
+    handler.send_error.assert_called_once_with(400, "Bad Request")
 
 def test_save_wallet_address_filters_secrets(tmp_path):
     """Test that save_wallet_address filters out sensitive keys."""
