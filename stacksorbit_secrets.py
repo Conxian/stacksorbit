@@ -84,25 +84,33 @@ def _is_sensitive_normalized(k: str) -> bool:
     return k in SECRET_KEYS or bool(SENSITIVE_RE.search(k))
 
 
+@functools.lru_cache(maxsize=1024)
 def is_sensitive_key(key: str) -> bool:
     """
     Check if a configuration key is considered sensitive.
     A key is sensitive if it's in the known SECRET_KEYS set or
     contains any of the SENSITIVE_SUBSTRINGS.
+
+    Bolt ⚡: We cache this outer function to avoid redundant .upper() calls for
+    identical key strings (e.g. during recursive redaction of large lists).
     """
     if not key or not isinstance(key, str):
         return False
 
-    # Bolt ⚡: Normalize to upper case BEFORE the cache hit to maximize cache efficiency.
-    # This ensures "key" and "KEY" hit the same cache entry.
+    # Bolt ⚡: Normalize to upper case BEFORE hitting the secondary cache to maximize
+    # efficiency for case variations (e.g., "key" and "KEY" hit the same entry).
     return _is_sensitive_normalized(key.upper())
 
 
+@functools.lru_cache(maxsize=256)
 def validate_stacks_address(address: str, network: str = None) -> bool:
     """
     Validate Stacks address format by network and charset.
     Prefix rules: SP for mainnet, ST for testnet/devnet.
     C32 allowed charset (I, L, O, U are excluded).
+
+    Bolt ⚡: Caching this function improves UI responsiveness during real-time
+    validation by avoiding redundant string normalization and regex matching.
     """
     if not address or not isinstance(address, str):
         return False
@@ -129,13 +137,18 @@ SAFE_PLACEHOLDERS = {
 }
 
 
+@functools.lru_cache(maxsize=1024)
 def is_placeholder(value: str) -> bool:
     """
     🛡️ Sentinel: Check if a value is a known safe placeholder or empty.
     This ensures consistent, case-insensitive handling across all loaders.
+
+    Bolt ⚡: Caching this function avoids redundant .strip().lower() calls
+    for repeated configuration values and API response fields.
     """
     if value is None:
         return True
+
     return str(value).strip().lower() in SAFE_PLACEHOLDERS
 # Bolt ⚡: Pre-compile network-aware regexes for faster Stacks address validation.
 # These combine prefix, length, and charset checks into a single pass.
@@ -210,9 +223,13 @@ def save_secure_config(filepath: str, config: object, json_format: bool = False)
         raise e
 
 
+@functools.lru_cache(maxsize=128)
 def validate_private_key(privkey: str) -> bool:
     """
     Validate Stacks private key format (64 or 66 chars hex).
+
+    Bolt ⚡: Caching this function improves UI responsiveness during real-time
+    validation of private keys.
     """
     if not privkey or not isinstance(privkey, str):
         return False
