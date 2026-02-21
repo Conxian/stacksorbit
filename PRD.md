@@ -49,6 +49,7 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [x] Add direct links to blockchain explorers from the TUI.
     *   [x] Enhance contract details with source code management.
     *   [x] Add context-aware Testnet Faucet links with visual hierarchy.
+    *   [x] Implement interactive input labels and clickable metric cards.
 
 ## 4. Feature Alignment
 
@@ -299,4 +300,16 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Introduced a `.warning` button variant (orange) in `stacksorbit_gui.tcss` to provide visual hierarchy for external links.
     *   Added descriptive tooltips and notification feedback for faucet link activation.
     *   Verified the implementation with a custom TUI verification script and existing GUI test suites.
+*   **Status:** Complete.
+
+### Session 22: Interactive Labels & Dashboard Metrics (Palette)
+
+*   **Objective:** Enhance the intuitiveness and accessibility of the TUI by making labels interactive and metrics more functional.
+*   **Changes:**
+    *   Implemented click-to-focus behavior for "Private Key" and "Stacks Address" labels in the Settings tab of `stacksorbit_gui.py`.
+    *   Added IDs (`privkey-label`, `address-label`, `system-address-label`) and the `.clickable-label` class to key text labels.
+    *   Added an interactive `@on(Click, "#metric-network")` handler to allow triggering a data refresh by clicking the Network Status card.
+    *   Implemented visual hover feedback (color change and underline) for all interactive labels in `stacksorbit_gui.tcss`.
+    *   Added descriptive tooltips to the "System Address" and Settings labels to improve discoverability of the new interactions.
+    *   Verified the implementation with a new test suite (`tests/test_palette_clickable_labels.py`) and existing GUI tests.
 *   **Status:** Complete.

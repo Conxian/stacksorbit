@@ -148,7 +148,7 @@ class StacksOrbitGUI(App):
             with TabPane("📊 Dashboard", id="overview"):
                 yield LoadingIndicator()
                 with Horizontal(id="address-bar"):
-                    yield Label("System Address:")
+                    yield Label("System Address:", id="system-address-label")
                     yield Static(self.address, id="display-address")
                     yield Button("📋", id="copy-dashboard-address-btn")
                     yield Button("🚰 Faucet", id="faucet-btn", variant="warning")
@@ -240,7 +240,12 @@ class StacksOrbitGUI(App):
 
             with TabPane("⚙️ Settings", id="settings"):
                 with VerticalScroll():
-                    yield Label("Private Key: [red]*[/red]", markup=True)
+                    yield Label(
+                        "Private Key: [red]*[/red]",
+                        markup=True,
+                        id="privkey-label",
+                        classes="clickable-label",
+                    )
                     with Horizontal(classes="input-group"):
                         yield Input(
                             placeholder="Your private key",
@@ -248,10 +253,19 @@ class StacksOrbitGUI(App):
                             id="privkey-input",
                             password=True,
                         )
-                        yield Label("Show", classes="switch-label", id="show-privkey-label")
+                        yield Label(
+                            "Show",
+                            classes="switch-label clickable-label",
+                            id="show-privkey-label",
+                        )
                         yield Switch(id="show-privkey")
                     yield Label("", id="privkey-error", markup=True)
-                    yield Label("Stacks Address: [red]*[/red]", markup=True)
+                    yield Label(
+                        "Stacks Address: [red]*[/red]",
+                        markup=True,
+                        id="address-label",
+                        classes="clickable-label",
+                    )
                     with Horizontal(classes="input-group"):
                         yield Input(
                             placeholder="Your STX address",
@@ -323,6 +337,9 @@ class StacksOrbitGUI(App):
         self.query_one("#connect-wallet-btn", Button).tooltip = (
             "Connect your wallet via browser"
         )
+        self.query_one("#system-address-label", Label).tooltip = (
+            "Your active Stacks address for deployments"
+        )
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
             "Copy your Stacks address to clipboard"
         )
@@ -385,6 +402,8 @@ class StacksOrbitGUI(App):
         self.query_one("#metric-balance").tooltip = "Click to view transaction history [F3]"
         self.query_one("#metric-nonce").tooltip = "Click to view transaction history [F3]"
         self.query_one("#metric-height").tooltip = "Click to view transaction history [F3]"
+        self.query_one("#privkey-label", Label).tooltip = "Click to focus private key input"
+        self.query_one("#address-label", Label).tooltip = "Click to focus address input"
         self.query_one("#show-privkey-label").tooltip = "Toggle private key visibility"
 
         # PALETTE: Initialize Faucet button visibility
@@ -614,6 +633,11 @@ class StacksOrbitGUI(App):
                 f"Transaction ID copied: {tx_id}", severity="information"
             )
 
+    @on(Click, "#metric-network")
+    def on_network_metric_click(self) -> None:
+        """Refresh data when network metric is clicked."""
+        self.action_refresh()
+
     @on(Click, "#metric-contracts")
     def on_contracts_metric_click(self) -> None:
         """Navigate to contracts tab when contract metric is clicked."""
@@ -625,6 +649,16 @@ class StacksOrbitGUI(App):
     def on_transactions_metric_click(self) -> None:
         """Navigate to transactions tab when account metrics are clicked."""
         self.query_one(TabbedContent).active = "transactions"
+
+    @on(Click, "#privkey-label")
+    def on_privkey_label_click(self) -> None:
+        """Focus the private key input when its label is clicked."""
+        self.query_one("#privkey-input", Input).focus()
+
+    @on(Click, "#address-label")
+    def on_address_label_click(self) -> None:
+        """Focus the address input when its label is clicked."""
+        self.query_one("#address-input", Input).focus()
 
     @on(Click, "#show-privkey-label")
     def on_show_privkey_label_click(self) -> None:

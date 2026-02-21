@@ -189,6 +189,11 @@ Input.error {
     color: #a0a0a0;
 }
 
+.clickable-label:hover {
+    color: #007acc;
+    text-style: underline;
+}
+
 LoadingIndicator {
     height: 3;
     content-align: center middle;

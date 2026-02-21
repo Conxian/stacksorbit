@@ -35,3 +35,7 @@
 ## 2025-05-22 - Context-Aware Utility Buttons
 **Learning:** Adding context-aware utility buttons (like a "Faucet" link that only appears on Testnet) provides immediate value to specific user segments (developers) without cluttering the interface for others. Using specialized visual variants (like orange `.warning` for external links) creates a clear visual hierarchy and helps users distinguish between internal app actions and external transitions.
 **Action:** Identify network-specific or state-specific utilities and implement them as dynamic UI elements. Use distinct visual styles for external links to manage user expectations about navigation.
+
+## 2025-05-23 - Interactive Input Labels and Metric Cards
+**Learning:** In a TUI, making text labels interactive by associating them with their respective inputs (e.g., clicking a "Private Key" label focuses the input field) significantly improves usability and accessibility. Similarly, making informational metric cards clickable to trigger common actions (like refreshing data) makes the dashboard feel more responsive and intuitive.
+**Action:** Always assign IDs and 'clickable-label' classes to form labels, implementing focus handlers and hover styles to indicate interactivity. Consider if summary metrics can serve as shorthand triggers for related application actions.
