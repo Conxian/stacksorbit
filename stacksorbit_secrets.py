@@ -37,6 +37,14 @@ SENSITIVE_SUBSTRINGS = [
     "SSH",
     "PGP",
     "GPG",
+    "SALT",
+    "PASSPHRASE",
+    "SIGNATURE",
+    "JWT",
+    "SESSION",
+    "ACCESS_TOKEN",
+    "API_KEY",
+    "CREDENTIALS",
 ]
 
 # Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.
@@ -198,7 +206,9 @@ def save_secure_config(filepath: str, config: object, json_format: bool = False)
                         # 🛡️ Sentinel: Security Enforcer.
                         # Explicitly skip any known secrets or potential sensitive keys.
                         if not is_sensitive_key(str(key)):
-                            f.write(f"{key}={value}\n")
+                            # 🛡️ Sentinel: Sanitize value to prevent injection and format breakage.
+                            safe_val = str(value).replace("\n", "\\n").replace("\r", "\\r")
+                            f.write(f"{key}={safe_val}\n")
                 else:
                     # If it's a string (pre-formatted), we just write it.
                     # Caller is responsible for filtering secrets if passing a string.
