@@ -39,3 +39,7 @@
 ## 2025-05-23 - Interactive Input Labels and Metric Cards
 **Learning:** In a TUI, making text labels interactive by associating them with their respective inputs (e.g., clicking a "Private Key" label focuses the input field) significantly improves usability and accessibility. Similarly, making informational metric cards clickable to trigger common actions (like refreshing data) makes the dashboard feel more responsive and intuitive.
 **Action:** Always assign IDs and 'clickable-label' classes to form labels, implementing focus handlers and hover styles to indicate interactivity. Consider if summary metrics can serve as shorthand triggers for related application actions.
+
+## 2025-05-24 - Relative Time and Visual Scannability in TUI Tables
+**Learning:** Adding relative time columns (e.g., '5m ago') to transaction tables significantly improves the usability of real-time monitoring by providing immediate temporal context without requiring mental calculation from block heights or absolute timestamps. Prepending high-fidelity emojis to type labels (e.g., 📄 for contracts) drastically improves visual scannability, allowing users to differentiate between event types at a glance.
+**Action:** Always provide relative time formatting for time-sensitive data. Use descriptive emojis and colorized statuses in DataTables to enhance scannability and provide immediate visual hierarchy.

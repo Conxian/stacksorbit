@@ -313,3 +313,14 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Added descriptive tooltips to the "System Address" and Settings labels to improve discoverability of the new interactions.
     *   Verified the implementation with a new test suite (`tests/test_palette_clickable_labels.py`) and existing GUI tests.
 *   **Status:** Complete.
+
+### Session 23: Enhanced Transaction Visibility and Address Interactivity (Palette)
+
+*   **Objective:** Improve the scannability of transaction history and the interactivity of the primary user identity on the dashboard.
+*   **Changes:**
+    *   Enhanced the Transactions table in `stacksorbit_gui.py` with a new "Time" column providing relative timestamps (e.g., "5m ago") via a robust `_format_relative_time` utility.
+    *   Improved transaction type scannability by prepending high-fidelity emojis (📄, 📞, 💸, ⛏️) to labels (contract, call, transfer, coinbase).
+    *   Implemented click-to-copy functionality for the Dashboard System Address by adding the `.clickable-label` class, a descriptive tooltip, and an asynchronous `Click` event handler.
+    *   Added a permanent test suite `tests/test_palette_new_features.py` to verify relative time formatting, clickable address interactivity, and table column integrity.
+    *   Verified system integrity via full pytest and vitest suites.
+*   **Status:** Complete.

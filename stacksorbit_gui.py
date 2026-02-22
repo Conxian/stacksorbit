@@ -149,7 +149,9 @@ class StacksOrbitGUI(App):
                 yield LoadingIndicator()
                 with Horizontal(id="address-bar"):
                     yield Label("System Address:", id="system-address-label")
-                    yield Static(self.address, id="display-address")
+                    yield Static(
+                        self.address, id="display-address", classes="clickable-label"
+                    )
                     yield Button("📋", id="copy-dashboard-address-btn")
                     yield Button("🚰 Faucet", id="faucet-btn", variant="warning")
                 with Grid(id="metrics-grid"):
@@ -340,6 +342,9 @@ class StacksOrbitGUI(App):
         self.query_one("#system-address-label", Label).tooltip = (
             "Your active Stacks address for deployments"
         )
+        self.query_one("#display-address", Static).tooltip = (
+            "Click to copy your Stacks address"
+        )
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
             "Copy your Stacks address to clipboard"
         )
@@ -424,7 +429,30 @@ class StacksOrbitGUI(App):
         contracts_table.add_columns("Status", "Name", "Address")
 
         transactions_table = self.query_one("#transactions-table", DataTable)
-        transactions_table.add_columns("TX ID", "Type", "Status", "Block")
+        transactions_table.add_columns("TX ID", "Type", "Status", "Time", "Block")
+
+    def _format_relative_time(self, iso_time: str) -> str:
+        """Format an ISO timestamp as a relative time string (e.g., '5m ago')."""
+        if not iso_time:
+            return "[yellow]Pending[/]"
+        try:
+            # Handle 'Z' for older Python versions and parse ISO string
+            ts = iso_time.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(ts)
+            now = datetime.now(dt.tzinfo)
+            diff = now - dt
+
+            if diff.total_seconds() < 0:  # Future (can happen in dev/test)
+                return "Just now"
+            if diff.days > 0:
+                return f"{diff.days}d ago"
+            if diff.seconds >= 3600:
+                return f"{diff.seconds // 3600}h ago"
+            if diff.seconds >= 60:
+                return f"{diff.seconds // 60}m ago"
+            return "Just now"
+        except Exception:
+            return "N/A"
 
     async def update_data(self, bypass_cache: bool = False) -> None:
         """Update all data in the GUI concurrently."""
@@ -570,18 +598,19 @@ class StacksOrbitGUI(App):
                         tx_type = tx.get("tx_type", "")
                         display_type = tx_type
                         if tx_type == "smart_contract":
-                            display_type = "[cyan]contract[/]"
+                            display_type = "📄 [cyan]contract[/]"
                         elif tx_type == "contract_call":
-                            display_type = "[magenta]call[/]"
+                            display_type = "📞 [magenta]call[/]"
                         elif tx_type == "token_transfer":
-                            display_type = "[yellow]transfer[/]"
+                            display_type = "💸 [yellow]transfer[/]"
                         elif tx_type == "coinbase":
-                            display_type = "[green]coinbase[/]"
+                            display_type = "⛏️ [green]coinbase[/]"
 
                         transactions_table.add_row(
                             tx.get("tx_id", "")[:10] + "...",
                             display_type,
                             display_status,
+                            self._format_relative_time(tx.get("burn_block_time_iso")),
                             str(tx.get("block_height", "")),
                             key=tx.get("tx_id"),
                         )
@@ -632,6 +661,13 @@ class StacksOrbitGUI(App):
             self.notify(
                 f"Transaction ID copied: {tx_id}", severity="information"
             )
+
+    @on(Click, "#display-address")
+    async def on_display_address_click(self) -> None:
+        """Copy address to clipboard when the display address is clicked."""
+        if self.address and self.address != "Not configured":
+            self.copy_to_clipboard(self.address)
+            self.notify("Address copied to clipboard", severity="information")
 
     @on(Click, "#metric-network")
     def on_network_metric_click(self) -> None:
