@@ -196,6 +196,18 @@ class GenericStacksAutoDetector:
             "**/mainnet-manifest.json",
         ])
 
+        # Bolt ⚡: Pre-compile prioritization regex and map for O(N) lookup.
+        # This replaces iterative linear substring searches in sorting loops.
+        self._priority_map = {p: i for i, p in enumerate(self.PRIORITY_ORDER)}
+        # Use a non-capturing group for efficient findall results.
+        self._priority_re = re.compile(
+            "|".join(re.escape(p) for p in self.PRIORITY_ORDER), re.IGNORECASE
+        )
+
+        # Bolt ⚡: Initialize instance-level caches to avoid lru_cache memory leak trap.
+        self._priority_cache = {}
+        self._category_cache = {}
+
     def _compile_glob_regex(self, patterns: List[str]) -> re.Pattern:
         """Bolt ⚡: Compile a list of glob patterns into a single optimized regex."""
         # Bolt ⚡: Use re.IGNORECASE to match fnmatch behavior on non-Linux systems.
@@ -457,7 +469,8 @@ class GenericStacksAutoDetector:
         latency by approximately 75-90% and significantly reduces I/O operations.
         """
         cache_key = str(directory)
-        self.project_files_cache[cache_key] = []
+        # Bolt ⚡: Use a dict keyed by rel_path for O(1) metadata lookup.
+        self.project_files_cache[cache_key] = {}
 
         # Bolt ⚡: Use a highly optimized iterative scanner with os.scandir and stack.
         # This replaces recursive calls, avoiding recursion depth limits and overhead.
@@ -490,13 +503,11 @@ class GenericStacksAutoDetector:
                                 # Since we use f"{rel_prefix}/{entry.name}", it is already normalized.
                                 normalized_path = rel_path
 
-                                self.project_files_cache[cache_key].append(
-                                    {
-                                        "rel_path": normalized_path,
-                                        "mtime": st.st_mtime,
-                                        "size": st.st_size,
-                                    }
-                                )
+                                self.project_files_cache[cache_key][normalized_path] = {
+                                    "rel_path": normalized_path,
+                                    "mtime": st.st_mtime,
+                                    "size": st.st_size,
+                                }
                             except (OSError, IOError):
                                 continue
             except (OSError, IOError):
@@ -739,9 +750,17 @@ class GenericStacksAutoDetector:
                         full_path = directory / contract_path
 
                         if full_path.exists():
-                            # Bolt ⚡: Try to get metadata from cache to avoid redundant stat()
-                            stat = full_path.stat()
-                            size, mtime = stat.st_size, stat.st_mtime
+                            # Bolt ⚡: Retrieve metadata from O(1) cache to avoid redundant stat() system calls.
+                            cache_key = str(directory)
+                            cached_files = self.project_files_cache.get(cache_key, {})
+                            file_info = cached_files.get(contract_path)
+
+                            if file_info:
+                                size, mtime = file_info["size"], file_info["mtime"]
+                            else:
+                                # Fallback to stat() if not in cache
+                                stat = full_path.stat()
+                                size, mtime = stat.st_size, stat.st_mtime
 
                             contracts.append(
                                 {
@@ -802,17 +821,28 @@ class GenericStacksAutoDetector:
 
                             full_path = clarinet_path.parent / contract_path
                             if full_path.exists():
-                                stat = full_path.stat()
+                                # Bolt ⚡: Retrieve metadata from O(1) cache to avoid redundant stat() system calls.
+                                cache_key = str(clarinet_path.parent)
+                                cached_files = self.project_files_cache.get(cache_key, {})
+                                file_info = cached_files.get(contract_path)
+
+                                if file_info:
+                                    size, mtime = file_info["size"], file_info["mtime"]
+                                else:
+                                    # Fallback to stat() if not in cache
+                                    stat = full_path.stat()
+                                    size, mtime = stat.st_size, stat.st_mtime
+
                                 contracts.append(
                                     {
                                         "name": contract_name,
                                         "path": contract_path,
                                         "full_path": str(full_path),
                                         "source": "clarinet_toml",
-                                        "size": stat.st_size,
-                                        "modified": stat.st_mtime,
+                                        "size": size,
+                                        "modified": mtime,
                                         "hash": self._calculate_file_hash(
-                                            full_path, mtime=stat.st_mtime, size=stat.st_size
+                                            full_path, mtime=mtime, size=size
                                         ),
                                         "category": self._determine_contract_category(
                                             contract_name
@@ -836,12 +866,13 @@ class GenericStacksAutoDetector:
         cache_key = str(directory)
 
         # Get files from cache, or scan if not available
-        all_files = self.project_files_cache.get(cache_key)
-        if all_files is None:
+        all_files_dict = self.project_files_cache.get(cache_key)
+        if all_files_dict is None:
             self._scan_project_files(directory)
-            all_files = self.project_files_cache.get(cache_key, [])
+            all_files_dict = self.project_files_cache.get(cache_key, {})
 
-        for file_info in all_files:
+        # Bolt ⚡: Iterate over dict values for efficiency.
+        for file_info in all_files_dict.values():
             rel_path = file_info["rel_path"]
             if rel_path.endswith(".clar"):
                 full_path = directory / rel_path
@@ -872,14 +903,21 @@ class GenericStacksAutoDetector:
         """
         Bolt ⚡: Determine contract category generically using pre-compiled regexes.
         Replacing an O(C*P) search with O(C) regex matches.
+
+        Impact: Caching reduces CPU overhead during re-scans of identical contract sets.
         """
+        if contract_name in self._category_cache:
+            return self._category_cache[contract_name]
+
         # Bolt ⚡: Check against generic categories using pre-compiled regexes
+        result = "general"
         for category, regex in self._category_res.items():
             if regex.search(contract_name):
-                return category
+                result = category
+                break
 
-        # Default category
-        return "general"
+        self._category_cache[contract_name] = result
+        return result
 
     def _categorize_contracts(self, contracts: List[Dict]) -> List[Dict]:
         """Add category information to contracts"""
@@ -902,15 +940,15 @@ class GenericStacksAutoDetector:
         cache_key = str(directory)
 
         # Get all files from cache, or perform a scan if not available
-        all_files = self.project_files_cache.get(cache_key)
-        if all_files is None:
+        all_files_dict = self.project_files_cache.get(cache_key)
+        if all_files_dict is None:
             self._efficient_directory_scan(directory)
-            all_files = self.project_files_cache.get(cache_key, [])
+            all_files_dict = self.project_files_cache.get(cache_key, {})
 
         # Bolt ⚡: Check for deployment manifest files using optimized pre-compiled regex.
         # This replaces an O(N*M) loop with a single O(N) regex pass.
         matched_files = []
-        for file_info in all_files:
+        for file_info in all_files_dict.values():
             rel_path = file_info["rel_path"]
             if self._manifest_re.match(rel_path):
                 matched_files.append((directory / rel_path, file_info["mtime"]))
@@ -961,26 +999,31 @@ class GenericStacksAutoDetector:
         if not valid_contracts:
             return []
 
-        # Bolt ⚡: Optimization - Cache priorities to avoid redundant regex matching.
-        memo = {}
-
+        # Bolt ⚡: Use instance-level priority cache initialized in __init__.
         def get_priority(contract):
             name = contract.get("name", "")
             if not name:
                 return len(self.PRIORITY_ORDER)
 
-            if name in memo:
-                return memo[name]
+            if name in self._priority_cache:
+                return self._priority_cache[name]
 
             # Bolt ⚡: Maintain backward compatibility by prioritizing keywords based on
-            # their order in PRIORITY_ORDER, not their position in the string.
-            name_lower = name.lower()
-            for i, priority in enumerate(self.PRIORITY_ORDER):
-                if priority in name_lower:
-                    memo[name] = i
-                    return i
+            # their order in PRIORITY_ORDER. Using regex findall + map lookup is O(N)
+            # compared to O(P) linear searches.
+            matches = self._priority_re.findall(name)
+            if matches:
+                # Find the minimum index (highest priority) among all matching keywords.
+                # Since we use non-capturing groups, findall returns a list of matched strings.
+                priority_idx = min(
+                    self._priority_map.get(m.lower(), len(self.PRIORITY_ORDER))
+                    for m in matches
+                )
 
-            memo[name] = len(self.PRIORITY_ORDER)
+                self._priority_cache[name] = priority_idx
+                return priority_idx
+
+            self._priority_cache[name] = len(self.PRIORITY_ORDER)
             return len(self.PRIORITY_ORDER)
 
         return sorted(valid_contracts, key=get_priority)
@@ -1160,14 +1203,14 @@ class GenericStacksAutoDetector:
         cache_key = str(directory)
 
         # Get all files from cache, or perform a scan if not available
-        all_files = self.project_files_cache.get(cache_key)
-        if all_files is None:
+        all_files_dict = self.project_files_cache.get(cache_key)
+        if all_files_dict is None:
             self._efficient_directory_scan(directory)
-            all_files = self.project_files_cache.get(cache_key, [])
+            all_files_dict = self.project_files_cache.get(cache_key, {})
 
         # Bolt ⚡: Check for artifact files using optimized pre-compiled regex.
         matched_files = []
-        for file_info in all_files:
+        for file_info in all_files_dict.values():
             rel_path = file_info["rel_path"]
             if self._artifact_re.match(rel_path):
                 matched_files.append((directory / rel_path, file_info["mtime"]))
@@ -1189,7 +1232,7 @@ class GenericStacksAutoDetector:
                             "type": "deployment_artifact",
                             "path": str(artifact_file),
                             "data": data,
-                            "modified": artifact_file.stat().st_mtime,
+                            "modified": mtime,  # Bolt ⚡: Use already retrieved mtime from cache
                         }
                     )
                 except Exception as e:
@@ -1310,14 +1353,14 @@ class GenericStacksAutoDetector:
         cache_key = str(self.project_root)
 
         # Get all files from cache, or perform a scan if not available
-        all_files = self.project_files_cache.get(cache_key)
-        if all_files is None:
+        all_files_dict = self.project_files_cache.get(cache_key)
+        if all_files_dict is None:
             self._efficient_directory_scan(self.project_root)
-            all_files = self.project_files_cache.get(cache_key, [])
+            all_files_dict = self.project_files_cache.get(cache_key, {})
 
         # Bolt ⚡: Check for history files using optimized pre-compiled regex.
         matched_history = []
-        for file_info in all_files:
+        for file_info in all_files_dict.values():
             rel_path = file_info["rel_path"]
             if self._history_re.match(rel_path):
                 matched_history.append((self.project_root / rel_path, file_info["mtime"]))
@@ -1340,7 +1383,7 @@ class GenericStacksAutoDetector:
         # Bolt ⚡: Check manifest files using optimized pre-compiled regex.
         manifests = []
         matched_manifests = []
-        for file_info in all_files:
+        for file_info in all_files_dict.values():
             rel_path = file_info["rel_path"]
             if self._manifest_legacy_re.match(rel_path):
                 matched_manifests.append((self.project_root / rel_path, file_info["mtime"]))
