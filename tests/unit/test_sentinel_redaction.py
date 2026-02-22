@@ -61,5 +61,18 @@ class TestSentinelRedaction(unittest.TestCase):
         self.assertEqual(redacted["nested"]["PRIVATE_VAL"], 0)
         self.assertEqual(redacted["nested"]["USER_PWD"], "<redacted>")
 
+    def test_nested_sensitive_parent(self):
+        # 🛡️ Sentinel: Regression test for nested secret exposure.
+        # Even if inner keys are generic, they should be redacted if the parent is sensitive.
+        data = {
+            "DEPLOYER_PRIVKEY": {
+                "a": "actual_secret",
+                "b": "some_info"
+            }
+        }
+        redacted = redact_recursive(data)
+        self.assertEqual(redacted["DEPLOYER_PRIVKEY"]["a"], "<redacted>")
+        self.assertEqual(redacted["DEPLOYER_PRIVKEY"]["b"], "<redacted>")
+
 if __name__ == "__main__":
     unittest.main()

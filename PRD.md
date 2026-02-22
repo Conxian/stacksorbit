@@ -50,6 +50,7 @@ The primary goal is to refactor the project to use a modern, streamlined toolcha
     *   [x] Enhance contract details with source code management.
     *   [x] Add context-aware Testnet Faucet links with visual hierarchy.
     *   [x] Implement interactive input labels and clickable metric cards.
+    *   Harden path validation and nested secret redaction.
 
 ## 4. Feature Alignment
 
@@ -323,4 +324,13 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Implemented click-to-copy functionality for the Dashboard System Address by adding the `.clickable-label` class, a descriptive tooltip, and an asynchronous `Click` event handler.
     *   Added a permanent test suite `tests/test_palette_new_features.py` to verify relative time formatting, clickable address interactivity, and table column integrity.
     *   Verified system integrity via full pytest and vitest suites.
+
+### Session 24: Path Traversal Mitigation & Robust Redaction (Sentinel)
+
+*   **Objective:** Fix a Path Traversal vulnerability in path validation and ensure robust redaction of nested secrets.
+*   **Changes:**
+    *   Mitigated Path Traversal vulnerability in `is_safe_path` by using `os.path.realpath` to resolve symlinks before validating that a path is within the base directory.
+    *   Hardened `redact_recursive` to ensure that dictionary children inherit the sensitivity state of their parent, preventing nested secret exposure when using generic inner keys.
+    *   Optimized `redact_recursive` performance by utilizing short-circuit logic to avoid redundant sensitivity checks for already-identified sensitive parents.
+    *   Verified fixes with targeted security regression scripts and confirmed system integrity via existing test suites.
 *   **Status:** Complete.

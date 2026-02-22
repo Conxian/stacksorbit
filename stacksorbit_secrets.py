@@ -62,8 +62,13 @@ def redact_recursive(item, parent_key="", is_sensitive=None):
         is_sensitive = is_sensitive_key(parent_key)
 
     if isinstance(item, dict):
-        # Reset sensitivity for dict children as they have their own keys
-        return {key: redact_recursive(value, key) for key, value in item.items()}
+        # 🛡️ Sentinel: Dict children inherit parent sensitivity (Defense-in-Depth).
+        # We combine the parent's sensitivity state with the child's key check.
+        # Bolt ⚡: The short-circuit 'or' avoids redundant is_sensitive_key calls for sensitive parents.
+        return {
+            key: redact_recursive(value, key, is_sensitive or is_sensitive_key(key))
+            for key, value in item.items()
+        }
     elif isinstance(item, list):
         # Pass current sensitivity to list items as they inherit the parent key's sensitivity
         return [redact_recursive(sub_item, parent_key, is_sensitive) for sub_item in item]
@@ -277,8 +282,10 @@ def is_safe_path(base_dir: str, target_path: str) -> bool:
         if os.path.isabs(target_path):
             return False
 
-        base = os.path.abspath(base_dir)
-        target = os.path.abspath(os.path.join(base, target_path))
+        # 🛡️ Sentinel: Use realpath to resolve all symlinks before path validation.
+        # This prevents Path Traversal via symlinks to outside files.
+        base = os.path.realpath(base_dir)
+        target = os.path.realpath(os.path.join(base, target_path))
 
         # os.path.commonpath returns the longest common sub-path of each passed pathname.
         # If it matches the base, then target is within base.
