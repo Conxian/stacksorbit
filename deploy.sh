@@ -15,36 +15,36 @@ echo "✅ Prerequisites check passed"
 # Install dependencies
 echo "📦 Installing dependencies..."
 pip install -r requirements.txt
-npm install
+pnpm install
 
 echo "✅ Dependencies installed"
 
 # Setup configuration
 echo "⚙️  Running setup wizard..."
-python setup_wizard.py
+python stacksorbit_cli.py setup
 
 # Run diagnostics
 echo "🔍 Running comprehensive diagnostics..."
-python ultimate_stacksorbit.py diagnose
+python stacksorbit_cli.py diagnose
 
 # Deploy to testnet
 echo "🚀 Deploying to testnet..."
-python ultimate_stacksorbit.py deploy --dry-run
+python stacksorbit_cli.py deploy --dry-run
 
 echo "🔍 Dry run complete. Ready for actual deployment?"
 read -p "Deploy to testnet? (y/n): " confirm
 
 if [ "$confirm" = "y" ]; then
-    python ultimate_stacksorbit.py deploy --batch-size 5
+    python stacksorbit_cli.py deploy --batch-size 5
 
     # Start monitoring
     echo "📊 Starting monitoring dashboard..."
-    python enhanced_dashboard.py &
+    python stacksorbit_cli.py dashboard &
     DASHBOARD_PID=$!
 
     # Verify deployment
     echo "🔍 Verifying deployment..."
-    python ultimate_stacksorbit.py verify --comprehensive
+    python stacksorbit_cli.py verify --comprehensive
 
     echo "✅ Deployment complete!"
     echo "📊 Dashboard running in background (PID: $DASHBOARD_PID)"

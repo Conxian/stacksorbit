@@ -17,17 +17,17 @@
     "detect": "python stacksorbit_auto_detect.py",
     "check": "python conxian_testnet_deploy.py check",
     "gui": "python stacksorbit_cli.py dashboard",
-    "test": "npm run test:vitest",
+    "test": "pnpm run test:vitest",
     "test:unit": "python -m pytest tests/ -q",
     "test:integration": "python -m pytest tests/integration/ -q",
     "test:gui": "pytest tests/test_gui.py",
-    "test:enhanced": "npm run test:vitest",
+    "test:enhanced": "pnpm run test:vitest",
     "test:vitest": "vitest run",
     "lint": "eslint bin/*.js && pylint *.py --exit-zero",
     "format": "prettier --write bin/*.js && black *.py",
-    "ci": "npm install && python -m pip install --upgrade pip && python -m pip install -e .[dev,test] && npm run lint && npm test",
+    "ci": "pnpm install && python -m pip install --upgrade pip && python -m pip install -e .[dev,test] && pnpm run lint && pnpm test",
     "prepare": "python setup.py build",
-    "prepublishOnly": "npm run lint && npm test",
+    "prepublishOnly": "pnpm run lint && pnpm test",
     "install-deps": "python -m pip install -r requirements.txt"
   },
   "keywords": [
@@ -76,11 +76,11 @@
   },
   "devDependencies": {
     "@stacks/clarinet-sdk": "^3.14.0",
-    "vitest": "^4.0.18",
-    "vitest-environment-clarinet": "^3.0.2",
-    "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^8.52.0",
-    "prettier": "^3.0.3"
+    "vitest": "^4.1.0",
+    "vitest-environment-clarinet": "^3.1.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0"
   },
   "python": {
     "version": ">=3.8",

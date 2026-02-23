@@ -22,14 +22,14 @@ For a complete guide to developing and using StacksOrbit, please see our new **[
 To get started with local development, first install the dependencies:
 
 ```bash
-npm install
+pnpm install
 pip install -r requirements.txt
 ```
 
 Then, run the tests:
 
 ```bash
-npm run test:vitest
+pnpm run test:vitest
 ```
 
 This will run the test suite and ensure that everything is set up correctly.
