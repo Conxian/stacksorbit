@@ -45,6 +45,15 @@ SENSITIVE_SUBSTRINGS = [
     "ACCESS_TOKEN",
     "API_KEY",
     "CREDENTIALS",
+    "BEARER",
+    "PHRASE",
+    "RECOVERY",
+    "PEM",
+    "XPRV",
+    "ENCRYPTED",
+    "VAULT",
+    "COOKIE",
+    "SESSID",
 ]
 
 # Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.
@@ -147,6 +156,9 @@ SAFE_PLACEHOLDERS = {
     "your_private_key_here",
     "your_hiro_api_key",
     "your_stacks_address_here",
+    "your_mnemonic_here",
+    "your_seed_phrase_here",
+    "your_recovery_phrase_here",
 }
 
 

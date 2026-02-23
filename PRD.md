@@ -345,3 +345,13 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Hardened the `action_refresh` logic to be more defensive against unmounted widgets during tab transitions, preventing potential UI crashes.
     *   Added comprehensive unit tests in `tests/test_palette_new_features.py` to verify colorization logic and navigation-triggered focus.
 *   **Status:** Complete.
+
+### Session 26: Expanded Secret Detection & Standardized Placeholders (Sentinel)
+
+*   **Objective:** Broaden the centralized secret detection logic and standardize safe placeholders to improve defense-in-depth across the application.
+*   **Changes:**
+    *   Expanded `SENSITIVE_SUBSTRINGS` in `stacksorbit_secrets.py` with additional keywords: `BEARER`, `PHRASE`, `RECOVERY`, `PEM`, `XPRV`, `ENCRYPTED`, `VAULT`, `COOKIE`, and `SESSID`.
+    *   Standardized additional safe placeholders in `SAFE_PLACEHOLDERS`: `your_mnemonic_here`, `your_seed_phrase_here`, and `your_recovery_phrase_here`.
+    *   Added regression tests in `tests/unit/test_sentinel_redaction.py` to verify the redaction of keys containing new keywords and the preservation of new placeholders.
+    *   Verified system integrity via a full unit test suite (44 tests passed).
+*   **Status:** Complete.
