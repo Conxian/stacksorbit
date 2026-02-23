@@ -74,5 +74,32 @@ class TestSentinelRedaction(unittest.TestCase):
         self.assertEqual(redacted["DEPLOYER_PRIVKEY"]["a"], "<redacted>")
         self.assertEqual(redacted["DEPLOYER_PRIVKEY"]["b"], "<redacted>")
 
+    def test_new_sensitive_keywords(self):
+        # 🛡️ Sentinel: Test new sensitive keywords added in this session.
+        data = {
+            "AUTH_BEARER_TOKEN": "secret123",
+            "RECOVERY_PHRASE": "word1 word2...",
+            "SSL_PEM_KEY": "-----BEGIN...",
+            "MASTER_XPRV": "xprv...",
+            "ENCRYPTED_DATA": "data...",
+            "VAULT_SECRET": "vault123",
+            "SESSION_COOKIE": "cookie123",
+            "APP_SESSID": "sess123"
+        }
+        redacted = redact_recursive(data)
+        for key in data:
+            self.assertEqual(redacted[key], "<redacted>", f"Key {key} should be redacted")
+
+    def test_new_placeholders(self):
+        # 🛡️ Sentinel: Test new placeholders added in this session.
+        data = {
+            "SYSTEM_MNEMONIC": "your_mnemonic_here",
+            "SEED_PHRASE": "your_seed_phrase_here",
+            "RECOVERY": "your_recovery_phrase_here"
+        }
+        redacted = redact_recursive(data)
+        for key, val in data.items():
+            self.assertEqual(redacted[key], val, f"Placeholder {val} for key {key} should be preserved")
+
 if __name__ == "__main__":
     unittest.main()
