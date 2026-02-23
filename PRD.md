@@ -334,3 +334,14 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Optimized `redact_recursive` performance by utilizing short-circuit logic to avoid redundant sensitivity checks for already-identified sensitive parents.
     *   Verified fixes with targeted security regression scripts and confirmed system integrity via existing test suites.
 *   **Status:** Complete.
+
+### Session 25: Dashboard Visual Polish & Interactive Focus (Palette)
+
+*   **Objective:** Enhance dashboard layout scannability and interaction efficiency through CSS modernization and context-aware focus management.
+*   **Changes:**
+    *   Implemented `#metrics-grid` in `stacksorbit_gui.tcss` using a multi-column grid layout, fixing a single-column display regression and improving visual hierarchy.
+    *   Enabled Rich markup support for dashboard `Static` widgets and implemented semantic balance colorization (Green/Yellow/Red) based on fund availability.
+    *   Added an asynchronous focus handler for the Settings tab to automatically highlight the primary input field upon navigation.
+    *   Hardened the `action_refresh` logic to be more defensive against unmounted widgets during tab transitions, preventing potential UI crashes.
+    *   Added comprehensive unit tests in `tests/test_palette_new_features.py` to verify colorization logic and navigation-triggered focus.
+*   **Status:** Complete.
