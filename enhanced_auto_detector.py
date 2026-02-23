@@ -144,6 +144,13 @@ class GenericStacksAutoDetector:
         self.contract_cache = {}
         self.deployment_cache = {}
         self.project_files_cache = {}  # Bolt ⚡: Cache for project files (indexed by directory)
+        # Bolt ⚡: Categorized file buckets to avoid redundant O(N) traversals.
+        self._clar_files = {}
+        self._manifest_files = {}
+        self._artifact_files = {}
+        self._history_files = {}
+        self._manifest_legacy_files = {}
+
         self.json_cache = {}  # Bolt ⚡: Cache for parsed JSON files
         self.state_file = (
             self.project_root / ".stacksorbit" / "auto_detection_state.json"
@@ -471,6 +478,12 @@ class GenericStacksAutoDetector:
         cache_key = str(directory)
         # Bolt ⚡: Use a dict keyed by rel_path for O(1) metadata lookup.
         self.project_files_cache[cache_key] = {}
+        # Bolt ⚡: Reset buckets for the target directory.
+        self._clar_files[cache_key] = []
+        self._manifest_files[cache_key] = []
+        self._artifact_files[cache_key] = []
+        self._history_files[cache_key] = []
+        self._manifest_legacy_files[cache_key] = []
 
         # Bolt ⚡: Use a highly optimized iterative scanner with os.scandir and stack.
         # This replaces recursive calls, avoiding recursion depth limits and overhead.
@@ -499,15 +512,29 @@ class GenericStacksAutoDetector:
                                 st = entry.stat()
 
                                 # Bolt ⚡: Normalized path is already using / from f-string above.
-                                # Only handle Windows-specific normalization if rel_path was generated otherwise.
-                                # Since we use f"{rel_prefix}/{entry.name}", it is already normalized.
                                 normalized_path = rel_path
 
+                                # Bolt ⚡: Retrieve metadata from DirEntry and populate cache.
                                 self.project_files_cache[cache_key][normalized_path] = {
                                     "rel_path": normalized_path,
                                     "mtime": st.st_mtime,
                                     "size": st.st_size,
                                 }
+
+                                # Bolt ⚡: Single-pass categorization.
+                                # Use fast extension checks before expensive regex matches.
+                                if normalized_path.endswith(".clar"):
+                                    self._clar_files[cache_key].append(normalized_path)
+                                elif normalized_path.endswith((".json", ".deployment")):
+                                    if self._manifest_re.match(normalized_path):
+                                        self._manifest_files[cache_key].append(normalized_path)
+                                    if self._artifact_re.match(normalized_path):
+                                        self._artifact_files[cache_key].append(normalized_path)
+                                    if self._history_re.match(normalized_path):
+                                        self._history_files[cache_key].append(normalized_path)
+                                    if self._manifest_legacy_re.match(normalized_path):
+                                        self._manifest_legacy_files[cache_key].append(normalized_path)
+
                             except (OSError, IOError):
                                 continue
             except (OSError, IOError):
@@ -858,45 +885,47 @@ class GenericStacksAutoDetector:
 
     def _efficient_directory_scan(self, directory: Path) -> List[Dict]:
         """
-        Bolt ⚡: Use cached project files to find .clar files.
-        Avoids redundant recursive filesystem traversal.
+        Bolt ⚡: Use pre-categorized .clar files to avoid redundant $O(N)$ searches.
         """
         contracts = []
         seen_paths = set()
         cache_key = str(directory)
 
-        # Get files from cache, or scan if not available
-        all_files_dict = self.project_files_cache.get(cache_key)
-        if all_files_dict is None:
+        # Ensure scan has been performed
+        if cache_key not in self.project_files_cache:
             self._scan_project_files(directory)
-            all_files_dict = self.project_files_cache.get(cache_key, {})
 
-        # Bolt ⚡: Iterate over dict values for efficiency.
-        for file_info in all_files_dict.values():
-            rel_path = file_info["rel_path"]
-            if rel_path.endswith(".clar"):
-                full_path = directory / rel_path
-                if full_path in seen_paths:
-                    continue
-                seen_paths.add(full_path)
+        clar_files = self._clar_files.get(cache_key, [])
+        all_files_dict = self.project_files_cache.get(cache_key, {})
 
-                contract_name = full_path.stem
-                contracts.append(
-                    {
-                        "name": contract_name,
-                        "path": rel_path,
-                        "full_path": str(full_path),
-                        "source": "efficient_scan",
-                        "size": file_info["size"],
-                        "modified": file_info["mtime"],
-                        "hash": self._calculate_file_hash(
-                            full_path, mtime=file_info["mtime"], size=file_info["size"]
-                        ),
-                        "category": self._determine_contract_category(
-                            contract_name
-                        ),
-                    }
-                )
+        # Bolt ⚡: Iterate only over pre-filtered .clar files.
+        for rel_path in clar_files:
+            file_info = all_files_dict.get(rel_path)
+            if not file_info:
+                continue
+
+            full_path = directory / rel_path
+            if full_path in seen_paths:
+                continue
+            seen_paths.add(full_path)
+
+            contract_name = full_path.stem
+            contracts.append(
+                {
+                    "name": contract_name,
+                    "path": rel_path,
+                    "full_path": str(full_path),
+                    "source": "efficient_scan",
+                    "size": file_info["size"],
+                    "modified": file_info["mtime"],
+                    "hash": self._calculate_file_hash(
+                        full_path, mtime=file_info["mtime"], size=file_info["size"]
+                    ),
+                    "category": self._determine_contract_category(
+                        contract_name
+                    ),
+                }
+            )
         return contracts
 
     def _determine_contract_category(self, contract_name: str) -> str:
@@ -933,24 +962,23 @@ class GenericStacksAutoDetector:
 
     def _parse_deployment_manifests(self, directory: Path) -> List[Dict]:
         """
-        Bolt ⚡: Parse deployment manifests using cached project files.
-        Avoids multiple redundant recursive globbing calls.
+        Bolt ⚡: Parse deployment manifests using pre-categorized buckets.
         """
         manifests = []
         cache_key = str(directory)
 
-        # Get all files from cache, or perform a scan if not available
-        all_files_dict = self.project_files_cache.get(cache_key)
-        if all_files_dict is None:
-            self._efficient_directory_scan(directory)
-            all_files_dict = self.project_files_cache.get(cache_key, {})
+        # Ensure scan has been performed
+        if cache_key not in self.project_files_cache:
+            self._scan_project_files(directory)
 
-        # Bolt ⚡: Check for deployment manifest files using optimized pre-compiled regex.
-        # This replaces an O(N*M) loop with a single O(N) regex pass.
+        manifest_files = self._manifest_files.get(cache_key, [])
+        all_files_dict = self.project_files_cache.get(cache_key, {})
+
+        # Bolt ⚡: Iterate only over pre-filtered manifest files.
         matched_files = []
-        for file_info in all_files_dict.values():
-            rel_path = file_info["rel_path"]
-            if self._manifest_re.match(rel_path):
+        for rel_path in manifest_files:
+            file_info = all_files_dict.get(rel_path)
+            if file_info:
                 matched_files.append((directory / rel_path, file_info["mtime"]))
 
         for manifest_file, mtime in matched_files:
@@ -1196,23 +1224,23 @@ class GenericStacksAutoDetector:
 
     def _find_deployment_artifacts(self, directory: Path) -> List[Dict]:
         """
-        Bolt ⚡: Find deployment artifacts using cached project files.
-        Avoids redundant recursive filesystem traversal.
+        Bolt ⚡: Find deployment artifacts using pre-categorized buckets.
         """
         artifacts = []
         cache_key = str(directory)
 
-        # Get all files from cache, or perform a scan if not available
-        all_files_dict = self.project_files_cache.get(cache_key)
-        if all_files_dict is None:
-            self._efficient_directory_scan(directory)
-            all_files_dict = self.project_files_cache.get(cache_key, {})
+        # Ensure scan has been performed
+        if cache_key not in self.project_files_cache:
+            self._scan_project_files(directory)
 
-        # Bolt ⚡: Check for artifact files using optimized pre-compiled regex.
+        artifact_files = self._artifact_files.get(cache_key, [])
+        all_files_dict = self.project_files_cache.get(cache_key, {})
+
+        # Bolt ⚡: Iterate only over pre-filtered artifact files.
         matched_files = []
-        for file_info in all_files_dict.values():
-            rel_path = file_info["rel_path"]
-            if self._artifact_re.match(rel_path):
+        for rel_path in artifact_files:
+            file_info = all_files_dict.get(rel_path)
+            if file_info:
                 matched_files.append((directory / rel_path, file_info["mtime"]))
 
         for artifact_file, mtime in matched_files:
@@ -1346,23 +1374,24 @@ class GenericStacksAutoDetector:
 
     def _check_local_deployment_status(self) -> Dict:
         """
-        Bolt ⚡: Check local deployment status using cached project files.
-        Avoids redundant recursive filesystem traversal.
+        Bolt ⚡: Check local deployment status using pre-categorized buckets.
         """
         deployment_history = []
         cache_key = str(self.project_root)
 
-        # Get all files from cache, or perform a scan if not available
-        all_files_dict = self.project_files_cache.get(cache_key)
-        if all_files_dict is None:
-            self._efficient_directory_scan(self.project_root)
-            all_files_dict = self.project_files_cache.get(cache_key, {})
+        # Ensure scan has been performed
+        if cache_key not in self.project_files_cache:
+            self._scan_project_files(self.project_root)
 
-        # Bolt ⚡: Check for history files using optimized pre-compiled regex.
+        history_files = self._history_files.get(cache_key, [])
+        manifest_legacy_files = self._manifest_legacy_files.get(cache_key, [])
+        all_files_dict = self.project_files_cache.get(cache_key, {})
+
+        # Bolt ⚡: Check for history files using pre-filtered bucket.
         matched_history = []
-        for file_info in all_files_dict.values():
-            rel_path = file_info["rel_path"]
-            if self._history_re.match(rel_path):
+        for rel_path in history_files:
+            file_info = all_files_dict.get(rel_path)
+            if file_info:
                 matched_history.append((self.project_root / rel_path, file_info["mtime"]))
 
         for history_file, mtime in matched_history:
@@ -1380,12 +1409,12 @@ class GenericStacksAutoDetector:
                 except Exception as e:
                     print(f"⚠️  Error reading {history_file}: {e}")
 
-        # Bolt ⚡: Check manifest files using optimized pre-compiled regex.
+        # Bolt ⚡: Check manifest files using pre-filtered bucket.
         manifests = []
         matched_manifests = []
-        for file_info in all_files_dict.values():
-            rel_path = file_info["rel_path"]
-            if self._manifest_legacy_re.match(rel_path):
+        for rel_path in manifest_legacy_files:
+            file_info = all_files_dict.get(rel_path)
+            if file_info:
                 matched_manifests.append((self.project_root / rel_path, file_info["mtime"]))
 
         for manifest_file, mtime in matched_manifests:
