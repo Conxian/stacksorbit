@@ -150,14 +150,17 @@ class StacksOrbitGUI(App):
                 with Horizontal(id="address-bar"):
                     yield Label("System Address:", id="system-address-label")
                     yield Static(
-                        self.address, id="display-address", classes="clickable-label"
+                        self.address,
+                        id="display-address",
+                        classes="clickable-label",
+                        markup=True,
                     )
                     yield Button("📋", id="copy-dashboard-address-btn")
                     yield Button("🚰 Faucet", id="faucet-btn", variant="warning")
                 with Grid(id="metrics-grid"):
                     yield Container(
                         Label("Network Status"),
-                        Static("N/A", id="network-status"),
+                        Static("N/A", id="network-status", markup=True),
                         classes="metric-card",
                         id="metric-network",
                     )
@@ -169,7 +172,7 @@ class StacksOrbitGUI(App):
                     )
                     yield Container(
                         Label("Balance"),
-                        Static("0 STX", id="balance"),
+                        Static("0 STX", id="balance", markup=True),
                         classes="metric-card",
                         id="metric-balance",
                     )
@@ -532,6 +535,15 @@ class StacksOrbitGUI(App):
                     else int(balance_raw)
                 ) / 1_000_000
                 balance_stx_display = f"{balance_stx:,.6f} STX"
+
+                # PALETTE: Colorize balance for immediate visual context
+                if balance_stx >= 1.0:
+                    balance_stx_display = f"[green]{balance_stx_display}[/]"
+                elif balance_stx > 0:
+                    balance_stx_display = f"[yellow]{balance_stx_display}[/]"
+                else:
+                    balance_stx_display = f"[red]{balance_stx_display}[/]"
+
                 nonce_display = str(account_info.get("nonce", 0))
 
             if self._last_metrics.get("balance") != balance_stx_display:
@@ -701,6 +713,12 @@ class StacksOrbitGUI(App):
         """Toggle private key visibility when its label is clicked."""
         self.query_one("#show-privkey", Switch).toggle()
 
+    @on(TabbedContent.TabActivated)
+    def on_tab_changed(self, event: TabbedContent.TabActivated) -> None:
+        """Handle tab changes to improve interaction focus."""
+        if event.tabbed_content.active == "settings":
+            self.query_one("#privkey-input", Input).focus()
+
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
         self.query_one(TabbedContent).active = tab_id
@@ -742,11 +760,14 @@ class StacksOrbitGUI(App):
         if self._manual_refresh_in_progress:
             return
 
-        refresh_btn = self.query_one("#refresh-btn", Button)
-        self._original_btn_label = refresh_btn.label
-        refresh_btn.disabled = True
-        refresh_btn.label = "Refreshing..."
-        self.query("#overview LoadingIndicator").first().display = True
+        # Handle UI feedback if button is visible/present
+        for refresh_btn in self.query("#refresh-btn"):
+            self._original_btn_label = refresh_btn.label
+            refresh_btn.disabled = True
+            refresh_btn.label = "Refreshing..."
+
+        for indicator in self.query("#overview LoadingIndicator"):
+            indicator.display = True
 
         self.run_worker(self._do_refresh())
 
@@ -760,10 +781,12 @@ class StacksOrbitGUI(App):
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")
         finally:
-            refresh_btn = self.query_one("#refresh-btn", Button)
-            refresh_btn.disabled = False
-            refresh_btn.label = self._original_btn_label
-            self.query("#overview LoadingIndicator").first().display = False
+            for refresh_btn in self.query("#refresh-btn"):
+                refresh_btn.disabled = False
+                refresh_btn.label = getattr(self, "_original_btn_label", "🔄 Refresh")
+
+            for indicator in self.query("#overview LoadingIndicator"):
+                indicator.display = False
             self._manual_refresh_in_progress = False
 
     def run_command(

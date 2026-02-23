@@ -31,6 +31,10 @@ async def test_palette_clickable_labels_and_tooltips():
         await pilot.click("#address-label")
         assert app.focused.id == "address-input"
 
+        # Switch back to overview tab to test metric card interaction
+        app.action_switch_tab("overview")
+        await pilot.pause(0.2)
+
         # Check interaction: Click metric card for network (triggers refresh)
         # We can't easily verify the refresh happened without mocking,
         # but we can verify the handler is called by checking if it doesn't crash
