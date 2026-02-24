@@ -93,3 +93,16 @@ async def test_settings_focus_on_tab_change():
         # Check if privkey-input is focused
         assert app.focused is not None
         assert app.focused.id == "privkey-input"
+
+@pytest.mark.asyncio
+async def test_dashboard_explorer_button():
+    """Verify the dashboard explorer button presence and functionality."""
+    from unittest.mock import patch
+    app = StacksOrbitGUI()
+    app.address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
+    async with app.run_test() as pilot:
+        btn = app.query_one("#view-dashboard-address-explorer-btn")
+        assert btn.tooltip == "View your Stacks address on Hiro Explorer"
+        with patch("webbrowser.open") as mock_open:
+            await app.on_view_dashboard_address_explorer_pressed()
+            mock_open.assert_called_once()

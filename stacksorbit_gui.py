@@ -156,6 +156,7 @@ class StacksOrbitGUI(App):
                         markup=True,
                     )
                     yield Button("📋", id="copy-dashboard-address-btn")
+                    yield Button("🌐", id="view-dashboard-address-explorer-btn")
                     yield Button("🚰 Faucet", id="faucet-btn", variant="warning")
                 with Grid(id="metrics-grid"):
                     yield Container(
@@ -350,6 +351,9 @@ class StacksOrbitGUI(App):
         )
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
             "Copy your Stacks address to clipboard"
+        )
+        self.query_one("#view-dashboard-address-explorer-btn", Button).tooltip = (
+            "View your Stacks address on Hiro Explorer"
         )
         self.query_one("#faucet-btn", Button).tooltip = (
             "Get free STX from the Hiro Testnet Faucet"
@@ -680,6 +684,20 @@ class StacksOrbitGUI(App):
         if self.address and self.address != "Not configured":
             self.copy_to_clipboard(self.address)
             self.notify("Address copied to clipboard", severity="information")
+
+    @on(Button.Pressed, "#view-dashboard-address-explorer-btn")
+    async def on_view_dashboard_address_explorer_pressed(self) -> None:
+        """Open the system address on the Hiro Explorer."""
+        if self.address and self.address != "Not configured":
+            if self.network == "devnet":
+                self.notify(
+                    "Hiro Explorer is not available for local devnet.", severity="warning"
+                )
+                return
+
+            url = f"https://explorer.hiro.so/address/{self.address}?chain={self.network}"
+            webbrowser.open(url)
+            self.notify("Opening Explorer in browser...", severity="information")
 
     @on(Click, "#metric-network")
     def on_network_metric_click(self) -> None:
