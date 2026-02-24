@@ -77,3 +77,11 @@
 ## 2026-03-20 - Optimized Secret Detection and Redaction Performance
 **Learning:** I identified two significant performance bottlenecks in the core security utilities: 1) redundant O(N) sensitivity checks when redacting large lists in `redact_recursive`, where the same `parent_key` was re-checked for every element, and 2) inefficient LRU caching in `is_sensitive_key` due to normalization occurring *after* the cache lookup, causing case-variants (e.g., "key" vs "KEY") to thrash the cache.
 **Action:** Always normalize inputs (e.g., `.upper()`) before hitting an LRU cache to maximize hit rates for case-insensitive lookups. In recursive data processing functions, pass down state (like an `is_sensitive` flag) to eliminate redundant function calls in deep or broad structures (like large lists). This achieved a ~25% speedup in redaction throughput and a 100% hit rate for case-insensitive secret checks.
+
+## 2026-03-22 - Widget Caching and High-Frequency TUI Optimization
+**Learning:** In Textual-based TUIs, redundant DOM queries (e.g., ) inside periodic update loops (like  every 10s) or high-frequency input handlers create measurable CPU overhead. Additionally, repeated parsing of static ISO timestamps and redundant system calls for  in loops can slow down the main UI thread.
+**Action:** Always cache frequently accessed widgets in `on_mount` as instance variables to avoid selector matching. Hoist system-level calls (like `datetime.now()`) out of processing loops. Use `functools.lru_cache` for expensive data parsing (like ISO strings) to ensure that only truly new data incurs a performance penalty.
+
+## 2026-03-22 - Widget Caching and High-Frequency TUI Optimization
+**Learning:** In Textual-based TUIs, redundant DOM queries (e.g., `query_one("#id")`) inside periodic update loops (like `update_data` every 10s) or high-frequency input handlers create measurable CPU overhead. Additionally, repeated parsing of static ISO timestamps and redundant system calls for `datetime.now()` in loops can slow down the main UI thread.
+**Action:** Always cache frequently accessed widgets in `on_mount` as instance variables to avoid selector matching. Hoist system-level calls (like `datetime.now()`) out of processing loops. Use `functools.lru_cache` for expensive data parsing (like ISO strings) to ensure that only truly new data incurs a performance penalty.

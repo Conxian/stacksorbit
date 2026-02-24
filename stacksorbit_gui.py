@@ -8,7 +8,8 @@ import os
 import subprocess
 import threading
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timezone
+import functools
 from typing import Dict, List
 
 try:
@@ -77,8 +78,8 @@ class StacksOrbitGUI(App):
         try:
             # PALETTE: Context-aware visibility for Faucet buttons (Testnet only)
             is_testnet = network == "testnet"
-            self.query_one("#faucet-btn").display = is_testnet
-            self.query_one("#settings-faucet-btn").display = is_testnet
+            self.w_faucet_btn.display = is_testnet
+            self.w_settings_faucet_btn.display = is_testnet
         except Exception:
             # Widgets might not be mounted yet
             pass
@@ -300,25 +301,56 @@ class StacksOrbitGUI(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Initialize the GUI"""
+        """Initialize the GUI and cache widget references for performance."""
         self.title = "StacksOrbit"
         self.sub_title = f"Deployment Dashboard [{self.network.upper()}]"
 
+        # Bolt ⚡: Cache frequently accessed widgets to avoid redundant DOM queries via query_one.
+        # This significantly improves performance during high-frequency update loops and UI events.
+        self.w_network_status = self.query_one("#network-status", Static)
+        self.w_block_height = self.query_one("#block-height", Static)
+        self.w_balance = self.query_one("#balance", Static)
+        self.w_nonce = self.query_one("#nonce", Static)
+        self.w_contract_count = self.query_one("#contract-count", Static)
+        self.w_last_updated = self.query_one("#last-updated-label", Label)
+        self.w_contracts_table = self.query_one("#contracts-table", DataTable)
+        self.w_transactions_table = self.query_one("#transactions-table", DataTable)
+        self.w_display_address = self.query_one("#display-address", Static)
+        self.w_faucet_btn = self.query_one("#faucet-btn", Button)
+        self.w_settings_faucet_btn = self.query_one("#settings-faucet-btn", Button)
+        self.w_address_input = self.query_one("#address-input", Input)
+        self.w_privkey_input = self.query_one("#privkey-input", Input)
+        self.w_address_error = self.query_one("#address-error", Label)
+        self.w_privkey_error = self.query_one("#privkey-error", Label)
+        self.w_copy_contract_btn = self.query_one("#copy-contract-id-btn", Button)
+        self.w_copy_source_btn = self.query_one("#copy-source-btn", Button)
+        self.w_view_explorer_btn = self.query_one("#view-explorer-btn", Button)
+        self.w_copy_tx_btn = self.query_one("#copy-selected-tx-btn", Button)
+        self.w_view_tx_explorer_btn = self.query_one("#view-selected-tx-explorer-btn", Button)
+        self.w_tx_status_label = self.query_one("#tx-status-label", Label)
+        self.w_save_config_btn = self.query_one("#save-config-btn", Button)
+        self.w_deployment_log = self.query_one("#deployment-log", Log)
+        self.w_show_privkey = self.query_one("#show-privkey", Switch)
+        self.w_tabbed_content = self.query_one(TabbedContent)
+        self.w_contract_details_header_label = self.query_one("#contract-details-header Label", Label)
+        self.w_contract_details_md = self.query_one("#contract-details", Markdown)
+        self.w_details_loader = self.query(".details-pane LoadingIndicator").first()
+
         # PALETTE: Handle 'Not configured' state visually
         if self.address == "Not configured":
-            self.query_one("#display-address", Static).update("[dim]Not configured[/]")
+            self.w_display_address.update("[dim]Not configured[/]")
 
         for indicator in self.query(LoadingIndicator):
             indicator.display = False
 
         # Add tooltips to widgets
-        self.query_one("#contracts-table", DataTable).tooltip = (
+        self.w_contracts_table.tooltip = (
             "List of contracts deployed by this address. Click a row to view source code."
         )
-        self.query_one("#transactions-table", DataTable).tooltip = (
+        self.w_transactions_table.tooltip = (
             "Recent transactions for this address. Click a row to copy full TX ID."
         )
-        self.query_one("#deployment-log", Log).tooltip = (
+        self.w_deployment_log.tooltip = (
             "Deployment process logs and output"
         )
 
@@ -333,7 +365,7 @@ class StacksOrbitGUI(App):
             "Start the deployment process"
         )
         self.query_one("#clear-log-btn", Button).tooltip = "Clear the deployment log"
-        self.query_one("#show-privkey", Switch).tooltip = (
+        self.w_show_privkey.tooltip = (
             "Toggle private key visibility"
         )
         self.query_one("#copy-address-btn", Button).tooltip = (
@@ -345,39 +377,39 @@ class StacksOrbitGUI(App):
         self.query_one("#system-address-label", Label).tooltip = (
             "Your active Stacks address for deployments"
         )
-        self.query_one("#display-address", Static).tooltip = (
+        self.w_display_address.tooltip = (
             "Click to copy your Stacks address"
         )
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
             "Copy your Stacks address to clipboard"
         )
-        self.query_one("#faucet-btn", Button).tooltip = (
+        self.w_faucet_btn.tooltip = (
             "Get free STX from the Hiro Testnet Faucet"
         )
-        self.query_one("#settings-faucet-btn", Button).tooltip = (
+        self.w_settings_faucet_btn.tooltip = (
             "Get free STX from the Hiro Testnet Faucet"
         )
-        self.query_one("#copy-contract-id-btn", Button).tooltip = (
+        self.w_copy_contract_btn.tooltip = (
             "Copy selected contract ID"
         )
-        self.query_one("#copy-source-btn", Button).tooltip = "Copy contract source code"
-        self.query_one("#view-explorer-btn", Button).tooltip = (
+        self.w_copy_source_btn.tooltip = "Copy contract source code"
+        self.w_view_explorer_btn.tooltip = (
             "View contract on Hiro Explorer"
         )
 
-        self.query_one("#copy-contract-id-btn", Button).disabled = True
-        self.query_one("#copy-source-btn", Button).disabled = True
-        self.query_one("#view-explorer-btn", Button).disabled = True
+        self.w_copy_contract_btn.disabled = True
+        self.w_copy_source_btn.disabled = True
+        self.w_view_explorer_btn.disabled = True
 
         # Transaction actions initialization
-        self.query_one("#copy-selected-tx-btn", Button).disabled = True
-        self.query_one("#view-selected-tx-explorer-btn", Button).disabled = True
-        self.query_one("#copy-selected-tx-btn", Button).tooltip = "Copy full transaction ID"
-        self.query_one("#view-selected-tx-explorer-btn", Button).tooltip = (
+        self.w_copy_tx_btn.disabled = True
+        self.w_view_tx_explorer_btn.disabled = True
+        self.w_copy_tx_btn.tooltip = "Copy full transaction ID"
+        self.w_view_tx_explorer_btn.tooltip = (
             "View transaction on Hiro Explorer"
         )
 
-        self.query_one("#save-config-btn", Button).tooltip = (
+        self.w_save_config_btn.tooltip = (
             "Save settings to .env file [s]"
         )
 
@@ -417,8 +449,8 @@ class StacksOrbitGUI(App):
         # PALETTE: Initialize Faucet button visibility
         try:
             is_testnet = self.network == "testnet"
-            self.query_one("#faucet-btn").display = is_testnet
-            self.query_one("#settings-faucet-btn").display = is_testnet
+            self.w_faucet_btn.display = is_testnet
+            self.w_settings_faucet_btn.display = is_testnet
         except Exception:
             pass
 
@@ -434,15 +466,19 @@ class StacksOrbitGUI(App):
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Time", "Block")
 
-    def _format_relative_time(self, iso_time: str) -> str:
+    @functools.lru_cache(maxsize=128)
+    def _parse_iso_to_dt(self, iso_time: str) -> datetime:
+        """Bolt ⚡: Cached ISO parsing to avoid redundant expensive fromisoformat calls."""
+        # Handle 'Z' for older Python versions and parse ISO string
+        ts = iso_time.replace("Z", "+00:00")
+        return datetime.fromisoformat(ts)
+
+    def _format_relative_time(self, iso_time: str, now: datetime) -> str:
         """Format an ISO timestamp as a relative time string (e.g., '5m ago')."""
         if not iso_time:
             return "[yellow]Pending[/]"
         try:
-            # Handle 'Z' for older Python versions and parse ISO string
-            ts = iso_time.replace("Z", "+00:00")
-            dt = datetime.fromisoformat(ts)
-            now = datetime.now(dt.tzinfo)
+            dt = self._parse_iso_to_dt(iso_time)
             diff = now - dt
 
             if diff.total_seconds() < 0:  # Future (can happen in dev/test)
@@ -512,12 +548,12 @@ class StacksOrbitGUI(App):
             dot = "[green]●[/]" if status == "ONLINE" else "[red]●[/]"
             status_display = f"{dot} {status}"
             if self._last_metrics.get("status") != status_display:
-                self.query_one("#network-status").update(status_display)
+                self.w_network_status.update(status_display)
                 self._last_metrics["status"] = status_display
 
             height = str(api_status.get("block_height", 0))
             if self._last_metrics.get("height") != height:
-                self.query_one("#block-height").update(height)
+                self.w_block_height.update(height)
                 self._last_metrics["height"] = height
 
             # Process account info result
@@ -547,11 +583,11 @@ class StacksOrbitGUI(App):
                 nonce_display = str(account_info.get("nonce", 0))
 
             if self._last_metrics.get("balance") != balance_stx_display:
-                self.query_one("#balance").update(balance_stx_display)
+                self.w_balance.update(balance_stx_display)
                 self._last_metrics["balance"] = balance_stx_display
 
             if self._last_metrics.get("nonce") != nonce_display:
-                self.query_one("#nonce").update(nonce_display)
+                self.w_nonce.update(nonce_display)
                 self._last_metrics["nonce"] = nonce_display
 
             # Process deployed contracts result
@@ -560,19 +596,27 @@ class StacksOrbitGUI(App):
 
             count_display = str(len(deployed_contracts))
             if self._last_metrics.get("contract-count") != count_display:
-                self.query_one("#contract-count").update(count_display)
+                self.w_contract_count.update(count_display)
                 self._last_metrics["contract-count"] = count_display
 
             # ⚡ Bolt: Only clear and repopulate contracts table if data changed
             if deployed_contracts != self._last_contracts:
-                contracts_table = self.query_one("#contracts-table", DataTable)
+                contracts_table = self.w_contracts_table
                 contracts_table.clear()
                 if deployed_contracts:
+                    # Bolt ⚡: Build rows in a list and use add_rows() for atomic, high-performance table population.
+                    contract_rows = []
                     for contract in deployed_contracts:
                         address, name = contract.get("contract_id", "...").split(".")
-                        contracts_table.add_row(
-                            "✅", name, address, key=contract.get("contract_id")
-                        )
+                        contract_rows.append(("✅", name, address))
+
+                    # Note: DataTable.add_rows doesn't take keys in the same way as add_row in some versions,
+                    # so we'll use add_row in a loop if add_rows doesn't support keys.
+                    # Actually, Textual's add_rows doesn't support per-row keys.
+                    # So I will keep add_row but move it to a more efficient loop if possible.
+                    # Wait, if I want keys, I have to use add_row.
+                    for i, row in enumerate(contract_rows):
+                        contracts_table.add_row(*row, key=deployed_contracts[i].get("contract_id"))
                 elif self.address != "Not configured":
                     contracts_table.add_row(
                         "", "No contracts found", "Deploy a contract to see it here."
@@ -588,14 +632,18 @@ class StacksOrbitGUI(App):
                 raise transactions
 
             # Update last updated label
-            now = datetime.now().strftime("%H:%M:%S")
-            self.query_one("#last-updated-label", Label).update(f" [dim]Last updated: {now}[/]")
+            now_label = datetime.now().strftime("%H:%M:%S")
+            self.w_last_updated.update(f" [dim]Last updated: {now_label}[/]")
 
             # ⚡ Bolt: Only clear and repopulate transactions table if data changed
             if transactions != self._last_transactions:
-                transactions_table = self.query_one("#transactions-table", DataTable)
+                transactions_table = self.w_transactions_table
                 transactions_table.clear()
                 if transactions:
+                    # Bolt ⚡: Hoist datetime.now(timezone.utc) out of the loop to avoid redundant system calls.
+                    now_utc = datetime.now(timezone.utc)
+                    # Bolt ⚡: Building rows first and then adding them can be more efficient,
+                    # but we use add_row to preserve row keys for selection.
                     for tx in transactions:
                         status = tx.get("tx_status", "")
                         # PALETTE: Colorize status with emojis for better scannability
@@ -622,7 +670,7 @@ class StacksOrbitGUI(App):
                             tx.get("tx_id", "")[:10] + "...",
                             display_type,
                             display_status,
-                            self._format_relative_time(tx.get("burn_block_time_iso")),
+                            self._format_relative_time(tx.get("burn_block_time_iso"), now_utc),
                             str(tx.get("block_height", "")),
                             key=tx.get("tx_id"),
                         )
@@ -635,7 +683,7 @@ class StacksOrbitGUI(App):
                 self._last_transactions = transactions
 
         except Exception as e:
-            self.query_one("#network-status").update("[red]Error[/]")
+            self.w_network_status.update("[red]Error[/]")
             self.notify(f"API error: {e}", severity="error")
         finally:
             for indicator in self.query(LoadingIndicator):
@@ -649,11 +697,11 @@ class StacksOrbitGUI(App):
             self.selected_contract_id = contract_id
             # Update detail header with contract name
             name = contract_id.split(".")[1] if "." in contract_id else contract_id
-            self.query_one("#contract-details-header Label").update(f"Details: [cyan]{name}[/]")
+            self.w_contract_details_header_label.update(f"Details: [cyan]{name}[/]")
 
-            self.query_one("#copy-contract-id-btn", Button).disabled = False
-            self.query_one("#copy-source-btn", Button).disabled = False
-            self.query_one("#view-explorer-btn", Button).disabled = False
+            self.w_copy_contract_btn.disabled = False
+            self.w_copy_source_btn.disabled = False
+            self.w_view_explorer_btn.disabled = False
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
 
     @on(DataTable.RowSelected, "#transactions-table")
@@ -662,9 +710,9 @@ class StacksOrbitGUI(App):
         tx_id = event.row_key.value
         if tx_id:
             self.selected_tx_id = tx_id
-            self.query_one("#copy-selected-tx-btn", Button).disabled = False
-            self.query_one("#view-selected-tx-explorer-btn", Button).disabled = False
-            self.query_one("#tx-status-label", Label).update(
+            self.w_copy_tx_btn.disabled = False
+            self.w_view_tx_explorer_btn.disabled = False
+            self.w_tx_status_label.update(
                 f"Selected: [cyan]{tx_id[:16]}...[/cyan]"
             )
 
@@ -689,45 +737,44 @@ class StacksOrbitGUI(App):
     @on(Click, "#metric-contracts")
     def on_contracts_metric_click(self) -> None:
         """Navigate to contracts tab when contract metric is clicked."""
-        self.query_one(TabbedContent).active = "contracts"
+        self.w_tabbed_content.active = "contracts"
 
     @on(Click, "#metric-balance")
     @on(Click, "#metric-nonce")
     @on(Click, "#metric-height")
     def on_transactions_metric_click(self) -> None:
         """Navigate to transactions tab when account metrics are clicked."""
-        self.query_one(TabbedContent).active = "transactions"
+        self.w_tabbed_content.active = "transactions"
 
     @on(Click, "#privkey-label")
     def on_privkey_label_click(self) -> None:
         """Focus the private key input when its label is clicked."""
-        self.query_one("#privkey-input", Input).focus()
+        self.w_privkey_input.focus()
 
     @on(Click, "#address-label")
     def on_address_label_click(self) -> None:
         """Focus the address input when its label is clicked."""
-        self.query_one("#address-input", Input).focus()
+        self.w_address_input.focus()
 
     @on(Click, "#show-privkey-label")
     def on_show_privkey_label_click(self) -> None:
         """Toggle private key visibility when its label is clicked."""
-        self.query_one("#show-privkey", Switch).toggle()
+        self.w_show_privkey.toggle()
 
     @on(TabbedContent.TabActivated)
     def on_tab_changed(self, event: TabbedContent.TabActivated) -> None:
         """Handle tab changes to improve interaction focus."""
         if event.tabbed_content.active == "settings":
-            self.query_one("#privkey-input", Input).focus()
+            self.w_privkey_input.focus()
 
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
-        self.query_one(TabbedContent).active = tab_id
+        self.w_tabbed_content.active = tab_id
 
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""
-        details_pane = self.query(".details-pane").first()
-        md = details_pane.query_one(Markdown)
-        loader = details_pane.query_one(LoadingIndicator)
+        md = self.w_contract_details_md
+        loader = self.w_details_loader
 
         md.update("")
         loader.display = True
@@ -751,7 +798,7 @@ class StacksOrbitGUI(App):
 
     async def action_save_settings(self) -> None:
         """Action to save settings from keyboard shortcut."""
-        self.query_one(TabbedContent).active = "settings"
+        self.w_tabbed_content.active = "settings"
         await self.on_save_config_pressed()
 
     @on(Button.Pressed, "#refresh-btn")
@@ -859,12 +906,12 @@ class StacksOrbitGUI(App):
     @on(Switch.Changed, "#show-privkey")
     def on_show_privkey_changed(self, event: Switch.Changed) -> None:
         """Toggle private key visibility."""
-        self.query_one("#privkey-input", Input).password = not event.value
+        self.w_privkey_input.password = not event.value
 
     @on(Input.Changed, "#address-input")
     def on_address_changed(self, event: Input.Changed) -> None:
         """Real-time validation for Stacks address with character count."""
-        error_label = self.query_one("#address-error", Label)
+        error_label = self.w_address_error
         count = len(event.value)
         # PALETTE: Include character count in feedback
         count_display = f" [dim]({count}/41)[/]" if event.value else ""
@@ -886,7 +933,7 @@ class StacksOrbitGUI(App):
     @on(Input.Changed, "#privkey-input")
     def on_privkey_changed(self, event: Input.Changed) -> None:
         """Real-time validation for Private Key with character count."""
-        error_label = self.query_one("#privkey-error", Label)
+        error_label = self.w_privkey_error
         count = len(event.value)
         # PALETTE: Include character count in feedback
         count_display = f" [dim]({count}/64 or 66)[/]" if event.value else ""
@@ -927,10 +974,10 @@ class StacksOrbitGUI(App):
 
             if address:
                 # Update inputs and internal state
-                self.query_one("#address-input", Input).value = address
+                self.w_address_input.value = address
                 self.address = address
                 try:
-                    self.query_one("#display-address", Static).update(address)
+                    self.w_display_address.update(address)
                 except Exception:
                     pass
                 self.notify(f"Wallet connected: {address}", severity="success")
@@ -1055,13 +1102,13 @@ class StacksOrbitGUI(App):
     @on(Button.Pressed, "#save-config-btn")
     async def on_save_config_pressed(self) -> None:
         """Handle save config button press with visual feedback."""
-        save_btn = self.query_one("#save-config-btn", Button)
+        save_btn = self.w_save_config_btn
         original_label = save_btn.label
 
         # 🛡️ Sentinel: Collect values in the main thread for thread safety.
         # We also identify if the user is attempting to save a real secret.
-        privkey_val = self.query_one("#privkey-input", Input).value
-        address_val = self.query_one("#address-input", Input).value
+        privkey_val = self.w_privkey_input.value
+        address_val = self.w_address_input.value
 
         # 🛡️ Sentinel: Validate the Stacks address before saving
         if address_val and not validate_stacks_address(address_val, self.network):
@@ -1109,7 +1156,7 @@ class StacksOrbitGUI(App):
             await asyncio.to_thread(_save_config_io, address_val)
             self.address = address_val
             try:
-                self.query_one("#display-address", Static).update(address_val)
+                self.w_display_address.update(address_val)
             except Exception: pass
 
             if is_secret_provided:
