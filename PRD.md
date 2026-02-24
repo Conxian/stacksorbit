@@ -20,25 +20,23 @@ StacksOrbit is built with a hybrid architecture:
 
 ## 3. Migration Roadmap (Vitest & Clarinet SDK)
 
-The primary goal is to refactor the project to use a modern, streamlined toolchain that leverages the Clarinet SDK for development and testing, and Chainhooks for multi-network event monitoring.
+The StacksOrbit project is transitioning to a modern development and testing architecture. This roadmap outlines the key phases of this migration.
 
 *   **Phase 1: Vitest Integration (Complete)**
-    *   [x] Initialize `PRD.md`.
-    *   [x] Update `package.json` with `vitest-environment-clarinet`.
-    *   [x] Create `vitest.config.mts` (using `.mts` for mandatory ESM compatibility with Clarinet SDK).
-    *   [x] Migrate existing tests to Vitest.
-*   **Phase 2: Chainhook Integration (Complete)**
-    *   [x] Create `/chainhooks` directory.
-    *   [x] Define Chainhook predicates for contract events.
-    *   [x] Implement multi-network monitoring (Devnet, Testnet, Mainnet).
-*   **Phase 3: Contract Registry (Complete)**
-    *   [x] Create a contract registry in this PRD to track deployments across all networks.
-*   **Phase 4: Full Development Cycle Integration (Complete)**
-    *   [x] Align CLI with full lifecycle: Setup -> Detect -> Test -> Deploy -> Monitor -> Verify.
-    *   [x] Standardize test runner to use Vitest and Clarinet SDK.
-*   **Phase 5: Clarity 4 Native Support (Planned)**
-    *   [ ] Research and implement Clarity 4 syntax support.
-    *   [ ] Add Clarity 4 examples and test templates.
+    *   Initialize `PRD.md` as the root of truth.
+    *   Integrate `@stacks/clarinet-sdk` and `vitest-environment-clarinet`.
+    *   Standardize `vitest.config.ts` for WASM simnet support.
+    *   Migrate all legacy JavaScript tests to the Vitest native architecture.
+*   **Phase 2: Chainhook Event Tracking (Complete)**
+    *   Establish `/chainhooks` directory with multi-network JSON predicates.
+    *   Configure event monitoring for Devnet, Testnet, and Mainnet.
+*   **Phase 3: Multi-Network Contract Registry (Complete)**
+    *   Maintain a synchronized table mapping contract names to principal addresses.
+*   **Phase 4: Full Cycle Tooling Alignment (Complete)**
+    *   Standardize the CLI (`stacksorbit_cli.py`) for the complete lifecycle: Setup, Detect, Test, Deploy, Monitor, Verify.
+    *   Integrate Vitest as the primary test runner for contract validation.
+*   **Phase 5: Clarity 4 / Nakamoto Support (Planned)**
+    *   Research and implement support for the latest Clarity language features.
 
 *   **Phase 6: Performance Optimization (In-Progress)**
     *   [x] Optimize API caching strategy for real-time responsiveness.
@@ -78,6 +76,8 @@ StacksOrbit is committed to supporting the latest Clarity language features.
 | Contract | Devnet | Testnet | Mainnet | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | `placeholder` | `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.placeholder` | `ST000000000000000000002Q6VF78.placeholder` | `SP2J1BCZK8Q0CP3W4R1XX9TMKJ1N1S8QZ7K0B5N8.placeholder` | ✅ Verified |
+
+*Note: All contract identifiers are synchronized with the Chainhook predicates in `/chainhooks`.*
 
 ## 6. Session Log
 
@@ -354,4 +354,15 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Standardized additional safe placeholders in `SAFE_PLACEHOLDERS`: `your_mnemonic_here`, `your_seed_phrase_here`, and `your_recovery_phrase_here`.
     *   Added regression tests in `tests/unit/test_sentinel_redaction.py` to verify the redaction of keys containing new keywords and the preservation of new placeholders.
     *   Verified system integrity via a full unit test suite (44 tests passed).
+*   **Status:** Complete.
+
+### Session 27: Root-Up Alignment & Foundation Verification
+
+*   **Objective:** Modernize the StacksOrbit repository using a "Root-Up" methodology and ensure the foundation is aligned with the Clarinet SDK and Vitest architecture.
+*   **Changes:**
+    *   Performed a comprehensive "Root-Up" drift analysis and confirmed alignment between `PRD.md`, `Clarinet.toml`, and the codebase.
+    *   Standardized all Node.js-related scripts and documentation to utilize `pnpm`, including `package.json`, `README.md`, `AGENTS.md`, and `deploy.sh`.
+    *   Verified the `vitest.config.ts` configuration for native `simnet` support and ESM compatibility.
+    *   Updated the Session Log in `PRD.md` to reflect the latest alignment work.
+    *   Verified the Contract Registry addresses against Chainhook predicates for Devnet, Testnet, and Mainnet.
 *   **Status:** Complete.

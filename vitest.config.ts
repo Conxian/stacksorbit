@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 
 /**
  * Vitest configuration for StacksOrbit.
+ * Standardized configuration for Clarinet SDK integration.
  * This configuration uses the @stacks/clarinet-sdk/vitest environment
  * to provide native simnet support for Clarity smart contracts.
  */

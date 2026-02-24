@@ -71,7 +71,7 @@ Currently, StacksOrbit is run directly from the source code.
     pip install -r requirements.txt
 
     # Install Node.js dependencies (for Clarinet)
-    npm install
+    pnpm install
     ```
 
 ## 3. Getting Started
@@ -142,7 +142,7 @@ pip install -e ".[dev,test]"
 The primary test suite is built with Vitest and the Clarinet SDK. To run the tests, use the following command:
 
 ```bash
-npm run test:vitest
+pnpm run test:vitest
 ```
 
 This will execute all of the tests in the `js-tests/` directory.
@@ -172,7 +172,7 @@ npx vitest --coverage
 
     ```bash
     # Lint
-    npm run lint
+    pnpm run lint
     ```
 
 ## 4. Deployment Workflow
