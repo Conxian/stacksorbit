@@ -356,7 +356,8 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
                     return
 
                 post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode())
+                # 🛡️ Sentinel: Explicitly use UTF-8 decoding for incoming JSON data.
+                data = json.loads(post_data.decode("utf-8"))
 
                 # 🛡️ Sentinel: Validate session token to prevent unauthorized overrides
                 # Use secrets.compare_digest to prevent timing attacks
