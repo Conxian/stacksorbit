@@ -71,6 +71,23 @@ class StacksOrbitGUI(App):
 
     # Reactive variables
     network = reactive("testnet")
+    unsaved_changes = reactive(False)
+
+    def watch_unsaved_changes(self, unsaved: bool) -> None:
+        """Watch for unsaved changes and update the Save button UI."""
+        try:
+            btn = self.w_save_config_btn
+            if unsaved:
+                btn.variant = "warning"
+                btn.label = "💾 Save Changes*"
+                btn.tooltip = "You have unsaved changes [s]"
+            else:
+                btn.variant = "primary"
+                btn.label = "💾 Save"
+                btn.tooltip = "Save settings to .env file [s]"
+        except Exception:
+            # Widget might not be mounted yet
+            pass
 
     def watch_network(self, network: str) -> None:
         """Watch the network reactive variable and update subtitle."""
@@ -905,8 +922,13 @@ class StacksOrbitGUI(App):
 
     @on(Switch.Changed, "#show-privkey")
     def on_show_privkey_changed(self, event: Switch.Changed) -> None:
-        """Toggle private key visibility."""
+        """Toggle private key visibility and update label."""
         self.w_privkey_input.password = not event.value
+        try:
+            label = self.query_one("#show-privkey-label", Label)
+            label.update("Hide" if event.value else "Show")
+        except Exception:
+            pass
 
     @on(Input.Changed, "#address-input")
     def on_address_changed(self, event: Input.Changed) -> None:
@@ -915,6 +937,10 @@ class StacksOrbitGUI(App):
         count = len(event.value)
         # PALETTE: Include character count in feedback
         count_display = f" [dim]({count}/41)[/]" if event.value else ""
+
+        # PALETTE: Track unsaved changes if the user is interacting with the input
+        if event.input.has_focus:
+            self.unsaved_changes = True
 
         if not event.value:
             event.input.remove_class("error")
@@ -937,6 +963,10 @@ class StacksOrbitGUI(App):
         count = len(event.value)
         # PALETTE: Include character count in feedback
         count_display = f" [dim]({count}/64 or 66)[/]" if event.value else ""
+
+        # PALETTE: Track unsaved changes if the user is interacting with the input
+        if event.input.has_focus:
+            self.unsaved_changes = True
 
         if not event.value or event.value == "your_private_key_here":
             event.input.remove_class("error")
@@ -976,6 +1006,7 @@ class StacksOrbitGUI(App):
                 # Update inputs and internal state
                 self.w_address_input.value = address
                 self.address = address
+                self.unsaved_changes = True
                 try:
                     self.w_display_address.update(address)
                 except Exception:
@@ -1155,6 +1186,13 @@ class StacksOrbitGUI(App):
             # 🛡️ Sentinel: Only save non-sensitive settings to the file.
             await asyncio.to_thread(_save_config_io, address_val)
             self.address = address_val
+            self.unsaved_changes = False
+
+            # Sync local config
+            self.config["SYSTEM_ADDRESS"] = address_val
+            if is_secret_provided:
+                self.config["DEPLOYER_PRIVKEY"] = privkey_val
+
             try:
                 self.w_display_address.update(address_val)
             except Exception: pass
