@@ -43,3 +43,7 @@
 ## 2025-05-24 - Relative Time and Visual Scannability in TUI Tables
 **Learning:** Adding relative time columns (e.g., '5m ago') to transaction tables significantly improves the usability of real-time monitoring by providing immediate temporal context without requiring mental calculation from block heights or absolute timestamps. Prepending high-fidelity emojis to type labels (e.g., 📄 for contracts) drastically improves visual scannability, allowing users to differentiate between event types at a glance.
 **Action:** Always provide relative time formatting for time-sensitive data. Use descriptive emojis and colorized statuses in DataTables to enhance scannability and provide immediate visual hierarchy.
+
+## 2025-05-25 - Unsaved Changes Indicators in TUIs
+**Learning:** In non-modal TUI settings views, providing immediate visual feedback for unsaved changes (e.g., changing a button's variant to 'warning' and adding an asterisk to the label) significantly improves the user's sense of state and prevents accidental data loss. This "dirty state" pattern is essential for non-web interfaces where standard browser "unsaved changes" warnings are unavailable.
+**Action:** Implement reactive 'unsaved_changes' states for any configuration-focused TUI views. Use distinct visual variants (like orange '.warning') and label markers (like '*') to signal pending modifications to the user.

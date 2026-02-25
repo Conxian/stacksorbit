@@ -366,3 +366,15 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Updated the Session Log in `PRD.md` to reflect the latest alignment work.
     *   Verified the Contract Registry addresses against Chainhook predicates for Devnet, Testnet, and Mainnet.
 *   **Status:** Complete.
+
+### Session 28: Unsaved Changes Feedback & Interactive Visibility (Palette)
+
+*   **Objective:** Enhance the configuration experience in the TUI by providing clear feedback for pending changes and interactive controls for sensitive data visibility.
+*   **Changes:**
+    *   Implemented a reactive `unsaved_changes` state in `StacksOrbitGUI` to track modifications to the account address and private key.
+    *   Added dynamic visual feedback to the Settings Save button, which now updates its variant to `warning` (orange) and its label to `💾 Save Changes*` when modifications are pending.
+    *   Implemented an interactive "Show/Hide" label toggle for the private key visibility switch, providing immediate textual feedback upon state changes.
+    *   Enhanced `on_save_config_pressed` to reset the unsaved state and synchronize the internal configuration dictionary upon successful persistence.
+    *   Added comprehensive automated tests in `tests/test_palette_new_features.py` to verify state transitions and label toggle logic.
+    *   Updated project dependencies (`vitest`, `vitest-environment-clarinet`) to ensure stable full-suite testing.
+*   **Status:** Complete.
