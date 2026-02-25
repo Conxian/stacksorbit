@@ -197,12 +197,15 @@ NETWORK_ADDR_RE_MAP = {
 HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
 
-def save_secure_config(filepath: str, config: object, json_format: bool = False):
+def save_secure_config(filepath: str, config: object, json_format: bool = False, redact: bool = True, indent: int = 2):
     """
     🛡️ Sentinel: Atomically and securely save configuration to a file.
     Uses a temporary file and os.replace for atomicity, and ensures
     secure file permissions (0600) from the start.
     If json_format is True, the config is automatically redacted and saved as JSON.
+
+    Bolt ⚡: Added 'redact' and 'indent' parameters to allow performance-critical
+    caching systems to skip expensive O(N) redaction and reduce I/O overhead.
     """
     if not filepath:
         return
@@ -218,9 +221,13 @@ def save_secure_config(filepath: str, config: object, json_format: bool = False)
         try:
             with open(temp_path, "w", encoding="utf-8") as f:
                 if json_format:
-                    # 🛡️ Sentinel: Automatically redact before saving as JSON
-                    redacted = redact_recursive(config)
-                    json.dump(redacted, f, indent=2)
+                    # 🛡️ Sentinel: Automatically redact before saving as JSON (if enabled)
+                    # Bolt ⚡: Optimization - Skip redaction for public/cached data to save CPU.
+                    if redact:
+                        redacted = redact_recursive(config)
+                    else:
+                        redacted = config
+                    json.dump(redacted, f, indent=indent)
                 # Handle both dict and string content
                 elif isinstance(config, dict):
                     for key, value in config.items():
