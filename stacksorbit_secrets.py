@@ -23,6 +23,7 @@ SECRET_KEYS = {
 SENSITIVE_SUBSTRINGS = [
     "KEY",
     "SECRET",
+    "SENSITIVE",
     "TOKEN",
     "PASSWORD",
     "MNEMONIC",
@@ -82,9 +83,16 @@ def redact_recursive(item, parent_key="", is_sensitive=None):
             key: redact_recursive(value, key, is_sensitive or is_sensitive_key(key))
             for key, value in item.items()
         }
-    elif isinstance(item, list):
+    elif isinstance(item, (list, tuple, set)):
         # Pass current sensitivity to list items as they inherit the parent key's sensitivity
-        return [redact_recursive(sub_item, parent_key, is_sensitive) for sub_item in item]
+        redacted_items = [
+            redact_recursive(sub_item, parent_key, is_sensitive) for sub_item in item
+        ]
+        if isinstance(item, tuple):
+            return tuple(redacted_items)
+        if isinstance(item, set):
+            return set(redacted_items)
+        return redacted_items
     else:
         # Check if the parent key is a known secret or contains a sensitive substring.
         if is_sensitive and item is not None:
@@ -95,10 +103,15 @@ def redact_recursive(item, parent_key="", is_sensitive=None):
             # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
             if isinstance(item, str):
                 return "<redacted>"
+            elif isinstance(item, bytes):
+                return b"<redacted>"
             elif isinstance(item, (int, float)):
                 return 0
             elif isinstance(item, bool):
                 return False
+            else:
+                # 🛡️ Sentinel: Catch-all for any other sensitive type (Defense-in-Depth)
+                return "<redacted>"
 
         # Return the original value if it's not sensitive.
         return item
