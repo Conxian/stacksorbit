@@ -64,16 +64,21 @@ def cache_api_call(func):
         result = func(self, *args, **kwargs)
 
         # Store the new result in the cache
+        cache_copy = None
         with self.cache_lock:
             # Bolt ⚡: Optimization - Only save if the data has actually changed
             # to avoid redundant disk writes for frequent identical updates (e.g. polling).
             old_data = self.cache.get(cache_key, {}).get("data")
             self.cache[cache_key] = {"timestamp": time.time(), "data": result}
-
             if result != old_data:
-                # Bolt ⚡: Save cache to disk after updating it.
-                # This makes the cache persistent across CLI runs.
-                self._save_cache()
+                # Bolt ⚡: Create a shallow copy while holding the lock to allow
+                # thread-safe background I/O without holding the lock during disk writes.
+                # This prevents 'RuntimeError: dictionary changed size during iteration'.
+                cache_copy = self.cache.copy()
+
+        if cache_copy is not None:
+            # Bolt ⚡: Pass the snapshot to save_cache for lock-free background persistence.
+            self._save_cache(cache_copy)
         return result
 
     return wrapper
@@ -97,6 +102,8 @@ class DeploymentMonitor:
 
         # Bolt ⚡: Use a persistent file-based cache.
         self.cache_path = Path("logs") / "api_cache.json"
+        # Bolt ⚡: Pre-create logs directory to avoid redundant system calls in save_cache.
+        self.cache_path.parent.mkdir(exist_ok=True)
         self.cache_lock = threading.Lock()
         self.cache_expiry = 300  # Cache for 5 minutes
         self.cache = self._load_cache()
@@ -119,12 +126,19 @@ class DeploymentMonitor:
                 self.logger.warning(f"Could not load cache file: {e}")
         return {}
 
-    def _save_cache(self):
+    def _save_cache(self, cache_data: Optional[Dict] = None):
         """Save API cache to a file."""
         try:
-            self.cache_path.parent.mkdir(exist_ok=True)
-            # 🛡️ Sentinel: Use secure persistence with automatic redaction and 0600 permissions.
-            save_secure_config(str(self.cache_path), self.cache, json_format=True)
+            # Use provided snapshot or fallback to current cache (holding lock if necessary)
+            data = cache_data
+            if data is None:
+                with self.cache_lock:
+                    data = self.cache.copy()
+
+            # 🛡️ Sentinel: Use secure persistence with 0600 permissions.
+            # Bolt ⚡: Use indent=None to reduce I/O overhead and file size.
+            # We re-enable redaction to maintain the 'Sentinel' security standard.
+            save_secure_config(str(self.cache_path), data, json_format=True, redact=True, indent=None)
         except Exception as e:
             self.logger.error(f"Could not save cache file: {e}")
 
