@@ -72,6 +72,7 @@ def _format_relative_time_cached(iso_time: str, now_bucket: int) -> str:
 from stacksorbit_secrets import (
     SECRET_KEYS,
     is_sensitive_key,
+    is_sensitive_value,
     is_placeholder,
     validate_stacks_address,
     validate_private_key,
@@ -158,7 +159,8 @@ class StacksOrbitGUI(App):
                             k, v = key.strip(), value.strip().strip('"').strip("'")
 
                             # 🛡️ Sentinel: Enforce security policy - no secrets in .env
-                            if is_sensitive_key(k) and not is_placeholder(v):
+                            # Bolt ⚡: Check both key name and value for secrets to provide defense-in-depth.
+                            if (is_sensitive_key(k) or is_sensitive_value(v)) and not is_placeholder(v):
                                 raise ValueError(
                                     f"🛡️ Sentinel Security Error: Secret key '{k}' found in .env file.\n"
                                     "   Storing secrets in plaintext files is a critical security risk.\n"

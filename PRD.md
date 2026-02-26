@@ -391,3 +391,16 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Added a new automated test suite `tests/test_palette_explorer_buttons.py` to verify button existence, tooltips, and state transitions.
     *   Verified system integrity via full pytest and vitest suites.
 *   **Status:** Complete.
+
+### Session 30: Value-Based Secret Detection & Hardened Persistence (Sentinel)
+
+*   **Objective:** Implement a defense-in-depth mechanism to detect sensitive information by its value, protecting the application from secret leakage even when generic key names are used.
+*   **Changes:**
+    *   Implemented `is_sensitive_value` in `stacksorbit_secrets.py` to identify Stacks private keys (64/66 hex chars) and BIP39-style mnemonics.
+    *   Hardened `redact_recursive` to automatically redact recognized sensitive values regardless of their parent key name.
+    *   Enhanced `save_secure_config` to block the persistence of recognized secrets to disk, ensuring that even misnamed keys do not result in plaintext secret storage.
+    *   Standardized all configuration loaders (`ConfigManager`, `EnhancedConfigManager`, and `StacksOrbitGUI`) to enforce this new value-based security policy during initialization.
+    *   Unified secret placeholder handling across the project using the centralized `is_placeholder` utility.
+    *   Added comprehensive security regression tests in `tests/unit/test_sentinel_value_redaction.py`.
+    *   Verified system integrity with full unit test suite (55 passed).
+*   **Status:** Complete.
