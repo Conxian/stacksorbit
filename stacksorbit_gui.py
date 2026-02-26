@@ -174,6 +174,7 @@ class StacksOrbitGUI(App):
                         markup=True,
                     )
                     yield Button("📋", id="copy-dashboard-address-btn")
+                    yield Button("🌐", id="view-dashboard-explorer-btn")
                     yield Button("🚰 Faucet", id="faucet-btn", variant="warning")
                 with Grid(id="metrics-grid"):
                     yield Container(
@@ -304,6 +305,10 @@ class StacksOrbitGUI(App):
                             id="copy-address-btn",
                         )
                         yield Button(
+                            "🌐",
+                            id="view-address-explorer-btn",
+                        )
+                        yield Button(
                             "🚰 Faucet",
                             id="settings-faucet-btn",
                             variant="warning",
@@ -334,7 +339,9 @@ class StacksOrbitGUI(App):
         self.w_transactions_table = self.query_one("#transactions-table", DataTable)
         self.w_display_address = self.query_one("#display-address", Static)
         self.w_faucet_btn = self.query_one("#faucet-btn", Button)
+        self.w_view_dashboard_explorer_btn = self.query_one("#view-dashboard-explorer-btn", Button)
         self.w_settings_faucet_btn = self.query_one("#settings-faucet-btn", Button)
+        self.w_view_address_explorer_btn = self.query_one("#view-address-explorer-btn", Button)
         self.w_address_input = self.query_one("#address-input", Input)
         self.w_privkey_input = self.query_one("#privkey-input", Input)
         self.w_address_error = self.query_one("#address-error", Label)
@@ -388,6 +395,9 @@ class StacksOrbitGUI(App):
         self.query_one("#copy-address-btn", Button).tooltip = (
             "Copy address to clipboard"
         )
+        self.w_view_address_explorer_btn.tooltip = (
+            "View address on Hiro Explorer"
+        )
         self.query_one("#connect-wallet-btn", Button).tooltip = (
             "Connect your wallet via browser"
         )
@@ -399,6 +409,9 @@ class StacksOrbitGUI(App):
         )
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
             "Copy your Stacks address to clipboard"
+        )
+        self.w_view_dashboard_explorer_btn.tooltip = (
+            "View your address on Hiro Explorer"
         )
         self.w_faucet_btn.tooltip = (
             "Get free STX from the Hiro Testnet Faucet"
@@ -417,6 +430,11 @@ class StacksOrbitGUI(App):
         self.w_copy_contract_btn.disabled = True
         self.w_copy_source_btn.disabled = True
         self.w_view_explorer_btn.disabled = True
+
+        # PALETTE: Initialize address explorer button states
+        is_addr_configured = self.address != "Not configured"
+        self.w_view_dashboard_explorer_btn.disabled = not is_addr_configured
+        self.w_view_address_explorer_btn.disabled = not is_addr_configured
 
         # Transaction actions initialization
         self.w_copy_tx_btn.disabled = True
@@ -439,7 +457,7 @@ class StacksOrbitGUI(App):
 
         # Add tooltips to metric cards for better clarity
         self.query("#network-status").first().parent.tooltip = (
-            "Current status of the Stacks API"
+            f"Current status of the Stacks API ({self.monitor.api_url}). Click to refresh."
         )
         self.query("#contract-count").first().parent.tooltip = (
             "Total number of contracts deployed by this address"
@@ -1042,6 +1060,30 @@ class StacksOrbitGUI(App):
         url = "https://explorer.hiro.so/sandbox/faucet?chain=testnet"
         webbrowser.open(url)
         self.notify("Opening Testnet Faucet in browser...", severity="information")
+
+    @on(Button.Pressed, "#view-dashboard-explorer-btn")
+    @on(Button.Pressed, "#view-address-explorer-btn")
+    async def on_view_address_explorer_pressed(self, event: Button.Pressed) -> None:
+        """Open the Stacks address on the Hiro Explorer."""
+        # For dashboard button, use self.address.
+        # For settings button, use the current input value for better UX.
+        address = self.address
+        if event.button.id == "view-address-explorer-btn":
+            address = self.w_address_input.value
+
+        if not address or address == "Not configured":
+            self.notify("No address configured to view.", severity="warning")
+            return
+
+        if self.network == "devnet":
+            self.notify(
+                "Hiro Explorer is not available for local devnet.", severity="warning"
+            )
+            return
+
+        url = f"https://explorer.hiro.so/address/{address}?chain={self.network}"
+        webbrowser.open(url)
+        self.notify("Opening Explorer in browser...", severity="information")
 
     @on(Button.Pressed, "#copy-dashboard-address-btn")
     async def on_copy_dashboard_address_pressed(self) -> None:

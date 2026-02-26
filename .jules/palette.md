@@ -47,3 +47,7 @@
 ## 2025-05-25 - Unsaved Changes Indicators in TUIs
 **Learning:** In non-modal TUI settings views, providing immediate visual feedback for unsaved changes (e.g., changing a button's variant to 'warning' and adding an asterisk to the label) significantly improves the user's sense of state and prevents accidental data loss. This "dirty state" pattern is essential for non-web interfaces where standard browser "unsaved changes" warnings are unavailable.
 **Action:** Implement reactive 'unsaved_changes' states for any configuration-focused TUI views. Use distinct visual variants (like orange '.warning') and label markers (like '*') to signal pending modifications to the user.
+
+## 2025-05-26 - Consistent Deep-Linking with Address Explorer Buttons
+**Learning:** For primary user identity elements (like the Stacks Address), providing immediate, consistent access to external blockchain explorers across all dashboard and settings views reduces friction and reinforces the connection to the underlying network. Using a dedicated icon (🌐) for these links creates a recognizable pattern that helps users quickly move from local views to full network context.
+**Action:** Always include a "View on Explorer" (🌐) button next to primary blockchain identifiers like addresses and transaction IDs. Ensure these buttons are reactively disabled when the identifier is unconfigured to prevent broken links.

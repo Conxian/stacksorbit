@@ -49,6 +49,7 @@ The StacksOrbit project is transitioning to a modern development and testing arc
     *   [x] Add context-aware Testnet Faucet links with visual hierarchy.
     *   [x] Implement interactive input labels and clickable metric cards.
     *   Harden path validation and nested secret redaction.
+    *   [x] Implement "View on Explorer" integration for account addresses.
 
 ## 4. Feature Alignment
 
@@ -377,4 +378,16 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Enhanced `on_save_config_pressed` to reset the unsaved state and synchronize the internal configuration dictionary upon successful persistence.
     *   Added comprehensive automated tests in `tests/test_palette_new_features.py` to verify state transitions and label toggle logic.
     *   Updated project dependencies (`vitest`, `vitest-environment-clarinet`) to ensure stable full-suite testing.
+*   **Status:** Complete.
+
+### Session 29: Dashboard & Settings Explorer Integration (Palette)
+
+*   **Objective:** Enhance the StacksOrbit TUI by providing consistent, immediate access to external blockchain explorers for primary user addresses from both the Dashboard and Settings views.
+*   **Changes:**
+    *   Added "View on Explorer" (🌐) buttons to the Dashboard and Settings address bars in `stacksorbit_gui.py`.
+    *   Implemented a network-aware explorer link handler with support for address-level deep-linking and devnet safety checks.
+    *   Enhanced the "Network Status" metric card with an informative tooltip containing the active Hiro API URL and refresh hints.
+    *   Implemented reactive button state management to ensure explorer buttons are disabled when no address is configured.
+    *   Added a new automated test suite `tests/test_palette_explorer_buttons.py` to verify button existence, tooltips, and state transitions.
+    *   Verified system integrity via full pytest and vitest suites.
 *   **Status:** Complete.
