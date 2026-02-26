@@ -3,7 +3,13 @@ import sys
 import argparse
 import toml
 from dotenv import dotenv_values
-from stacksorbit_secrets import SECRET_KEYS, is_sensitive_key, redact_recursive
+from stacksorbit_secrets import (
+    SECRET_KEYS,
+    is_sensitive_key,
+    is_placeholder,
+    is_sensitive_value,
+    redact_recursive,
+)
 
 
 class ConfigManager:
@@ -28,13 +34,10 @@ class ConfigManager:
             file_vars = dotenv_values(dotenv_path=env_path)
 
             # 🛡️ Sentinel: Enforce security policy - no secrets in .env
-            # We iterate over all keys in the file and use is_sensitive_key to identify secrets.
+            # We iterate over all keys in the file and use is_sensitive_key and is_sensitive_value to identify secrets.
             for key, value in file_vars.items():
-                if is_sensitive_key(key) and value not in (
-                    "",
-                    "your_private_key_here",
-                    "your_hiro_api_key",
-                ):
+                # Bolt ⚡: Check both key name and value for secrets to provide defense-in-depth.
+                if (is_sensitive_key(key) or is_sensitive_value(value)) and not is_placeholder(value):
                     # If a secret is found, raise an error and exit immediately.
                     error_message = (
                         f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"

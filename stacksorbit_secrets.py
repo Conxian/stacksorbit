@@ -5,6 +5,7 @@ Centralized list of secret keys for StacksOrbit.
 import os
 import functools
 import json
+import re
 
 SECRET_KEYS = {
     "HIRO_API_KEY",
@@ -62,8 +63,53 @@ SENSITIVE_SUBSTRINGS = [
 ]
 
 # Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.
-import re
 SENSITIVE_RE = re.compile("|".join(SENSITIVE_SUBSTRINGS))
+
+# Bolt ⚡: Pre-compile regex for faster hex character validation.
+HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
+
+
+@functools.lru_cache(maxsize=128)
+def validate_private_key(privkey: str) -> bool:
+    """
+    Validate Stacks private key format (64 or 66 chars hex).
+
+    Bolt ⚡: Caching this function improves UI responsiveness during real-time
+    validation of private keys.
+    """
+    if not privkey or not isinstance(privkey, str):
+        return False
+    pk = privkey.strip()
+    # Bolt ⚡: Check length first to fail fast and avoid more expensive checks.
+    # This also catches placeholders like 'your_private_key_here' (21 chars) automatically.
+    if len(pk) not in (64, 66):
+        return False
+    # Bolt ⚡: Use regex for faster hex character validation (~5.5x faster than loop).
+    return bool(HEX_RE.match(pk))
+
+
+@functools.lru_cache(maxsize=1024)
+def is_sensitive_value(value: str) -> bool:
+    """
+    🛡️ Sentinel: Check if a value looks like a secret (e.g., a private key or mnemonic).
+    This provides defense-in-depth by catching secrets even if stored under non-sensitive keys.
+    """
+    if not value or not isinstance(value, str):
+        return False
+
+    # Check for Stacks private key format (64 or 66 hex chars)
+    if validate_private_key(value):
+        return True
+
+    # Check for common mnemonic patterns (12 or 24 words)
+    # Bolt ⚡: Use a fast split and length check.
+    words = value.strip().split()
+    if len(words) in (12, 24) and all(len(w) >= 3 for w in words):
+        # Additional check: most mnemonics are all lowercase or all uppercase
+        if value.islower() or value.isupper():
+            return True
+
+    return False
 
 
 def redact_recursive(item, parent_key="", is_sensitive=None):
@@ -95,7 +141,8 @@ def redact_recursive(item, parent_key="", is_sensitive=None):
         return redacted_items
     else:
         # Check if the parent key is a known secret or contains a sensitive substring.
-        if is_sensitive and item is not None:
+        # 🛡️ Sentinel: Also check if the value itself looks like a secret (Defense-in-Depth).
+        if (is_sensitive or is_sensitive_value(str(item))) and item is not None:
             # Skip empty values or common non-secret placeholders
             if is_placeholder(str(item)):
                 return item
@@ -192,6 +239,8 @@ def is_placeholder(value: str) -> bool:
         return True
 
     return str(value).strip().lower() in SAFE_PLACEHOLDERS
+
+
 # Bolt ⚡: Pre-compile network-aware regexes for faster Stacks address validation.
 # These combine prefix, length, and charset checks into a single pass.
 # 28-41 total chars -> 2 chars prefix + 26-39 chars body.
@@ -205,9 +254,6 @@ NETWORK_ADDR_RE_MAP = {
     "testnet": TESTNET_ADDR_RE,
     "devnet": TESTNET_ADDR_RE,
 }
-
-# Bolt ⚡: Pre-compile regex for faster hex character validation.
-HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
 
 def save_secure_config(filepath: str, config: object, json_format: bool = False, redact: bool = True, indent: int = 2):
@@ -245,8 +291,9 @@ def save_secure_config(filepath: str, config: object, json_format: bool = False,
                 elif isinstance(config, dict):
                     for key, value in config.items():
                         # 🛡️ Sentinel: Security Enforcer.
-                        # Explicitly skip any known secrets or potential sensitive keys.
-                        if not is_sensitive_key(str(key)):
+                        # Explicitly skip any known secrets, potential sensitive keys, OR values that look like secrets.
+                        # This prevents secrets from being saved to disk even if stored under generic key names.
+                        if not is_sensitive_key(str(key)) and not is_sensitive_value(str(value)):
                             # 🛡️ Sentinel: Sanitize key and value to prevent injection and format breakage.
                             # We remove newlines and equals signs from keys to prevent configuration injection.
                             safe_key = (
@@ -281,25 +328,6 @@ def save_secure_config(filepath: str, config: object, json_format: bool = False,
             except:
                 pass
         raise e
-
-
-@functools.lru_cache(maxsize=128)
-def validate_private_key(privkey: str) -> bool:
-    """
-    Validate Stacks private key format (64 or 66 chars hex).
-
-    Bolt ⚡: Caching this function improves UI responsiveness during real-time
-    validation of private keys.
-    """
-    if not privkey or not isinstance(privkey, str):
-        return False
-    pk = privkey.strip()
-    # Bolt ⚡: Check length first to fail fast and avoid more expensive checks.
-    # This also catches placeholders like 'your_private_key_here' (21 chars) automatically.
-    if len(pk) not in (64, 66):
-        return False
-    # Bolt ⚡: Use regex for faster hex character validation (~5.5x faster than loop).
-    return bool(HEX_RE.match(pk))
 
 
 def set_secure_permissions(filepath: str):

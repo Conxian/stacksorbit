@@ -19,6 +19,7 @@ from dotenv import dotenv_values
 from stacksorbit_secrets import (
     SECRET_KEYS,
     is_sensitive_key,
+    is_sensitive_value,
     is_placeholder,
     validate_stacks_address,
     validate_private_key,
@@ -70,7 +71,8 @@ class EnhancedConfigManager:
 
         # 🛡️ Sentinel: Enforce security policy - no secrets in .env
         for key, value in file_config.items():
-            if is_sensitive_key(key) and not is_placeholder(value):
+            # Bolt ⚡: Check both key name and value for secrets to provide defense-in-depth.
+            if (is_sensitive_key(key) or is_sensitive_value(value)) and not is_placeholder(value):
                 error_message = (
                     f"🛡️ Sentinel Security Error: Secret key '{key}' found in .env file.\n"
                     "   Storing secrets in plaintext files is a critical security risk and is not permitted.\n"
