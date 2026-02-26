@@ -41,6 +41,34 @@ except ImportError as e:
     GUI_AVAILABLE = False
 
 from deployment_monitor import DeploymentMonitor
+
+@functools.lru_cache(maxsize=128)
+def _parse_iso_to_dt(iso_time: str) -> datetime:
+    """Bolt ⚡: Cached ISO parsing to avoid redundant expensive fromisoformat calls."""
+    # Handle 'Z' for older Python versions and parse ISO string
+    ts = iso_time.replace("Z", "+00:00")
+    return datetime.fromisoformat(ts)
+
+
+@functools.lru_cache(maxsize=1024)
+def _format_relative_time_cached(iso_time: str, now_bucket: int) -> str:
+    """Bolt ⚡: Cached relative time formatting to minimize O(N) timedelta math in loops."""
+    try:
+        dt = _parse_iso_to_dt(iso_time)
+        now = datetime.fromtimestamp(now_bucket, tz=timezone.utc)
+        diff = now - dt
+
+        if diff.total_seconds() < 0:  # Future (can happen in dev/test)
+            return "Just now"
+        if diff.days > 0:
+            return f"{diff.days}d ago"
+        if diff.seconds >= 3600:
+            return f"{diff.seconds // 3600}h ago"
+        if diff.seconds >= 60:
+            return f"{diff.seconds // 60}m ago"
+        return "Just now"
+    except Exception:
+        return "N/A"
 from stacksorbit_secrets import (
     SECRET_KEYS,
     is_sensitive_key,
@@ -353,6 +381,12 @@ class StacksOrbitGUI(App):
         self.w_contract_details_md = self.query_one("#contract-details", Markdown)
         self.w_details_loader = self.query(".details-pane LoadingIndicator").first()
 
+        # Bolt ⚡: Cache all LoadingIndicator widgets and the Refresh button to avoid redundant DOM queries.
+        # Use defensive queries to avoid crashes if widgets are unmounted during initialization.
+        self.w_loading_indicators = list(self.query(LoadingIndicator))
+        self.w_overview_indicators = list(self.query("#overview LoadingIndicator"))
+        self.w_refresh_btn = self.query("#refresh-btn").first() if self.query("#refresh-btn") else None
+
         # PALETTE: Handle 'Not configured' state visually
         if self.address == "Not configured":
             self.w_display_address.update("[dim]Not configured[/]")
@@ -483,38 +517,22 @@ class StacksOrbitGUI(App):
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Time", "Block")
 
-    @functools.lru_cache(maxsize=128)
-    def _parse_iso_to_dt(self, iso_time: str) -> datetime:
-        """Bolt ⚡: Cached ISO parsing to avoid redundant expensive fromisoformat calls."""
-        # Handle 'Z' for older Python versions and parse ISO string
-        ts = iso_time.replace("Z", "+00:00")
-        return datetime.fromisoformat(ts)
-
     def _format_relative_time(self, iso_time: str, now: datetime) -> str:
         """Format an ISO timestamp as a relative time string (e.g., '5m ago')."""
         if not iso_time:
             return "[yellow]Pending[/]"
-        try:
-            dt = self._parse_iso_to_dt(iso_time)
-            diff = now - dt
 
-            if diff.total_seconds() < 0:  # Future (can happen in dev/test)
-                return "Just now"
-            if diff.days > 0:
-                return f"{diff.days}d ago"
-            if diff.seconds >= 3600:
-                return f"{diff.seconds // 3600}h ago"
-            if diff.seconds >= 60:
-                return f"{diff.seconds // 60}m ago"
-            return "Just now"
-        except Exception:
-            return "N/A"
+        # Bolt ⚡: Normalize 'now' to 10s intervals to maximize cache hits across refreshes.
+        # This avoids redundant calculations for transactions whose relative time hasn't changed.
+        now_bucket = int(now.timestamp() / 10) * 10
+        return _format_relative_time_cached(iso_time, now_bucket)
 
     async def update_data(self, bypass_cache: bool = False) -> None:
         """Update all data in the GUI concurrently."""
         # ⚡ Bolt: Don't clear tables immediately to avoid flickering.
         # We will clear them only if data has changed.
-        for indicator in self.query(LoadingIndicator):
+        # Bolt ⚡: Use cached indicators to avoid O(N) DOM queries.
+        for indicator in self.w_loading_indicators:
             indicator.display = True
 
         try:
@@ -703,7 +721,8 @@ class StacksOrbitGUI(App):
             self.w_network_status.update("[red]Error[/]")
             self.notify(f"API error: {e}", severity="error")
         finally:
-            for indicator in self.query(LoadingIndicator):
+            # Bolt ⚡: Use cached indicators to avoid O(N) DOM queries.
+            for indicator in self.w_loading_indicators:
                 indicator.display = False
 
     @on(DataTable.RowSelected, "#contracts-table")
@@ -824,13 +843,14 @@ class StacksOrbitGUI(App):
         if self._manual_refresh_in_progress:
             return
 
-        # Handle UI feedback if button is visible/present
-        for refresh_btn in self.query("#refresh-btn"):
+        # Bolt ⚡: Use cached refresh button and indicators for O(1) feedback.
+        refresh_btn = self.w_refresh_btn
+        if refresh_btn:
             self._original_btn_label = refresh_btn.label
             refresh_btn.disabled = True
             refresh_btn.label = "Refreshing..."
 
-        for indicator in self.query("#overview LoadingIndicator"):
+        for indicator in self.w_overview_indicators:
             indicator.display = True
 
         self.run_worker(self._do_refresh())
@@ -845,11 +865,12 @@ class StacksOrbitGUI(App):
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")
         finally:
-            for refresh_btn in self.query("#refresh-btn"):
-                refresh_btn.disabled = False
-                refresh_btn.label = getattr(self, "_original_btn_label", "🔄 Refresh")
+            # Bolt ⚡: Use cached refresh button and indicators for O(1) feedback.
+            if self.w_refresh_btn:
+                self.w_refresh_btn.disabled = False
+                self.w_refresh_btn.label = getattr(self, "_original_btn_label", "🔄 Refresh")
 
-            for indicator in self.query("#overview LoadingIndicator"):
+            for indicator in self.w_overview_indicators:
                 indicator.display = False
             self._manual_refresh_in_progress = False
 
