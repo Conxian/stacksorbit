@@ -254,3 +254,31 @@ LoadingIndicator {
     margin: 0 1;
     padding: 0 1;
 }
+
+#tx-filter-bar {
+    height: auto;
+    align: center middle;
+    padding: 0 1;
+    margin-bottom: 1;
+    background: #1e1e20;
+    border: solid #2a2a2c;
+}
+
+#tx-filter-input {
+    width: 1fr;
+    margin: 0;
+    border: none;
+    background: transparent;
+}
+
+#tx-filter-input:focus {
+    border: none;
+    background: #252527;
+}
+
+#tx-filter-count {
+    width: auto;
+    padding: 0 1;
+    color: #808080;
+    text-style: italic;
+}

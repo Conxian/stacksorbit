@@ -96,11 +96,13 @@ class StacksOrbitGUI(App):
         Binding("f3", "switch_tab('transactions')", "Transactions", show=True),
         Binding("f4", "switch_tab('deployment')", "Deploy", show=True),
         Binding("f5", "switch_tab('settings')", "Settings", show=True),
+        Binding("/", "focus_tx_filter", "Search Transactions", show=False),
     ]
 
     # Reactive variables
     network = reactive("testnet")
     unsaved_changes = reactive(False)
+    tx_filter = reactive("")
 
     def watch_unsaved_changes(self, unsaved: bool) -> None:
         """Watch for unsaved changes and update the Save button UI."""
@@ -143,6 +145,7 @@ class StacksOrbitGUI(App):
         self.current_source_code = None
         # Bolt ⚡: State tracking to avoid redundant UI re-renders
         self._last_contracts = None
+        self._all_transactions = []
         self._last_transactions = None
         self._last_metrics = {}
 
@@ -264,6 +267,9 @@ class StacksOrbitGUI(App):
                     )
 
             with TabPane("📜 Transactions", id="transactions"):
+                with Horizontal(id="tx-filter-bar"):
+                    yield Input(placeholder="🔍 Filter transactions (ID, Type, Status)...", id="tx-filter-input")
+                    yield Label("(0/0 matches)", id="tx-filter-count")
                 yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
                 with Horizontal(id="transaction-actions"):
@@ -382,6 +388,8 @@ class StacksOrbitGUI(App):
         self.w_copy_tx_btn = self.query_one("#copy-selected-tx-btn", Button)
         self.w_view_tx_explorer_btn = self.query_one("#view-selected-tx-explorer-btn", Button)
         self.w_tx_status_label = self.query_one("#tx-status-label", Label)
+        self.w_tx_filter_input = self.query_one("#tx-filter-input", Input)
+        self.w_tx_filter_count = self.query_one("#tx-filter-count", Label)
         self.w_save_config_btn = self.query_one("#save-config-btn", Button)
         self.w_deployment_log = self.query_one("#deployment-log", Log)
         self.w_show_privkey = self.query_one("#show-privkey", Switch)
@@ -409,6 +417,9 @@ class StacksOrbitGUI(App):
         )
         self.w_transactions_table.tooltip = (
             "Recent transactions for this address. Click a row to copy full TX ID."
+        )
+        self.w_tx_filter_input.tooltip = (
+            "Filter transactions by ID, Type, or Status [/]"
         )
         self.w_deployment_log.tooltip = (
             "Deployment process logs and output"
@@ -528,6 +539,76 @@ class StacksOrbitGUI(App):
         self._setup_tables()
         self.set_interval(10.0, self.update_data)
         self.run_worker(self.update_data())
+
+    def _update_transactions_table(self) -> None:
+        """Filter and repopulate the transactions table based on current filter."""
+        transactions_table = self.w_transactions_table
+        transactions_table.clear()
+
+        filter_text = self.tx_filter.lower().strip()
+        filtered_txs = []
+
+        if not self._all_transactions:
+            if self.address != "Not configured":
+                transactions_table.add_row("", "No transactions found", "", "", "")
+            else:
+                transactions_table.add_row(
+                    "⚠️", "Config missing", "Address not configured in .env", "", ""
+                )
+            self.w_tx_filter_count.update("(0/0 matches)")
+            return
+
+        for tx in self._all_transactions:
+            tx_id = tx.get("tx_id", "")
+            tx_type = tx.get("tx_type", "")
+            tx_status = tx.get("tx_status", "")
+
+            if not filter_text or (
+                filter_text in tx_id.lower()
+                or filter_text in tx_type.lower()
+                or filter_text in tx_status.lower()
+            ):
+                filtered_txs.append(tx)
+
+        if filtered_txs:
+            now_utc = datetime.now(timezone.utc)
+            for tx in filtered_txs:
+                status = tx.get("tx_status", "")
+                display_status = status
+                if status == "success":
+                    display_status = "[green]✅ success[/]"
+                elif "pending" in status:
+                    display_status = "[yellow]⏳ pending[/]"
+                elif "abort" in status or status == "failed":
+                    display_status = "[red]❌ failed[/]"
+
+                tx_type = tx.get("tx_type", "")
+                display_type = tx_type
+                if tx_type == "smart_contract":
+                    display_type = "📄 [cyan]contract[/]"
+                elif tx_type == "contract_call":
+                    display_type = "📞 [magenta]call[/]"
+                elif tx_type == "token_transfer":
+                    display_type = "💸 [yellow]transfer[/]"
+                elif tx_type == "coinbase":
+                    display_type = "⛏️ [green]coinbase[/]"
+
+                transactions_table.add_row(
+                    tx.get("tx_id", "")[:10] + "...",
+                    display_type,
+                    display_status,
+                    self._format_relative_time(tx.get("burn_block_time_iso"), now_utc),
+                    str(tx.get("block_height", "")),
+                    key=tx.get("tx_id"),
+                )
+        else:
+            transactions_table.add_row(
+                "🔍", f"No matches for '{filter_text}'", "Try a different search term.", "", ""
+            )
+
+        self.w_tx_filter_count.update(
+            f"({len(filtered_txs)}/{len(self._all_transactions)} matches)"
+        )
 
     def _setup_tables(self) -> None:
         """Setup the data tables"""
@@ -690,52 +771,10 @@ class StacksOrbitGUI(App):
             now_label = datetime.now().strftime("%H:%M:%S")
             self.w_last_updated.update(f" [dim]Last updated: {now_label}[/]")
 
-            # ⚡ Bolt: Only clear and repopulate transactions table if data changed
-            if transactions != self._last_transactions:
-                transactions_table = self.w_transactions_table
-                transactions_table.clear()
-                if transactions:
-                    # Bolt ⚡: Hoist datetime.now(timezone.utc) out of the loop to avoid redundant system calls.
-                    now_utc = datetime.now(timezone.utc)
-                    # Bolt ⚡: Building rows first and then adding them can be more efficient,
-                    # but we use add_row to preserve row keys for selection.
-                    for tx in transactions:
-                        status = tx.get("tx_status", "")
-                        # PALETTE: Colorize status with emojis for better scannability
-                        display_status = status
-                        if status == "success":
-                            display_status = "[green]✅ success[/]"
-                        elif "pending" in status:
-                            display_status = "[yellow]⏳ pending[/]"
-                        elif "abort" in status or status == "failed":
-                            display_status = "[red]❌ failed[/]"
-
-                        tx_type = tx.get("tx_type", "")
-                        display_type = tx_type
-                        if tx_type == "smart_contract":
-                            display_type = "📄 [cyan]contract[/]"
-                        elif tx_type == "contract_call":
-                            display_type = "📞 [magenta]call[/]"
-                        elif tx_type == "token_transfer":
-                            display_type = "💸 [yellow]transfer[/]"
-                        elif tx_type == "coinbase":
-                            display_type = "⛏️ [green]coinbase[/]"
-
-                        transactions_table.add_row(
-                            tx.get("tx_id", "")[:10] + "...",
-                            display_type,
-                            display_status,
-                            self._format_relative_time(tx.get("burn_block_time_iso"), now_utc),
-                            str(tx.get("block_height", "")),
-                            key=tx.get("tx_id"),
-                        )
-                elif self.address != "Not configured":
-                    transactions_table.add_row("", "No transactions found", "", "")
-                else:
-                    transactions_table.add_row(
-                        "⚠️", "Config missing", "Address not configured in .env", ""
-                    )
-                self._last_transactions = transactions
+            # ⚡ Bolt: Only clear and repopulate transactions table if data changed or filter applied
+            if transactions != self._all_transactions:
+                self._all_transactions = transactions
+                self._update_transactions_table()
 
         except Exception as e:
             self.w_network_status.update("[red]Error[/]")
@@ -822,6 +861,13 @@ class StacksOrbitGUI(App):
         """Handle tab changes to improve interaction focus."""
         if event.tabbed_content.active == "settings":
             self.w_privkey_input.focus()
+        elif event.tabbed_content.active == "transactions":
+            self.w_transactions_table.focus()
+
+    def action_focus_tx_filter(self) -> None:
+        """Focus the transaction filter input."""
+        self.w_tabbed_content.active = "transactions"
+        self.w_tx_filter_input.focus()
 
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
@@ -996,6 +1042,12 @@ class StacksOrbitGUI(App):
             error_label.update(
                 f"[red]❌ Must be 28-41 chars and start with {prefix}[/red]{count_display}"
             )
+
+    @on(Input.Changed, "#tx-filter-input")
+    def on_tx_filter_changed(self, event: Input.Changed) -> None:
+        """Handle transaction filter input changes."""
+        self.tx_filter = event.value
+        self._update_transactions_table()
 
     @on(Input.Changed, "#privkey-input")
     def on_privkey_changed(self, event: Input.Changed) -> None:
