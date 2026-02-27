@@ -102,6 +102,12 @@ def is_sensitive_value(value: str) -> bool:
         return True
 
     # Check for common mnemonic patterns (12 or 24 words)
+    # Bolt ⚡: Optimization - Skip split() and lower/upper checks for large or multiline
+    # strings. Mnemonics are single-line and typically under 500 characters.
+    # This avoids O(N) overhead for contract source code or large logs during redaction.
+    if len(value) > 500 or "\n" in value:
+        return False
+
     # Bolt ⚡: Use a fast split and length check.
     words = value.strip().split()
     if len(words) in (12, 24) and all(len(w) >= 3 for w in words):
@@ -237,6 +243,11 @@ def is_placeholder(value: str) -> bool:
     """
     if value is None:
         return True
+
+    # Bolt ⚡: Optimization - Safe placeholders are short (longest is ~26 chars).
+    # Skip string normalization for large strings to avoid O(N) overhead.
+    if len(str(value)) > 50:
+        return False
 
     return str(value).strip().lower() in SAFE_PLACEHOLDERS
 
