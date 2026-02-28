@@ -74,6 +74,20 @@ SENSITIVE_SUBSTRINGS = [
 # Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.
 SENSITIVE_RE = re.compile("|".join(SENSITIVE_SUBSTRINGS))
 
+# Bolt ⚡: Public keys that should be excluded from value-based secret detection.
+# These often contain 64-character hex strings but are public blockchain data.
+PUBLIC_SUBSTRINGS = [
+    "TX_ID",
+    "TXID",
+    "HASH",
+    "SIGNATURE",  # Stacks public signatures are often public in API responses
+    "ADDR",
+    "PRINCIPAL",
+]
+
+# Bolt ⚡: Pre-compile regex for faster public key matching.
+PUBLIC_RE = re.compile("|".join(PUBLIC_SUBSTRINGS))
+
 # Bolt ⚡: Pre-compile regex for faster hex character validation.
 HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
@@ -128,27 +142,36 @@ def is_sensitive_value(value: str) -> bool:
     return False
 
 
-def redact_recursive(item, parent_key="", is_sensitive=None):
+def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
     """
     🛡️ Sentinel: Recursively traverses a configuration dictionary or list to redact sensitive information.
     This ensures that even nested secrets (e.g., in loaded templates or manifests) are protected.
+
+    Bolt ⚡: Optimized to skip value-based detection for known public keys.
     """
-    # Bolt ⚡: Determine sensitivity once per key/level to avoid redundant O(N) checks in lists.
+    # Bolt ⚡: Determine states once per key/level to avoid redundant O(N) checks in lists.
     if is_sensitive is None:
         is_sensitive = is_sensitive_key(parent_key)
+    if is_public is None:
+        is_public = is_public_key(parent_key)
 
     if isinstance(item, dict):
         # 🛡️ Sentinel: Dict children inherit parent sensitivity (Defense-in-Depth).
-        # We combine the parent's sensitivity state with the child's key check.
-        # Bolt ⚡: The short-circuit 'or' avoids redundant is_sensitive_key calls for sensitive parents.
+        # Bolt ⚡: Child keys inherit parent state, but are re-checked if parent isn't sensitive/public.
         return {
-            key: redact_recursive(value, key, is_sensitive or is_sensitive_key(key))
+            key: redact_recursive(
+                value,
+                key,
+                is_sensitive or is_sensitive_key(key),
+                is_public or is_public_key(key),
+            )
             for key, value in item.items()
         }
     elif isinstance(item, (list, tuple, set)):
-        # Pass current sensitivity to list items as they inherit the parent key's sensitivity
+        # Pass current sensitivity/publicity to list items as they inherit the parent key's state.
         redacted_items = [
-            redact_recursive(sub_item, parent_key, is_sensitive) for sub_item in item
+            redact_recursive(sub_item, parent_key, is_sensitive, is_public)
+            for sub_item in item
         ]
         if isinstance(item, tuple):
             return tuple(redacted_items)
@@ -158,7 +181,11 @@ def redact_recursive(item, parent_key="", is_sensitive=None):
     else:
         # Check if the parent key is a known secret or contains a sensitive substring.
         # 🛡️ Sentinel: Also check if the value itself looks like a secret (Defense-in-Depth).
-        if (is_sensitive or is_sensitive_value(str(item))) and item is not None:
+        # Bolt ⚡: Skip value-based detection if the key is known to be public (e.g. TX_ID).
+        if (
+            (is_sensitive or (not is_public and is_sensitive_value(str(item))))
+            and item is not None
+        ):
             # Skip empty values or common non-secret placeholders
             if is_placeholder(str(item)):
                 return item
@@ -184,6 +211,25 @@ def redact_recursive(item, parent_key="", is_sensitive=None):
 def _is_sensitive_normalized(k: str) -> bool:
     """Bolt ⚡: Internal cached check for normalized (uppercase) keys."""
     return k in SECRET_KEYS or bool(SENSITIVE_RE.search(k))
+
+
+@functools.lru_cache(maxsize=1024)
+def _is_public_normalized(k: str) -> bool:
+    """Bolt ⚡: Internal cached check for normalized (uppercase) public keys."""
+    return bool(PUBLIC_RE.search(k))
+
+
+@functools.lru_cache(maxsize=1024)
+def is_public_key(key: str) -> bool:
+    """
+    Check if a configuration or API key is considered public.
+    Public keys are excluded from value-based secret detection.
+
+    Bolt ⚡: We cache this outer function to avoid redundant .upper() calls.
+    """
+    if not key or not isinstance(key, str):
+        return False
+    return _is_public_normalized(key.upper())
 
 
 @functools.lru_cache(maxsize=1024)
