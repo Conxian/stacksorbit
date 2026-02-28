@@ -81,3 +81,8 @@
 **Vulnerability:** Incomplete secret detection keywords left common sensitive patterns (like Bearer tokens, recovery phrases, or session cookies) potentially unredacted in logs and configuration artifacts.
 **Learning:** Security keywords must be proactively expanded as the application grows to cover diverse authentication and persistence patterns. Standardizing placeholders for all sensitive fields (including mnemonics) ensures that setup wizards and default templates don't trigger false-positive security blocks while still maintaining a strict "no-secrets-in-plaintext" policy.
 **Prevention:** Regularly audit and broaden centralized secret detection lists (e.g., `SENSITIVE_SUBSTRINGS`). Maintain a matching list of safe placeholders to ensure that developer-friendly defaults are recognized and preserved by the security engine.
+
+## 2026-02-27 - Surgical Secret Exclusion for Public Keys
+**Vulnerability:** Overly broad sensitive keyword matching (e.g., matching 'KEY') caused false positives for public blockchain data like 'PUBLIC_KEY', leading to unnecessary redaction or blocked configuration loading.
+**Learning:** Broad exclusions (e.g., ignoring any key containing 'PUBLIC') are unsafe as they can be bypassed by composite keys like 'PUBLIC_PRIVATE_KEY_PAIR'. A surgical approach is required: allow public identifiers only if they lack high-confidence secret indicators (like 'PRIV', 'SECRET', or 'AUTH').
+**Prevention:** Implement a layered validation for sensitive keys. First, identify potential sensitivity using broad patterns, then apply a conditional exclusion that re-verifies the absence of high-risk keywords within the public context.

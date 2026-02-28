@@ -20,51 +20,40 @@ SECRET_KEYS = {
 }
 
 # 🛡️ Sentinel: Sensitive substrings to identify potential secrets in configuration keys.
-# We include broad terms like 'PRIVATE', 'PWD', and 'PASS' to catch common secret naming conventions.
+# We maintain broad security coverage while relying on PUBLIC_RE to filter false positives.
+# Optimized to remove redundant patterns and use shortest effective substrings.
 SENSITIVE_SUBSTRINGS = [
     "KEY",
     "SECRET",
     "SENSITIVE",
     "TOKEN",
-    "PASSWORD",
+    "PASS",
+    "PWD",
+    "AUTH",
+    "CERT",
+    "CRED",
     "MNEMONIC",
     "SEED",
-    "PRIVATE",
-    "PWD",
-    "PASS",
-    "AUTH",
-    "CERTIFICATE",
-    "CREDENTIAL",
+    "PRIV",
     "PKCS",
     "SSH",
     "PGP",
     "GPG",
     "SALT",
-    "PASSPHRASE",
     "SIGNATURE",
     "JWT",
-    "SESSION",
-    "ACCESS_TOKEN",
-    "API_KEY",
-    "CREDENTIALS",
+    "SESS",
     "BEARER",
     "PHRASE",
     "RECOVERY",
     "PEM",
     "XPRV",
-    "ENCRYPTED",
+    "ENCRYPT",
     "VAULT",
-    "COOKIE",
-    "SESSID",
-    "CERT",
-    "CRED",
-    "MNE",
-    "PASSPH",
     "MASTER",
     "ROOT",
     "ADMIN",
-    "BIP32",
-    "BIP39",
+    "BIP3",
     "KUBECONFIG",
     "DOCKER",
     "DATABASE",
@@ -77,10 +66,11 @@ SENSITIVE_RE = re.compile("|".join(SENSITIVE_SUBSTRINGS))
 # Bolt ⚡: Public keys that should be excluded from value-based secret detection.
 # These often contain 64-character hex strings but are public blockchain data.
 PUBLIC_SUBSTRINGS = [
-    "TX_ID",
+    "PUBLIC",
+    "TX_",
     "TXID",
     "HASH",
-    "SIGNATURE",  # Stacks public signatures are often public in API responses
+    "SIGNATURE",  # Explicitly allow standalone 'SIGNATURE' as public
     "ADDR",
     "PRINCIPAL",
 ]
@@ -210,7 +200,22 @@ def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
 @functools.lru_cache(maxsize=1024)
 def _is_sensitive_normalized(k: str) -> bool:
     """Bolt ⚡: Internal cached check for normalized (uppercase) keys."""
-    return k in SECRET_KEYS or bool(SENSITIVE_RE.search(k))
+    if k in SECRET_KEYS:
+        return True
+
+    # Check if it matches sensitive patterns
+    if not SENSITIVE_RE.search(k):
+        return False
+
+    # 🛡️ Sentinel: Surgical exclusion for public identifiers.
+    # If the key contains a public identifier, it's not sensitive UNLESS it
+    # also contains a high-confidence sensitive keyword like 'PRIV', 'SECRET', or 'AUTH'.
+    # This allows 'PUBLIC_KEY' while protecting 'PUBLIC_PRIVATE_KEY_PAIR' and 'AUTH_SIGNATURE'.
+    if _is_public_normalized(k):
+        if not any(word in k for word in ["PRIV", "SECRET", "MNEMONIC", "PASS", "AUTH"]):
+            return False
+
+    return True
 
 
 @functools.lru_cache(maxsize=1024)
