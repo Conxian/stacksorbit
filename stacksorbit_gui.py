@@ -784,9 +784,9 @@ class StacksOrbitGUI(App):
             for indicator in self.w_loading_indicators:
                 indicator.display = False
 
-    @on(DataTable.RowSelected, "#contracts-table")
-    def on_contracts_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Handle contract row selection."""
+    @on(DataTable.RowHighlighted, "#contracts-table")
+    def on_contracts_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        """PALETTE: Fluid UI - Update details pane as the user scrolls through contracts."""
         contract_id = event.row_key.value
         if contract_id:
             self.selected_contract_id = contract_id
@@ -798,6 +798,14 @@ class StacksOrbitGUI(App):
             self.w_copy_source_btn.disabled = False
             self.w_view_explorer_btn.disabled = False
             self.run_worker(self.fetch_contract_details(contract_id), exclusive=True)
+
+    @on(DataTable.RowSelected, "#contracts-table")
+    def on_contracts_row_selected(self, event: DataTable.RowSelected) -> None:
+        """PALETTE: Explicit selection (Enter/Click) copies the Contract ID."""
+        contract_id = event.row_key.value
+        if contract_id:
+            self.copy_to_clipboard(contract_id)
+            self.notify(f"Contract ID copied: {contract_id}", severity="information")
 
     @on(DataTable.RowSelected, "#transactions-table")
     def on_transactions_row_selected(self, event: DataTable.RowSelected) -> None:
