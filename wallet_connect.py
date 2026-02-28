@@ -350,7 +350,10 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/wallet-connected':
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
-                # 🛡️ Sentinel: DoS Protection - limit request body size to 1MB
+                # 🛡️ Sentinel: DoS Protection - limit request body size and prevent negative values
+                if content_length < 0:
+                    self.send_error(400, "Invalid Content-Length")
+                    return
                 if content_length > 1024 * 1024:
                     self.send_error(413, "Request entity too large")
                     return

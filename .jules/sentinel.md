@@ -72,6 +72,11 @@
 **Learning:** Defense-in-depth requires anticipating how low-level OS features like symbolic links can bypass high-level path validation logic. Furthermore, recursive security operations must maintain state across different data types (dicts and lists) to ensure that the "sensitivity context" is never lost during deep traversal.
 **Prevention:** Always use `os.path.realpath` for path validation to resolve symlinks before checking bounds. Ensure that recursive redaction logic explicitly passes down the sensitivity state to all children, regardless of their container type (dict or list), and use short-circuit logic to optimize performance when the state is already known.
 
+## 2026-02-26 - BIP-39 Expansion & HTTP Request Hardening
+**Vulnerability:** The secret detection engine only recognized 12 and 24-word mnemonics, missing other valid BIP-39 lengths (15, 18, 21). Additionally, the wallet connection server did not validate for negative `Content-Length`, which could be used to bypass size limits in some HTTP implementations.
+**Learning:** Security detection patterns must be comprehensive and align with industry standards (like the full BIP-39 spec). Furthermore, input validation on low-level protocol headers (like `Content-Length`) is a critical layer of defense against Denial of Service and memory exhaustion attacks.
+**Prevention:** Regularly audit and align security patterns with official specifications. Always implement bounds checking (including lower bounds) for all user-provided size or length parameters in network handlers.
+
 ## 2026-02-25 - Keyword Expansion & Standardized Redaction
 **Vulnerability:** Incomplete secret detection keywords left common sensitive patterns (like Bearer tokens, recovery phrases, or session cookies) potentially unredacted in logs and configuration artifacts.
 **Learning:** Security keywords must be proactively expanded as the application grows to cover diverse authentication and persistence patterns. Standardizing placeholders for all sensitive fields (including mnemonics) ensures that setup wizards and default templates don't trigger false-positive security blocks while still maintaining a strict "no-secrets-in-plaintext" policy.

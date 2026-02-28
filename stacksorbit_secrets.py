@@ -60,6 +60,15 @@ SENSITIVE_SUBSTRINGS = [
     "CRED",
     "MNE",
     "PASSPH",
+    "MASTER",
+    "ROOT",
+    "ADMIN",
+    "BIP32",
+    "BIP39",
+    "KUBECONFIG",
+    "DOCKER",
+    "DATABASE",
+    "DB_",
 ]
 
 # Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.
@@ -109,8 +118,9 @@ def is_sensitive_value(value: str) -> bool:
         return False
 
     # Bolt ⚡: Use a fast split and length check.
+    # BIP-39 supports 12, 15, 18, 21, and 24 words.
     words = value.strip().split()
-    if len(words) in (12, 24) and all(len(w) >= 3 for w in words):
+    if len(words) in (12, 15, 18, 21, 24) and all(len(w) >= 3 for w in words):
         # Additional check: most mnemonics are all lowercase or all uppercase
         if value.islower() or value.isupper():
             return True
