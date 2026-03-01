@@ -172,12 +172,16 @@ def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
         # Check if the parent key is a known secret or contains a sensitive substring.
         # 🛡️ Sentinel: Also check if the value itself looks like a secret (Defense-in-Depth).
         # Bolt ⚡: Skip value-based detection if the key is known to be public (e.g. TX_ID).
-        if (
-            (is_sensitive or (not is_public and is_sensitive_value(str(item))))
-            and item is not None
+        # Bolt ⚡: Optimization - Only call is_sensitive_value if the item is a string.
+        # This avoids redundant str() conversions and regex checks for non-string scalar types.
+        if item is not None and (
+            is_sensitive or (not is_public and isinstance(item, str) and is_sensitive_value(item))
         ):
+            # Bolt ⚡: Hoist string conversion to avoid redundant calls for is_placeholder.
+            item_str = str(item)
+
             # Skip empty values or common non-secret placeholders
-            if is_placeholder(str(item)):
+            if is_placeholder(item_str):
                 return item
 
             # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
@@ -305,12 +309,18 @@ def is_placeholder(value: str) -> bool:
     if value is None:
         return True
 
-    # Bolt ⚡: Optimization - Safe placeholders are short (longest is ~26 chars).
-    # Skip string normalization for large strings to avoid O(N) overhead.
-    if len(str(value)) > 50:
-        return False
+    # Bolt ⚡: Optimization - Avoid redundant str() conversions and normalization
+    # for non-string or large string values. Safe placeholders are short (< 50 chars).
+    if isinstance(value, str):
+        if len(value) > 50:
+            return False
+        return value.strip().lower() in SAFE_PLACEHOLDERS
 
-    return str(value).strip().lower() in SAFE_PLACEHOLDERS
+    # Handle non-string types (e.g. int, float) if they are passed.
+    val_str = str(value)
+    if len(val_str) > 50:
+        return False
+    return val_str.strip().lower() in SAFE_PLACEHOLDERS
 
 
 # Bolt ⚡: Pre-compile network-aware regexes for faster Stacks address validation.
