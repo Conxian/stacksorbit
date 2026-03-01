@@ -86,3 +86,8 @@
 **Vulnerability:** Overly broad sensitive keyword matching (e.g., matching 'KEY') caused false positives for public blockchain data like 'PUBLIC_KEY', leading to unnecessary redaction or blocked configuration loading.
 **Learning:** Broad exclusions (e.g., ignoring any key containing 'PUBLIC') are unsafe as they can be bypassed by composite keys like 'PUBLIC_PRIVATE_KEY_PAIR'. A surgical approach is required: allow public identifiers only if they lack high-confidence secret indicators (like 'PRIV', 'SECRET', or 'AUTH').
 **Prevention:** Implement a layered validation for sensitive keys. First, identify potential sensitivity using broad patterns, then apply a conditional exclusion that re-verifies the absence of high-risk keywords within the public context.
+
+## 2026-02-28 - Hex Prefix Normalization in Secret Detection
+**Vulnerability:** Value-based secret detection bypassed 0x-prefixed Stacks private keys when stored under generic key names, as the validation logic only accounted for raw 64/66-character hex strings.
+**Learning:** Hex-based secret detection must account for common prefix variations (like `0x` or `0X`) used in the target ecosystem (Stacks/Clarity). Naive length checks are easily bypassed by standard formatting conventions.
+**Prevention:** Always normalize hex strings by stripping common prefixes before performing length and character set validation in security-critical utilities.
