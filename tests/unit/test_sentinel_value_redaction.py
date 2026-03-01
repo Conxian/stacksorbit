@@ -11,6 +11,12 @@ def test_is_sensitive_value_private_key():
     pk66 = "01" + "a" * 64
     assert is_sensitive_value(pk66) is True
 
+    # 0x-prefixed (66 or 68 total chars)
+    pk_prefixed_64 = "0x" + "a" * 64
+    pk_prefixed_66 = "0X" + "a" * 66
+    assert is_sensitive_value(pk_prefixed_64) is True
+    assert is_sensitive_value(pk_prefixed_66) is True
+
     # Too short
     assert is_sensitive_value("a" * 63) is False
 
@@ -40,9 +46,10 @@ def test_redact_recursive_by_value():
     config = {
         "regular_field": "normal_value",
         "random_name": "a" * 64,  # Looks like a private key
+        "prefixed_secret": "0x" + "b" * 64,  # 0x-prefixed private key
         "another_random": "word " * 11 + "word",  # Looks like a mnemonic
         "nested": {
-            "hidden_secret": "b" * 64
+            "hidden_secret": "c" * 64
         }
     }
 
@@ -50,6 +57,7 @@ def test_redact_recursive_by_value():
 
     assert redacted["regular_field"] == "normal_value"
     assert redacted["random_name"] == "<redacted>"
+    assert redacted["prefixed_secret"] == "<redacted>"
     assert redacted["another_random"] == "<redacted>"
     assert redacted["nested"]["hidden_secret"] == "<redacted>"
 

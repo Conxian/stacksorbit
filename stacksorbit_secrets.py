@@ -85,7 +85,7 @@ HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 @functools.lru_cache(maxsize=128)
 def validate_private_key(privkey: str) -> bool:
     """
-    Validate Stacks private key format (64 or 66 chars hex).
+    Validate Stacks private key format (64 or 66 chars hex, optional 0x prefix).
 
     Bolt ⚡: Caching this function improves UI responsiveness during real-time
     validation of private keys.
@@ -93,6 +93,11 @@ def validate_private_key(privkey: str) -> bool:
     if not privkey or not isinstance(privkey, str):
         return False
     pk = privkey.strip()
+
+    # 🛡️ Sentinel: Support optional 0x prefix for Stacks private keys.
+    if pk.lower().startswith("0x"):
+        pk = pk[2:]
+
     # Bolt ⚡: Check length first to fail fast and avoid more expensive checks.
     # This also catches placeholders like 'your_private_key_here' (21 chars) automatically.
     if len(pk) not in (64, 66):
@@ -285,6 +290,7 @@ def validate_stacks_address(address: str, network: str = None) -> bool:
 SAFE_PLACEHOLDERS = {
     "",
     "your_private_key_here",
+    "0x_your_private_key_here",
     "your_hiro_api_key",
     "your_stacks_address_here",
     "your_mnemonic_here",
