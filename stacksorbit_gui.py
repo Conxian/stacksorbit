@@ -97,6 +97,7 @@ class StacksOrbitGUI(App):
         Binding("f4", "switch_tab('deployment')", "Deploy", show=True),
         Binding("f5", "switch_tab('settings')", "Settings", show=True),
         Binding("/", "focus_tx_filter", "Search Transactions", show=False),
+        Binding("escape", "clear_tx_filter", "Clear Filter", show=False),
     ]
 
     # Reactive variables
@@ -269,6 +270,7 @@ class StacksOrbitGUI(App):
             with TabPane("📜 Transactions", id="transactions"):
                 with Horizontal(id="tx-filter-bar"):
                     yield Input(placeholder="🔍 Filter transactions (ID, Type, Status)...", id="tx-filter-input")
+                    yield Button("✕", id="clear-tx-filter-btn", variant="error")
                     yield Label("(0/0 matches)", id="tx-filter-count")
                 yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
@@ -389,6 +391,7 @@ class StacksOrbitGUI(App):
         self.w_view_tx_explorer_btn = self.query_one("#view-selected-tx-explorer-btn", Button)
         self.w_tx_status_label = self.query_one("#tx-status-label", Label)
         self.w_tx_filter_input = self.query_one("#tx-filter-input", Input)
+        self.w_clear_tx_filter_btn = self.query_one("#clear-tx-filter-btn", Button)
         self.w_tx_filter_count = self.query_one("#tx-filter-count", Label)
         self.w_save_config_btn = self.query_one("#save-config-btn", Button)
         self.w_deployment_log = self.query_one("#deployment-log", Log)
@@ -484,6 +487,8 @@ class StacksOrbitGUI(App):
         self.w_view_address_explorer_btn.disabled = not is_addr_configured
 
         # Transaction actions initialization
+        self.w_clear_tx_filter_btn.display = False
+        self.w_clear_tx_filter_btn.tooltip = "Clear filter [ESC]"
         self.w_copy_tx_btn.disabled = True
         self.w_view_tx_explorer_btn.disabled = True
         self.w_copy_tx_btn.tooltip = "Copy full transaction ID"
@@ -877,6 +882,12 @@ class StacksOrbitGUI(App):
         self.w_tabbed_content.active = "transactions"
         self.w_tx_filter_input.focus()
 
+    def action_clear_tx_filter(self) -> None:
+        """Action to clear the transaction filter."""
+        if self.w_tabbed_content.active == "transactions":
+            self.w_tx_filter_input.value = ""
+            self.w_tx_filter_input.focus()
+
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
         self.w_tabbed_content.active = tab_id
@@ -1051,10 +1062,17 @@ class StacksOrbitGUI(App):
                 f"[red]❌ Must be 28-41 chars and start with {prefix}[/red]{count_display}"
             )
 
+    @on(Button.Pressed, "#clear-tx-filter-btn")
+    def on_clear_tx_filter_pressed(self) -> None:
+        """Handle the clear filter button press."""
+        self.w_tx_filter_input.value = ""
+        self.w_tx_filter_input.focus()
+
     @on(Input.Changed, "#tx-filter-input")
     def on_tx_filter_changed(self, event: Input.Changed) -> None:
         """Handle transaction filter input changes."""
         self.tx_filter = event.value
+        self.w_clear_tx_filter_btn.display = bool(event.value)
         self._update_transactions_table()
 
     @on(Input.Changed, "#privkey-input")

@@ -276,6 +276,21 @@ LoadingIndicator {
     background: #252527;
 }
 
+#clear-tx-filter-btn {
+    min-width: 4;
+    padding: 0 1;
+    margin: 0;
+    height: 3;
+    border: none;
+    background: transparent;
+    color: #cc3333;
+}
+
+#clear-tx-filter-btn:hover {
+    background: #303032;
+    color: #ff4444;
+}
+
 #tx-filter-count {
     width: auto;
     padding: 0 1;
