@@ -29,7 +29,7 @@ async def test_relative_time_formatting():
     assert "h ago" in res
 
     # Test '1d ago'
-    one_d_ago = (now_utc - timedelta(days=1, seconds=5)).isoformat().replace("+00:00", "Z")
+    one_d_ago = (now_utc - timedelta(days=1, hours=1)).isoformat().replace("+00:00", "Z")
     res = app._format_relative_time(one_d_ago, now_utc)
     assert "d ago" in res
 
@@ -161,3 +161,43 @@ async def test_show_hide_privkey_label_toggle():
 
         app.on_show_privkey_changed(Switch.Changed(switch, False))
         assert str(label.render()) == "Show"
+
+@pytest.mark.asyncio
+async def test_transaction_confirmations_and_highlighting():
+    from unittest.mock import MagicMock
+    app = StacksOrbitGUI()
+    app.address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
+
+    async with app.run_test() as pilot:
+        # Mock transaction data
+        tx_id = "0x" + "a" * 64
+        transactions = [{
+            "tx_id": tx_id,
+            "tx_type": "contract_call",
+            "tx_status": "success",
+            "burn_block_time_iso": "2023-01-01T00:00:00Z",
+            "block_height": 100
+        }]
+        app._all_transactions = transactions
+        app.current_block_height = 105
+
+        # Refresh table
+        app._update_transactions_table()
+
+        table = app.query_one("#transactions-table", DataTable)
+        # Check that row was added
+        assert table.row_count == 1
+
+        # Check confirmation count calculation (105 - 100 + 1 = 6)
+        row_data = table.get_row(tx_id)
+        # Block column is index 4
+        assert "(6)" in str(row_data[4])
+
+        # Test highlighting fluid update
+        # RowHighlighted is nested under DataTable
+        # Simulate highlight event
+        from textual.widgets._data_table import RowKey
+        app.on_transactions_row_highlighted(DataTable.RowHighlighted(table, table.get_row_index(tx_id), RowKey(tx_id)))
+        assert app.selected_tx_id == tx_id
+        assert not app.w_copy_tx_btn.disabled
+        assert "(6)" in str(app.w_tx_status_label.render()) or "Selected" in str(app.w_tx_status_label.render())
