@@ -417,3 +417,14 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Updated `tests/test_palette_new_features.py` with comprehensive validation for confirmation calculations and fluid highlighting interactivity.
     *   Verified system integrity via full pytest and vitest suites.
 *   **Status:** Complete.
+
+### Session 32: Robust Secret Detection & HTTP Hardening (Sentinel)
+
+*   **Objective:** Harden the centralized secret detection logic against newline-based bypasses and reinforce the security posture of the local wallet connection server.
+*   **Changes:**
+    *   Mitigated a security bypass in `stacksorbit_secrets.py` by modifying `is_sensitive_value` to strip whitespace and allow multiline secrets (like mnemonics) to be evaluated by the detection engine.
+    *   Enhanced security headers in `wallet_connect.py` by adding `base-uri 'none'; form-action 'none';` to the Content-Security-Policy and implementing a restrictive `Permissions-Policy` to disable sensitive browser features.
+    *   Added a regression test suite `tests/unit/test_sentinel_newline_bypass.py` to verify the detection and redaction of multiline secrets.
+    *   Verified header enhancements and UI integrity using a custom Playwright script and screenshot validation.
+    *   Confirmed system integrity via full pytest (62 passed) and vitest suites (2 passed).
+*   **Status:** Complete.
