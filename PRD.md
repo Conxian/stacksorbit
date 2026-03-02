@@ -404,3 +404,16 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Added comprehensive security regression tests in `tests/unit/test_sentinel_value_redaction.py`.
     *   Verified system integrity with full unit test suite (55 passed).
 *   **Status:** Complete.
+
+### Session 31: Fluid Transaction Interactivity & Confirmation Tracking (Palette)
+
+*   **Objective:** Enhance transaction interactivity and visibility in the TUI through real-time confirmation tracking and fluid action bar updates.
+*   **Changes:**
+    *   Implemented real-time confirmation count tracking in the Transactions table by monitoring blockchain height progression via `self.current_block_height`.
+    *   Enhanced the "Block" column to display confirmation counts in parentheses (e.g., `12345 [dim](6)[/]`) using Rich markup.
+    *   Shifted transaction action bar updates (status label and button states) from selection to highlight events, providing fluid feedback as users navigate the list.
+    *   Refined the transaction selection handler to focus exclusively on the "high-intent" action of copying the full ID to the clipboard.
+    *   Optimized the data refresh cycle in `update_data` to trigger transaction table repopulation only when the chain tip advances or new transactions are detected.
+    *   Updated `tests/test_palette_new_features.py` with comprehensive validation for confirmation calculations and fluid highlighting interactivity.
+    *   Verified system integrity via full pytest and vitest suites.
+*   **Status:** Complete.

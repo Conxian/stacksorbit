@@ -145,6 +145,8 @@ class StacksOrbitGUI(App):
         self.selected_tx_id = None
         self.current_source_code = None
         # Bolt ⚡: State tracking to avoid redundant UI re-renders
+        self.current_block_height = 0
+        self._last_height = 0
         self._last_contracts = None
         self._all_transactions = []
         self._last_transactions = None
@@ -598,12 +600,20 @@ class StacksOrbitGUI(App):
                 elif tx_type == "coinbase":
                     display_type = "⛏️ [green]coinbase[/]"
 
+                # PALETTE: Include confirmation count for confirmed transactions
+                tx_block_height = tx.get("block_height")
+                if tx_block_height and status == "success":
+                    conf = max(0, self.current_block_height - tx_block_height + 1)
+                    block_display = f"{tx_block_height} [dim]({conf})[/]"
+                else:
+                    block_display = str(tx_block_height or "") + " [dim](-)[/]"
+
                 transactions_table.add_row(
                     tx.get("tx_id", "")[:10] + "...",
                     display_type,
                     display_status,
                     self._format_relative_time(tx.get("burn_block_time_iso"), now_utc),
-                    str(tx.get("block_height", "")),
+                    block_display,
                     key=tx.get("tx_id"),
                 )
         else:
@@ -692,7 +702,8 @@ class StacksOrbitGUI(App):
                 self.w_network_status.update(status_display)
                 self._last_metrics["status"] = status_display
 
-            height = str(api_status.get("block_height", 0))
+            self.current_block_height = api_status.get("block_height", 0)
+            height = str(self.current_block_height)
             if self._last_metrics.get("height") != height:
                 self.w_block_height.update(height)
                 self._last_metrics["height"] = height
@@ -776,10 +787,13 @@ class StacksOrbitGUI(App):
             now_label = datetime.now().strftime("%H:%M:%S")
             self.w_last_updated.update(f" [dim]Last updated: {now_label}[/]")
 
-            # ⚡ Bolt: Only clear and repopulate transactions table if data changed or filter applied
-            if transactions != self._all_transactions:
+            # ⚡ Bolt: Only clear and repopulate transactions table if data changed or filter applied.
+            # PALETTE: Also refresh if block height changed to update confirmation counts.
+            if transactions != self._all_transactions or self.current_block_height != self._last_height:
                 self._all_transactions = transactions
                 self._update_transactions_table()
+
+            self._last_height = self.current_block_height
 
         except Exception as e:
             self.w_network_status.update("[red]Error[/]")
@@ -812,9 +826,9 @@ class StacksOrbitGUI(App):
             self.copy_to_clipboard(contract_id)
             self.notify(f"Contract ID copied: {contract_id}", severity="information")
 
-    @on(DataTable.RowSelected, "#transactions-table")
-    def on_transactions_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Handle transaction row selection."""
+    @on(DataTable.RowHighlighted, "#transactions-table")
+    def on_transactions_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        """PALETTE: Fluid UI - Update transaction action bar as the user scrolls."""
         tx_id = event.row_key.value
         if tx_id:
             self.selected_tx_id = tx_id
@@ -824,11 +838,13 @@ class StacksOrbitGUI(App):
                 f"Selected: [cyan]{tx_id[:16]}...[/cyan]"
             )
 
-            # Auto-copy for immediate use
+    @on(DataTable.RowSelected, "#transactions-table")
+    def on_transactions_row_selected(self, event: DataTable.RowSelected) -> None:
+        """PALETTE: Explicit selection (Enter/Click) copies the full TX ID."""
+        tx_id = event.row_key.value
+        if tx_id:
             self.copy_to_clipboard(tx_id)
-            self.notify(
-                f"Transaction ID copied: {tx_id}", severity="information"
-            )
+            self.notify(f"Transaction ID copied: {tx_id}", severity="information")
 
     @on(Click, "#display-address")
     async def on_display_address_click(self) -> None:
