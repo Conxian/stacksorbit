@@ -129,19 +129,23 @@ def is_sensitive_value(value: str) -> bool:
     🛡️ Sentinel: Check if a value looks like a secret (e.g., a private key or mnemonic).
     This provides defense-in-depth by catching secrets even if stored under non-sensitive keys.
 
-    Bolt ⚡: Optimization - Fast-fail for non-strings, multiline, or large strings.
+    Bolt ⚡: Optimization - Fast-fail for non-strings or large strings.
     This prevents unnecessary LRU cache lookups and expensive processing for non-secrets.
     """
     # ⚡ Bolt: Fast-fail non-string types immediately.
     if not isinstance(value, str) or not value:
         return False
 
-    # ⚡ Bolt: Fast-fail for large or multiline strings (e.g. source code).
-    # Mnemonics are single-line and typically under 500 characters.
-    if len(value) > 500 or "\n" in value:
+    # 🛡️ Sentinel: Strip whitespace before checking length to prevent newline-based bypasses.
+    # This ensures that multiline secrets or those with trailing newlines are still detected.
+    v = value.strip()
+
+    # ⚡ Bolt: Fast-fail for large strings (e.g. source code).
+    # Mnemonics are typically under 500 characters even with multiple lines.
+    if len(v) > 500:
         return False
 
-    return _is_sensitive_value_cached(value)
+    return _is_sensitive_value_cached(v)
 
 
 def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):

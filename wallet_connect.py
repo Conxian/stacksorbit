@@ -339,7 +339,11 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.testnet.hiro.so; style-src 'self' 'unsafe-inline'; img-src 'self' data:;",
+                "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.testnet.hiro.so; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none';",
+            )
+            self.send_header(
+                "Permissions-Policy",
+                "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()",
             )
             self.end_headers()
             self.wfile.write(WALLET_CONNECT_HTML.encode())
