@@ -1,5 +1,7 @@
 {
   "version": "1.0",
+  "name": "Testnet Event Monitor",
+  "description": "Monitors the placeholder contract for owner verification events on Testnet.",
   "if": {
     "scope": "contract_call",
     "contract_identifier": "ST000000000000000000002Q6VF78.placeholder",
