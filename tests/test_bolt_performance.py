@@ -43,6 +43,7 @@ async def test_update_data_calls_clear_when_data_changes():
                 # Reset state to be absolutely sure
                 app._last_contracts = []
                 app._last_transactions = []
+                app._all_transactions = []
 
                 with patch.object(DataTable, 'clear') as mock_clear:
                     await app.update_data()
@@ -50,4 +51,4 @@ async def test_update_data_calls_clear_when_data_changes():
                 assert mock_clear.call_count == 2
 
                 assert app._last_contracts == mock_contracts
-                assert app._last_transactions == mock_transactions
+                assert app._all_transactions == mock_transactions

@@ -107,24 +107,11 @@ def validate_private_key(privkey: str) -> bool:
 
 
 @functools.lru_cache(maxsize=1024)
-def is_sensitive_value(value: str) -> bool:
-    """
-    🛡️ Sentinel: Check if a value looks like a secret (e.g., a private key or mnemonic).
-    This provides defense-in-depth by catching secrets even if stored under non-sensitive keys.
-    """
-    if not value or not isinstance(value, str):
-        return False
-
+def _is_sensitive_value_cached(value: str) -> bool:
+    """Internal cached logic for sensitive value detection."""
     # Check for Stacks private key format (64 or 66 hex chars)
     if validate_private_key(value):
         return True
-
-    # Check for common mnemonic patterns (12 or 24 words)
-    # Bolt ⚡: Optimization - Skip split() and lower/upper checks for large or multiline
-    # strings. Mnemonics are single-line and typically under 500 characters.
-    # This avoids O(N) overhead for contract source code or large logs during redaction.
-    if len(value) > 500 or "\n" in value:
-        return False
 
     # Bolt ⚡: Use a fast split and length check.
     # BIP-39 supports 12, 15, 18, 21, and 24 words.
@@ -135,6 +122,26 @@ def is_sensitive_value(value: str) -> bool:
             return True
 
     return False
+
+
+def is_sensitive_value(value: str) -> bool:
+    """
+    🛡️ Sentinel: Check if a value looks like a secret (e.g., a private key or mnemonic).
+    This provides defense-in-depth by catching secrets even if stored under non-sensitive keys.
+
+    Bolt ⚡: Optimization - Fast-fail for non-strings, multiline, or large strings.
+    This prevents unnecessary LRU cache lookups and expensive processing for non-secrets.
+    """
+    # ⚡ Bolt: Fast-fail non-string types immediately.
+    if not isinstance(value, str) or not value:
+        return False
+
+    # ⚡ Bolt: Fast-fail for large or multiline strings (e.g. source code).
+    # Mnemonics are single-line and typically under 500 characters.
+    if len(value) > 500 or "\n" in value:
+        return False
+
+    return _is_sensitive_value_cached(value)
 
 
 def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
@@ -174,15 +181,24 @@ def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
             return set(redacted_items)
         return redacted_items
     else:
+        # ⚡ Bolt: Check for non-sensitive non-string types early to bypass expensive logic.
+        # Fast-path for integers, floats, and booleans that aren't marked as sensitive.
+        if not is_sensitive and isinstance(item, (int, float, bool)):
+            return item
+
+        if item is None:
+            return None
+
         # Check if the parent key is a known secret or contains a sensitive substring.
         # 🛡️ Sentinel: Also check if the value itself looks like a secret (Defense-in-Depth).
         # Bolt ⚡: Skip value-based detection if the key is known to be public (e.g. TX_ID).
+        # ⚡ Bolt: Avoid redundant str() conversion if item is already a string.
+        item_str = item if isinstance(item, str) else str(item)
         if (
-            (is_sensitive or (not is_public and is_sensitive_value(str(item))))
-            and item is not None
+            is_sensitive or (not is_public and is_sensitive_value(item_str))
         ):
             # Skip empty values or common non-secret placeholders
-            if is_placeholder(str(item)):
+            if is_placeholder(item_str):
                 return item
 
             # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
@@ -300,6 +316,11 @@ SAFE_PLACEHOLDERS = {
 
 
 @functools.lru_cache(maxsize=1024)
+def _is_placeholder_cached(value: str) -> bool:
+    """Internal cached logic for placeholder detection."""
+    return value.strip().lower() in SAFE_PLACEHOLDERS
+
+
 def is_placeholder(value: str) -> bool:
     """
     🛡️ Sentinel: Check if a value is a known safe placeholder or empty.
@@ -311,12 +332,15 @@ def is_placeholder(value: str) -> bool:
     if value is None:
         return True
 
+    # Bolt ⚡: Optimization - Skip str() conversion if already a string.
+    val_str = value if isinstance(value, str) else str(value)
+
     # Bolt ⚡: Optimization - Safe placeholders are short (longest is ~26 chars).
     # Skip string normalization for large strings to avoid O(N) overhead.
-    if len(str(value)) > 50:
+    if len(val_str) > 50:
         return False
 
-    return str(value).strip().lower() in SAFE_PLACEHOLDERS
+    return _is_placeholder_cached(val_str)
 
 
 # Bolt ⚡: Pre-compile network-aware regexes for faster Stacks address validation.
