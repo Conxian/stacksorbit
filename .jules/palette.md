@@ -51,3 +51,7 @@
 ## 2025-05-26 - Consistent Deep-Linking with Address Explorer Buttons
 **Learning:** For primary user identity elements (like the Stacks Address), providing immediate, consistent access to external blockchain explorers across all dashboard and settings views reduces friction and reinforces the connection to the underlying network. Using a dedicated icon (🌐) for these links creates a recognizable pattern that helps users quickly move from local views to full network context.
 **Action:** Always include a "View on Explorer" (🌐) button next to primary blockchain identifiers like addresses and transaction IDs. Ensure these buttons are reactively disabled when the identifier is unconfigured to prevent broken links.
+
+## 2025-05-27 - Smart Empty States and Efficiency Shortcuts
+**Learning:** In Textual TUIs, keyboard shortcut hints should be appended to widget tooltips in brackets (e.g., '[c]' or '[u]') and actionable messages included in empty table rows (e.g., 'Press [F4] to deploy'). This improves discoverability and guides users toward the next logical step when no data is present. Visual feedback for filtering can be enhanced by colorizing status labels (e.g., [red]) when a search yields zero matches.
+**Action:** Always provide actionable guidance in empty states and include keyboard shortcut hints in tooltips for power-user efficiency. Use conditional Rich markup for immediate visual confirmation of UI state changes.

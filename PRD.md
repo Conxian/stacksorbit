@@ -7,36 +7,37 @@ StacksOrbit is a comprehensive deployment and management tool for the Stacks blo
 ## 2. Current Architecture & Dependencies
 
 ### 2.1. Core Architecture
-StacksOrbit is built with a hybrid architecture:
-*   **Core Engine:** Python-based CLI and Textual TUI for orchestration, deployment management, and real-time monitoring.
-*   **Smart Contracts:** Clarity contracts managed by Clarinet.
-*   **Test Suite:** Native Vitest-based testing environment leveraging the Clarinet SDK for high-fidelity blockchain simulation.
-*   **Event Monitoring:** Chainhook-driven multi-network event tracking.
+StacksOrbit is built with a high-fidelity hybrid architecture optimized for the Stacks ecosystem:
+*   **Orchestration Layer:** Python-based CLI (`stacksorbit_cli.py`) and Textual TUI (`stacksorbit_gui.py`) providing a unified interface for the entire lifecycle.
+*   **Blockchain Logic:** Clarity 2 smart contracts integrated with the native Clarinet toolchain.
+*   **Modern Test Suite:** Native Vitest environment utilizing `@stacks/clarinet-sdk` and `vitest-environment-clarinet` for zero-latency WASM Simnet simulation.
+*   **Event Infrastructure:** Chainhook predicates for multi-network (Devnet, Testnet, Mainnet) event monitoring and webhook integration.
 
 ### 2.2. Technical Dependencies
-*   **Blockchain Tooling:** Clarinet (Native), Clarinet SDK (Vitest integration).
-*   **JavaScript Environment:** Node.js, Vitest, `@stacks/clarinet-sdk`, `vitest-environment-clarinet`.
-*   **Python Environment:** Textual (TUI), Pytest (Tooling tests), `python-dotenv`, `requests`.
+*   **Stacks Core:** Clarinet (Native), Clarinet SDK (Integrated Simnet).
+*   **JS/TS Runtime:** Node.js (v18+), Vitest (4.0.x), `@stacks/clarinet-sdk` (3.14.x), `vitest-environment-clarinet`.
+*   **Python Runtime:** Python 3.10+, Textual (TUI Framework), Pytest (Internal Tooling Verification).
+*   **Data Serialization:** TOML (Clarinet), JSON (Chainhooks/Manifests), YAML (GitHub Actions).
 
 ## 3. Migration Roadmap (Vitest & Clarinet SDK)
 
-The StacksOrbit project is transitioning to a modern development and testing architecture. This roadmap outlines the key phases of this migration.
+The modernization roadmap ensures StacksOrbit remains at the forefront of Stacks developer tooling.
 
-*   **Phase 1: Vitest Integration (Complete)**
-    *   Initialize `PRD.md` as the root of truth.
-    *   Integrate `@stacks/clarinet-sdk` and `vitest-environment-clarinet`.
-    *   Standardize `vitest.config.ts` for WASM simnet support.
-    *   Migrate all legacy JavaScript tests to the Vitest native architecture.
-*   **Phase 2: Chainhook Event Tracking (Complete)**
-    *   Establish `/chainhooks` directory with multi-network JSON predicates.
-    *   Configure event monitoring for Devnet, Testnet, and Mainnet.
-*   **Phase 3: Multi-Network Contract Registry (Complete)**
-    *   Maintain a synchronized table mapping contract names to principal addresses.
-*   **Phase 4: Full Cycle Tooling Alignment (Complete)**
-    *   Standardize the CLI (`stacksorbit_cli.py`) for the complete lifecycle: Setup, Detect, Test, Deploy, Monitor, Verify.
-    *   Integrate Vitest as the primary test runner for contract validation.
-*   **Phase 5: Clarity 4 / Nakamoto Support (Planned)**
-    *   Research and implement support for the latest Clarity language features.
+*   **Phase 1: Foundation Modernization (Current)**
+    *   [x] Standardize `package.json` with Clarinet SDK and Vitest 4.x.
+    *   [x] Configure `vitest.config.ts` for explicit `Clarinet.toml` mapping and ESM compatibility.
+    *   [x] Implement "Root-Up" documentation protocol in `PRD.md`.
+*   **Phase 2: High-Fidelity Testing (In-Progress)**
+    *   [x] Migrate legacy contract tests to Vitest Simnet architecture.
+    *   [ ] Implement property-based testing for Clarity contracts.
+*   **Phase 3: Chainhook Integration (Complete)**
+    *   [x] Establish `/chainhooks` directory with multi-network JSON predicates.
+    *   [x] Verify event monitoring triggers for primary contracts.
+*   **Phase 4: Full Lifecycle Tooling (Complete)**
+    *   [x] Consolidate CLI operations (Setup, Test, Deploy, Monitor, Verify).
+    *   [x] Integrate Vitest as the primary engine for `stacksorbit test`.
+*   **Phase 5: Nakamoto & Clarity 4 (Future)**
+    *   [ ] Research and implement support for Nakamoto-era Clarity features.
 
 *   **Phase 6: Performance Optimization (In-Progress)**
     *   [x] Optimize API caching strategy for real-time responsiveness.
@@ -80,6 +81,14 @@ StacksOrbit is committed to supporting the latest Clarity language features.
 
 *Note: All contract identifiers are synchronized with the Chainhook predicates in `/chainhooks`.*
 
+## 6. Multi-Network Alignment
+
+| Network | Deployment Status | Chainhook | API URL |
+| :--- | :--- | :--- | :--- |
+| **Devnet** | ✅ Active | `chainhooks/devnet.json` | `http://localhost:3999` |
+| **Testnet** | ✅ Verified | `chainhooks/testnet.json` | `https://api.testnet.hiro.so` |
+| **Mainnet** | ✅ Verified | `chainhooks/mainnet.json` | `https://api.mainnet.hiro.so` |
+
 ## 6. Session Log
 
 ### Session 1: Initialization & Alignment
@@ -89,6 +98,18 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Created `PRD.md`.
     *   Configured Vitest with Clarinet SDK.
     *   Migrated initial placeholder tests.
+*   **Status:** Complete.
+
+### Session 33: Smart Empty States & Efficiency Shortcuts (Palette)
+
+*   **Objective:** Enhance the TUI with micro-UX improvements focused on efficiency, discoverability, and actionable guidance.
+*   **Changes:**
+    *   Implemented "Smart Empty States" in the Contracts and Transactions tables with actionable keyboard shortcut hints (e.g., "Press [F4] to deploy").
+    *   Added new global keyboard shortcuts `[c]` for Pre-check and `[u]` for Deploy, active only when in the deployment view.
+    *   Updated button tooltips to reflect the new keyboard shortcuts for improved discoverability.
+    *   Enhanced visual feedback for transaction filtering by colorizing the match count in red when no matches are found.
+    *   Added a comprehensive automated test suite `tests/test_palette_ux_improvements.py` to verify the new UX features and shortcut logic.
+    *   Verified system integrity via full pytest (62 passed) and vitest suites (2 passed).
 *   **Status:** Complete.
 
 ### Session 18: XSS Mitigation & Standardized Secret Handling (Sentinel)
@@ -427,4 +448,16 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Added a regression test suite `tests/unit/test_sentinel_newline_bypass.py` to verify the detection and redaction of multiline secrets.
     *   Verified header enhancements and UI integrity using a custom Playwright script and screenshot validation.
     *   Confirmed system integrity via full pytest (62 passed) and vitest suites (2 passed).
+*   **Status:** Complete.
+
+### Session 33: Initialization & Alignment (Root-Up Reinforcement)
+
+*   **Objective:** Modernize the StacksOrbit foundation by aligning with the Clarinet SDK and Vitest architecture using the Root-Up protocol.
+*   **Changes:**
+    *   Upgraded `@stacks/clarinet-sdk` to `^3.14.1` in `package.json` to leverage latest Simnet features.
+    *   Reinforced `PRD.md` with detailed **Architecture Overview**, a modernized **Migration Roadmap**, and a **Multi-Network Alignment** registry.
+    *   Standardized `vitest.config.ts` for native Clarinet SDK integration, ensuring ESM compatibility, explicit `Clarinet.toml` mapping, and broad test inclusion.
+    *   Re-established and enhanced multi-network Chainhook predicates (`/chainhooks/devnet.json`, `testnet.json`, `mainnet.json`) with descriptive metadata for robust event monitoring.
+    *   Verified synchronization between `PRD.md`, `Clarinet.toml`, and the contract registry across all networks.
+    *   Confirmed system integrity by executing the full Vitest suite with zero-latency Simnet support.
 *   **Status:** Complete.

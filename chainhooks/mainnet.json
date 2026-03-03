@@ -1,5 +1,7 @@
 {
   "version": "1.0",
+  "name": "Mainnet Event Monitor",
+  "description": "Monitors the placeholder contract for owner verification events on Mainnet.",
   "if": {
     "scope": "contract_call",
     "contract_identifier": "SP2J1BCZK8Q0CP3W4R1XX9TMKJ1N1S8QZ7K0B5N8.placeholder",
