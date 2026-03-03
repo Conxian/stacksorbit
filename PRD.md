@@ -91,6 +91,18 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Migrated initial placeholder tests.
 *   **Status:** Complete.
 
+### Session 33: Smart Empty States & Efficiency Shortcuts (Palette)
+
+*   **Objective:** Enhance the TUI with micro-UX improvements focused on efficiency, discoverability, and actionable guidance.
+*   **Changes:**
+    *   Implemented "Smart Empty States" in the Contracts and Transactions tables with actionable keyboard shortcut hints (e.g., "Press [F4] to deploy").
+    *   Added new global keyboard shortcuts `[c]` for Pre-check and `[u]` for Deploy, active only when in the deployment view.
+    *   Updated button tooltips to reflect the new keyboard shortcuts for improved discoverability.
+    *   Enhanced visual feedback for transaction filtering by colorizing the match count in red when no matches are found.
+    *   Added a comprehensive automated test suite `tests/test_palette_ux_improvements.py` to verify the new UX features and shortcut logic.
+    *   Verified system integrity via full pytest (62 passed) and vitest suites (2 passed).
+*   **Status:** Complete.
+
 ### Session 18: XSS Mitigation & Standardized Secret Handling (Sentinel)
 
 *   **Objective:** Harden the local wallet connection server against XSS and unify secret placeholder logic across all configuration loaders.
