@@ -578,7 +578,12 @@ class StacksOrbitGUI(App):
                 filtered_txs.append(tx)
 
         if filtered_txs:
+            # Bolt ⚡: Normalize 'now' to 10s intervals to maximize cache hits across refreshes.
+            # This avoids redundant calculations for transactions whose relative time hasn't changed.
+            # Hoisting this out of the loop saves O(N) timestamp conversions.
             now_utc = datetime.now(timezone.utc)
+            now_bucket = int(now_utc.timestamp() / 10) * 10
+
             for tx in filtered_txs:
                 status = tx.get("tx_status", "")
                 display_status = status
@@ -612,7 +617,7 @@ class StacksOrbitGUI(App):
                     tx.get("tx_id", "")[:10] + "...",
                     display_type,
                     display_status,
-                    self._format_relative_time(tx.get("burn_block_time_iso"), now_utc),
+                    self._format_relative_time(tx.get("burn_block_time_iso"), now_bucket),
                     block_display,
                     key=tx.get("tx_id"),
                 )
@@ -633,14 +638,11 @@ class StacksOrbitGUI(App):
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Time", "Block")
 
-    def _format_relative_time(self, iso_time: str, now: datetime) -> str:
+    def _format_relative_time(self, iso_time: str, now_bucket: int) -> str:
         """Format an ISO timestamp as a relative time string (e.g., '5m ago')."""
         if not iso_time:
             return "[yellow]Pending[/]"
 
-        # Bolt ⚡: Normalize 'now' to 10s intervals to maximize cache hits across refreshes.
-        # This avoids redundant calculations for transactions whose relative time hasn't changed.
-        now_bucket = int(now.timestamp() / 10) * 10
         return _format_relative_time_cached(iso_time, now_bucket)
 
     async def update_data(self, bypass_cache: bool = False) -> None:
