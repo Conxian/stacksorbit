@@ -6,7 +6,7 @@ class TestSentinelRedaction(unittest.TestCase):
     def test_basic_redaction(self):
         data = {
             "NETWORK": "testnet",
-            "DEPLOYER_PRIVKEY": "0000000000000000000000000000000000000000000000000000000000000001",
+            "DEPLOYER_PRIVKEY": "mock_private_key_string_for_testing_purposes_only_1234567890abcde",
             "HIRO_API_KEY": "some_api_key"
         }
         redacted = redact_recursive(data)

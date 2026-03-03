@@ -13,7 +13,7 @@ async def test_transaction_selection_copies_to_clipboard():
 
         async with app.run_test() as pilot:
             transactions_table = app.query_one("#transactions-table")
-            tx_id = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+            tx_id = "0x_mock_transaction_id_for_testing_purposes_only_1234567890abcdef123"
 
             # Manually add a row with a key
             transactions_table.add_row(

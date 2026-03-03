@@ -30,7 +30,7 @@ class TestConxianFullIntegration(unittest.TestCase):
         self.config_path = os.path.join(self.temp_dir, '.env')
         with open(self.config_path, 'w') as f:
             # Sentinel 🛡️: Replaced hardcoded private key with a correctly formatted, non-functional placeholder for security.
-            f.write("DEPLOYER_PRIVKEY=000000000000000000000000000000000000000000000000000000000000000001\n")
+            f.write("DEPLOYER_PRIVKEY=mock_private_key_string_for_testing_purposes_only_1234567890abcde\n")
             f.write("SYSTEM_ADDRESS=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM\n") # Testnet addr
             f.write("NETWORK=testnet\n")
             

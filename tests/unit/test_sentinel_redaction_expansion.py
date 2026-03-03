@@ -63,3 +63,38 @@ def test_nested_mixed_containers():
     redacted = redact_recursive(config)
     assert redacted["METADATA"]["SENSITIVE_DATA"][0] == b"<redacted>"
     assert redacted["METADATA"]["SENSITIVE_DATA"][1]["nested_key"] == ("<redacted>",)
+
+def test_sensitive_key_redaction_expansion():
+    """🛡️ Sentinel: Verify that newly added high-confidence keywords are redacted even with public prefixes."""
+    from stacksorbit_secrets import is_sensitive_key
+
+    # Newly hardened keys (should now be True)
+    assert is_sensitive_key("PUBLIC_RECOVERY_PHRASE") is True
+    assert is_sensitive_key("ADDR_SEED_PHRASE") is True
+    assert is_sensitive_key("PUBLIC_MASTER_KEY") is True
+    assert is_sensitive_key("VAULT_PUBLIC_KEY") is True
+    assert is_sensitive_key("XPRV_PUBLIC_KEY") is True
+    assert is_sensitive_key("ADMIN_PUBLIC_KEY") is True
+    assert is_sensitive_key("ROOT_PUBLIC_KEY") is True
+    assert is_sensitive_key("PUBLIC_PWD") is True
+    assert is_sensitive_key("ADDR_PASSWORD") is True
+
+    # Original high-confidence keys (should remain True)
+    assert is_sensitive_key("PUBLIC_PRIVATE_KEY") is True
+    assert is_sensitive_key("ADDR_SECRET") is True
+    assert is_sensitive_key("PUBLIC_MNEMONIC") is True
+    assert is_sensitive_key("AUTH_SIGNATURE") is True
+
+    # Generic public keys (should remain False)
+    assert is_sensitive_key("PUBLIC_KEY") is False
+    assert is_sensitive_key("ADDR_HASH") is False
+    assert is_sensitive_key("TX_SIGNATURE") is False
+    assert is_sensitive_key("CONTRACT_PRINCIPAL") is False
+    assert is_sensitive_key("DEPLOYMENT_ADDR") is False
+
+def test_case_insensitivity():
+    """🛡️ Sentinel: Verify that detection is case-insensitive."""
+    from stacksorbit_secrets import is_sensitive_key
+    assert is_sensitive_key("public_recovery_phrase") is True
+    assert is_sensitive_key("Addr_Seed_Phrase") is True
+    assert is_sensitive_key("Public_Key") is False

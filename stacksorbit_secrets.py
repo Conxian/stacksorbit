@@ -234,10 +234,11 @@ def _is_sensitive_normalized(k: str) -> bool:
 
     # 🛡️ Sentinel: Surgical exclusion for public identifiers.
     # If the key contains a public identifier, it's not sensitive UNLESS it
-    # also contains a high-confidence sensitive keyword like 'PRIV', 'SECRET', or 'AUTH'.
-    # This allows 'PUBLIC_KEY' while protecting 'PUBLIC_PRIVATE_KEY_PAIR' and 'AUTH_SIGNATURE'.
+    # also contains a high-confidence sensitive keyword like 'PRIV', 'SECRET', 'AUTH',
+    # 'PHRASE', 'RECOVERY', 'SEED', 'PWD', 'XPRV', 'MASTER', 'VAULT', 'ADMIN', or 'ROOT'.
+    # This allows 'PUBLIC_KEY' while protecting 'PUBLIC_RECOVERY_PHRASE' and 'ADDR_SEED_PHRASE'.
     if _is_public_normalized(k):
-        if not any(word in k for word in ["PRIV", "SECRET", "MNEMONIC", "PASS", "AUTH"]):
+        if not any(word in k for word in ["PRIV", "SECRET", "MNEMONIC", "PASS", "AUTH", "PHRASE", "RECOVERY", "SEED", "PWD", "XPRV", "MASTER", "VAULT", "ADMIN", "ROOT"]):
             return False
 
     return True
