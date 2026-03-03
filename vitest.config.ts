@@ -21,6 +21,7 @@ export default defineConfig(async () => {
       },
       // Ensure tests are isolated and don't conflict
       pool: 'threads',
+      include: ["js-tests/**/*.test.ts", "tests/**/*.test.ts"],
     },
   };
 });
