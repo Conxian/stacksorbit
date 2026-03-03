@@ -98,6 +98,8 @@ class StacksOrbitGUI(App):
         Binding("f5", "switch_tab('settings')", "Settings", show=True),
         Binding("/", "focus_tx_filter", "Search Transactions", show=False),
         Binding("escape", "clear_tx_filter", "Clear Filter", show=False),
+        Binding("c", "precheck", "Pre-check", show=False),
+        Binding("u", "deploy", "Deploy", show=False),
     ]
 
     # Reactive variables
@@ -435,10 +437,10 @@ class StacksOrbitGUI(App):
             "Refresh all dashboard data [r]"
         )
         self.query_one("#precheck-btn", Button).tooltip = (
-            "Run diagnostic checks before deployment"
+            "Run diagnostic checks before deployment [c]"
         )
         self.query_one("#start-deploy-btn", Button).tooltip = (
-            "Start the deployment process"
+            "Start the deployment process [u]"
         )
         self.query_one("#clear-log-btn", Button).tooltip = "Clear the deployment log"
         self.w_show_privkey.tooltip = (
@@ -557,10 +559,10 @@ class StacksOrbitGUI(App):
 
         if not self._all_transactions:
             if self.address != "Not configured":
-                transactions_table.add_row("", "No transactions found", "", "", "")
+                transactions_table.add_row("", "No transactions found", "Press [r] to refresh", "", "")
             else:
                 transactions_table.add_row(
-                    "⚠️", "Config missing", "Address not configured in .env", "", ""
+                    "⚠️", "Config missing", "Press [F5] to configure", "", ""
                 )
             self.w_tx_filter_count.update("(0/0 matches)")
             return
@@ -621,9 +623,10 @@ class StacksOrbitGUI(App):
                 "🔍", f"No matches for '{filter_text}'", "Try a different search term.", "", ""
             )
 
-        self.w_tx_filter_count.update(
-            f"({len(filtered_txs)}/{len(self._all_transactions)} matches)"
-        )
+        count_display = f"({len(filtered_txs)}/{len(self._all_transactions)} matches)"
+        if filter_text and not filtered_txs:
+            count_display = f"[red]{count_display}[/]"
+        self.w_tx_filter_count.update(count_display)
 
     def _setup_tables(self) -> None:
         """Setup the data tables"""
@@ -771,11 +774,11 @@ class StacksOrbitGUI(App):
                         contracts_table.add_row(*row, key=deployed_contracts[i].get("contract_id"))
                 elif self.address != "Not configured":
                     contracts_table.add_row(
-                        "", "No contracts found", "Deploy a contract to see it here."
+                        "", "No contracts found", "Press [F4] to deploy"
                     )
                 else:
                     contracts_table.add_row(
-                        "⚠️", "Config missing", "Address not configured in .env file."
+                        "⚠️", "Config missing", "Press [F5] to set up"
                     )
                 self._last_contracts = deployed_contracts
 
@@ -907,6 +910,20 @@ class StacksOrbitGUI(App):
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
         self.w_tabbed_content.active = tab_id
+
+    def action_precheck(self) -> None:
+        """Action to trigger pre-check from keyboard shortcut [c]."""
+        if self.w_tabbed_content.active == "deployment":
+            btn = self.query_one("#precheck-btn", Button)
+            if not btn.disabled:
+                self.on_precheck_pressed(Button.Pressed(btn))
+
+    def action_deploy(self) -> None:
+        """Action to trigger deploy from keyboard shortcut [u]."""
+        if self.w_tabbed_content.active == "deployment":
+            btn = self.query_one("#start-deploy-btn", Button)
+            if not btn.disabled:
+                self.on_start_deploy_pressed(Button.Pressed(btn))
 
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""
