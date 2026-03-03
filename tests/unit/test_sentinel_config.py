@@ -33,7 +33,7 @@ class TestSentinelConfig(unittest.TestCase):
         config_to_save = {
             "NETWORK": "testnet",
             "SYSTEM_ADDRESS": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
-            "DEPLOYER_PRIVKEY": "0000000000000000000000000000000000000000000000000000000000000001",
+            "DEPLOYER_PRIVKEY": "mock_private_key_string_for_testing_purposes_only_1234567890abcde",
             "SOME_API_TOKEN": "sensitive_token_value"
         }
 
