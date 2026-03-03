@@ -10,27 +10,28 @@ async def test_relative_time_formatting():
     from datetime import timezone
     app = StacksOrbitGUI()
     now_utc = datetime.now(timezone.utc)
+    now_bucket = int(now_utc.timestamp() / 10) * 10
 
     # Test 'Pending'
-    assert app._format_relative_time(None, now_utc) == "[yellow]Pending[/]"
+    assert app._format_relative_time(None, now_bucket) == "[yellow]Pending[/]"
 
     # Test 'Just now'
     now_iso = now_utc.isoformat().replace("+00:00", "Z")
-    assert "Just now" in app._format_relative_time(now_iso, now_utc)
+    assert "Just now" in app._format_relative_time(now_iso, now_bucket)
 
     # Test '5m ago'
     five_m_ago = (now_utc - timedelta(minutes=5, seconds=5)).isoformat().replace("+00:00", "Z")
-    res = app._format_relative_time(five_m_ago, now_utc)
+    res = app._format_relative_time(five_m_ago, now_bucket)
     assert "m ago" in res or "Just now" in res
 
     # Test '2h ago'
     two_h_ago = (now_utc - timedelta(hours=2, seconds=5)).isoformat().replace("+00:00", "Z")
-    res = app._format_relative_time(two_h_ago, now_utc)
+    res = app._format_relative_time(two_h_ago, now_bucket)
     assert "h ago" in res
 
     # Test '1d ago'
     one_d_ago = (now_utc - timedelta(days=1, hours=1)).isoformat().replace("+00:00", "Z")
-    res = app._format_relative_time(one_d_ago, now_utc)
+    res = app._format_relative_time(one_d_ago, now_bucket)
     assert "d ago" in res
 
 @pytest.mark.asyncio

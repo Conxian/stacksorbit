@@ -93,3 +93,7 @@
 ## 2026-03-28 - Public Key Exclusion in Redaction Logic
 **Learning:** Applying value-based secret detection (`is_sensitive_value`) to known public blockchain data (like `tx_id` or `block_hash`) is both a performance bottleneck and a UX regression (false-positive redaction). By introducing a "public key" whitelist and passing this state through recursive redaction, we can skip expensive regex inspections for public fields.
 **Action:** Always maintain a whitelist of common public identifiers (`TX_ID`, `HASH`, `ADDR`) to complement sensitive key detection. In `redact_recursive`, use this whitelist to short-circuit value-based detection, providing a ~14% throughput improvement for public data streams and preventing incorrect redaction of transaction IDs in the TUI.
+
+## 2026-03-30 - Hoisting Bucketed Time in TUI Loops
+**Learning:** Hoisting the bucketing logic for relative time formatting (e.g., `int(now.timestamp() / 10) * 10`) out of high-frequency loops (like transaction table refreshes) significantly improves performance. It avoids redundant O(N) system calls for `datetime.now()` and O(N) arithmetic, ensuring that the module-level LRU cache for time formatting (`_format_relative_time_cached`) is hit with a stable key for every item in the refresh cycle.
+**Action:** Always hoist timestamp normalization and bucket calculations out of loops. Pass the pre-calculated bucket to formatting utilities to maximize cache efficiency and minimize main-thread CPU overhead in the GUI.
