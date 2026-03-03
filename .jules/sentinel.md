@@ -91,3 +91,8 @@
 **Vulnerability:** Value-based secret detection bypassed 0x-prefixed Stacks private keys when stored under generic key names, as the validation logic only accounted for raw 64/66-character hex strings.
 **Learning:** Hex-based secret detection must account for common prefix variations (like `0x` or `0X`) used in the target ecosystem (Stacks/Clarity). Naive length checks are easily bypassed by standard formatting conventions.
 **Prevention:** Always normalize hex strings by stripping common prefixes before performing length and character set validation in security-critical utilities.
+
+## 2026-03-01 - Surgical Exclusion Hardening for Public Identifiers
+**Vulnerability:** The surgical exclusion logic in `is_sensitive_key` was too permissive, allowing high-risk secrets like `PUBLIC_RECOVERY_PHRASE` or `ADDR_SEED_PHRASE` to bypass redaction. This occurred because the re-validation list for public-prefixed keys was missing critical keywords like `PHRASE`, `SEED`, `RECOVERY`, and `MASTER`.
+**Learning:** When using exclusion patterns for public data (e.g., ignoring keys with 'PUBLIC' or 'ADDR'), the secondary "high-confidence" check must be comprehensive. Implementation drift between the main `SENSITIVE_SUBSTRINGS` list and this re-validation list creates security holes for misnamed secrets.
+**Prevention:** Synchronize the high-confidence keywords used for public identifier re-validation with the most critical patterns in the global secret detection list. Proactively expand this list to include `PHRASE`, `SEED`, `RECOVERY`, `PWD`, `XPRV`, `MASTER`, `VAULT`, `ADMIN`, and `ROOT`.
