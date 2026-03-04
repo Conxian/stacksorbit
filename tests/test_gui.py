@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 from stacksorbit_gui import StacksOrbitGUI
+from textual.widgets import DataTable, Input
 from textual.widgets.data_table import RowKey
 
 @pytest.mark.asyncio
@@ -23,7 +24,7 @@ async def test_contract_highlighting_triggers_details_fetch():
 
             # Simulate the row highlighted event
             app.on_contracts_row_highlighted(
-                contracts_table.RowHighlighted(
+                DataTable.RowHighlighted(
                     data_table=contracts_table,
                     row_key=RowKey("ST123.test-contract"),
                     cursor_row=0
@@ -46,7 +47,7 @@ async def test_contract_selection_copies_id():
 
             # Simulate the row selection event
             app.on_contracts_row_selected(
-                contracts_table.RowSelected(
+                DataTable.RowSelected(
                     data_table=contracts_table,
                     row_key=RowKey("ST123.test-contract"),
                     cursor_row=0
@@ -69,13 +70,13 @@ async def test_validation_error_messages():
         # Invalid address
         address_input.value = "invalid-address"
         # Manually trigger the event since pilot.type might be slow or tricky in some environments
-        app.on_address_changed(address_input.Changed(address_input, "invalid-address"))
+        app.on_address_changed(Input.Changed(address_input, "invalid-address"))
         # PALETTE: Updated to match new error message format
         assert "❌ Must be 28-41 chars" in str(address_error.render())
 
         # Valid address (ST for testnet)
         address_input.value = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
-        app.on_address_changed(address_input.Changed(address_input, address_input.value))
+        app.on_address_changed(Input.Changed(address_input, address_input.value))
         assert "✅ Valid" in str(address_error.render())
 
         # Test Private Key validation
@@ -84,17 +85,17 @@ async def test_validation_error_messages():
 
         # Invalid private key
         privkey_input.value = "too-short"
-        app.on_privkey_changed(privkey_input.Changed(privkey_input, "too-short"))
+        app.on_privkey_changed(Input.Changed(privkey_input, "too-short"))
         assert "❌ Must be a 64 or 66 character hex string" in str(privkey_error.render())
 
         # Valid private key
         privkey_input.value = "a" * 64
-        app.on_privkey_changed(privkey_input.Changed(privkey_input, privkey_input.value))
+        app.on_privkey_changed(Input.Changed(privkey_input, privkey_input.value))
         assert "✅ Valid" in str(privkey_error.render())
 
 @pytest.mark.asyncio
 async def test_transaction_selection_enables_buttons():
-    """Verify that selecting a transaction enables the action buttons."""
+    """Verify that highlighting a transaction enables the action buttons."""
     app = StacksOrbitGUI()
     async with app.run_test() as pilot:
         transactions_table = app.query_one("#transactions-table")
@@ -114,9 +115,9 @@ async def test_transaction_selection_enables_buttons():
         transactions_table.add_row("0x1234...", "token-transfer", "success", "100", key="0x1234567890abcdef")
         await pilot.pause()
 
-        # Simulate the row selection event
-        app.on_transactions_row_selected(
-            transactions_table.RowSelected(
+        # Simulate the row highlighted event
+        app.on_transactions_row_highlighted(
+            DataTable.RowHighlighted(
                 data_table=transactions_table,
                 row_key=RowKey("0x1234567890abcdef"),
                 cursor_row=0
@@ -141,7 +142,7 @@ async def test_validation_includes_char_count():
         # Test with some text (invalid)
         test_address = "ST123"
         address_input.value = test_address
-        app.on_address_changed(address_input.Changed(address_input, test_address))
+        app.on_address_changed(Input.Changed(address_input, test_address))
         assert f"({len(test_address)}/41)" in str(address_error.render())
         assert "❌" in str(address_error.render())
         assert "28-41 chars" in str(address_error.render())
@@ -149,7 +150,7 @@ async def test_validation_includes_char_count():
         # Test valid address
         valid_address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
         address_input.value = valid_address
-        app.on_address_changed(address_input.Changed(address_input, valid_address))
+        app.on_address_changed(Input.Changed(address_input, valid_address))
         assert f"({len(valid_address)}/41)" in str(address_error.render())
         assert "✅ Valid" in str(address_error.render())
 
@@ -159,13 +160,13 @@ async def test_validation_includes_char_count():
 
         test_pk = "abc"
         privkey_input.value = test_pk
-        app.on_privkey_changed(privkey_input.Changed(privkey_input, test_pk))
+        app.on_privkey_changed(Input.Changed(privkey_input, test_pk))
         assert f"({len(test_pk)}/64 or 66)" in str(privkey_error.render())
 
         # Test valid private key
         valid_pk = "a" * 64
         privkey_input.value = valid_pk
-        app.on_privkey_changed(privkey_input.Changed(privkey_input, valid_pk))
+        app.on_privkey_changed(Input.Changed(privkey_input, valid_pk))
         assert f"({len(valid_pk)}/64 or 66)" in str(privkey_error.render())
         assert "✅ Valid" in str(privkey_error.render())
 

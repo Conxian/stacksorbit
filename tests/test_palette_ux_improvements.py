@@ -110,8 +110,8 @@ async def test_palette_ux_improvements():
         await pilot.press("u")
         app.on_start_deploy_pressed.assert_called_once()
 
-        # 5. Save Screenshot
-        app.save_screenshot("palette_ux_verification.svg")
+        # 5. Save Screenshot (disabled for repo hygiene)
+        # app.save_screenshot("palette_ux_verification.svg")
 
 if __name__ == "__main__":
     pass

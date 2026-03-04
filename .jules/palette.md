@@ -55,3 +55,7 @@
 ## 2025-05-27 - Smart Empty States and Efficiency Shortcuts
 **Learning:** In Textual TUIs, keyboard shortcut hints should be appended to widget tooltips in brackets (e.g., '[c]' or '[u]') and actionable messages included in empty table rows (e.g., 'Press [F4] to deploy'). This improves discoverability and guides users toward the next logical step when no data is present. Visual feedback for filtering can be enhanced by colorizing status labels (e.g., [red]) when a search yields zero matches.
 **Action:** Always provide actionable guidance in empty states and include keyboard shortcut hints in tooltips for power-user efficiency. Use conditional Rich markup for immediate visual confirmation of UI state changes.
+
+## 2025-05-28 - Reactive UI Synchronization and Feedback
+**Learning:** Using reactive properties for primary state (like the user address) allows for effortless synchronization across multiple tabs and UI components without complex callback chains. Providing immediate visual feedback (like icon flips or button state changes) as a direct result of user interaction (even passive interaction like scrolling) makes the application feel significantly more responsive and polished.
+**Action:** Promote primary application state to reactive variables. Implement 'watch_' methods to automate UI synchronization. Use 'RowHighlighted' events in DataTables to create fluid master-detail experiences.
