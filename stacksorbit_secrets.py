@@ -81,41 +81,53 @@ PUBLIC_RE = re.compile("|".join(PUBLIC_SUBSTRINGS))
 # Bolt ⚡: Pre-compile regex for faster hex character validation.
 HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
+# Bolt ⚡: Pre-compile high-confidence sensitive keywords for surgical exclusion in normalized keys.
+HIGH_CONFIDENCE_SENSITIVE_WORDS = ["PRIV", "SECRET", "MNEMONIC", "PASS", "AUTH", "PHRASE", "RECOVERY", "SEED", "PWD", "XPRV", "MASTER", "VAULT", "ADMIN", "ROOT"]
+HIGH_CONFIDENCE_SENSITIVE_RE = re.compile("|".join(HIGH_CONFIDENCE_SENSITIVE_WORDS), re.IGNORECASE)
 
-@functools.lru_cache(maxsize=128)
-def validate_private_key(privkey: str) -> bool:
-    """
-    Validate Stacks private key format (64 or 66 chars hex, optional 0x prefix).
 
-    Bolt ⚡: Caching this function improves UI responsiveness during real-time
-    validation of private keys.
-    """
-    if not privkey or not isinstance(privkey, str):
-        return False
-    pk = privkey.strip()
-
-    # 🛡️ Sentinel: Support optional 0x prefix for Stacks private keys.
-    if pk.lower().startswith("0x"):
-        pk = pk[2:]
-
-    # Bolt ⚡: Check length first to fail fast and avoid more expensive checks.
-    # This also catches placeholders like 'your_private_key_here' (21 chars) automatically.
+@functools.lru_cache(maxsize=256)
+def _validate_private_key_cached(pk: str) -> bool:
+    """Internal cached core validation for pre-normalized private keys."""
+    # Bolt ⚡: Check length first to fail fast.
     if len(pk) not in (64, 66):
         return False
     # Bolt ⚡: Use regex for faster hex character validation (~5.5x faster than loop).
     return bool(HEX_RE.match(pk))
 
 
+def _validate_private_key_normalized(pk: str) -> bool:
+    """Bolt ⚡: Internal helper that assumes pk is already stripped."""
+    # 🛡️ Sentinel: Support optional 0x prefix for Stacks private keys.
+    # Bolt ⚡: Use startswith tuple to avoid expensive .lower() call.
+    if pk.startswith(("0x", "0X")):
+        pk = pk[2:]
+    return _validate_private_key_cached(pk)
+
+
+def validate_private_key(privkey: str) -> bool:
+    """
+    Validate Stacks private key format (64 or 66 chars hex, optional 0x prefix).
+
+    Bolt ⚡: Split into outer normalization and cached inner validation to avoid
+    redundant .strip() and .lower() calls in hot paths.
+    """
+    if not privkey or not isinstance(privkey, str):
+        return False
+    return _validate_private_key_normalized(privkey.strip())
+
+
 @functools.lru_cache(maxsize=1024)
 def _is_sensitive_value_cached(value: str) -> bool:
     """Internal cached logic for sensitive value detection."""
     # Check for Stacks private key format (64 or 66 hex chars)
-    if validate_private_key(value):
+    # Bolt ⚡: Use internal normalized validator to avoid redundant strip()
+    if _validate_private_key_normalized(value):
         return True
 
     # Bolt ⚡: Use a fast split and length check.
     # BIP-39 supports 12, 15, 18, 21, and 24 words.
-    words = value.strip().split()
+    words = value.split()
     if len(words) in (12, 15, 18, 21, 24) and all(len(w) >= 3 for w in words):
         # Additional check: most mnemonics are all lowercase or all uppercase
         if value.islower() or value.isupper():
@@ -138,6 +150,7 @@ def is_sensitive_value(value: str) -> bool:
 
     # 🛡️ Sentinel: Strip whitespace before checking length to prevent newline-based bypasses.
     # This ensures that multiline secrets or those with trailing newlines are still detected.
+    # Bolt ⚡: Strip once here and pass to cached validators.
     v = value.strip()
 
     # ⚡ Bolt: Fast-fail for large strings (e.g. source code).
@@ -196,13 +209,16 @@ def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
         # Check if the parent key is a known secret or contains a sensitive substring.
         # 🛡️ Sentinel: Also check if the value itself looks like a secret (Defense-in-Depth).
         # Bolt ⚡: Skip value-based detection if the key is known to be public (e.g. TX_ID).
-        # ⚡ Bolt: Avoid redundant str() conversion if item is already a string.
-        item_str = item if isinstance(item, str) else str(item)
-        if (
-            is_sensitive or (not is_public and is_sensitive_value(item_str))
-        ):
+
+        # Bolt ⚡: Avoid redundant str() conversion and stripping.
+        is_val_sensitive = False
+        if isinstance(item, str):
+            is_val_sensitive = not is_public and is_sensitive_value(item)
+
+        if is_sensitive or is_val_sensitive:
             # Skip empty values or common non-secret placeholders
-            if is_placeholder(item_str):
+            # Bolt ⚡: Pass original item to leverage fast-fail in is_placeholder.
+            if is_placeholder(item):
                 return item
 
             # Redact the value but preserve its type for clarity (e.g., show empty string or 0)
@@ -237,8 +253,9 @@ def _is_sensitive_normalized(k: str) -> bool:
     # also contains a high-confidence sensitive keyword like 'PRIV', 'SECRET', 'AUTH',
     # 'PHRASE', 'RECOVERY', 'SEED', 'PWD', 'XPRV', 'MASTER', 'VAULT', 'ADMIN', or 'ROOT'.
     # This allows 'PUBLIC_KEY' while protecting 'PUBLIC_RECOVERY_PHRASE' and 'ADDR_SEED_PHRASE'.
+    # Bolt ⚡: Replace iterative any() with pre-compiled regex for speed.
     if _is_public_normalized(k):
-        if not any(word in k for word in ["PRIV", "SECRET", "MNEMONIC", "PASS", "AUTH", "PHRASE", "RECOVERY", "SEED", "PWD", "XPRV", "MASTER", "VAULT", "ADMIN", "ROOT"]):
+        if not HIGH_CONFIDENCE_SENSITIVE_RE.search(k):
             return False
 
     return True
@@ -256,7 +273,7 @@ def is_public_key(key: str) -> bool:
     Check if a configuration or API key is considered public.
     Public keys are excluded from value-based secret detection.
 
-    Bolt ⚡: We cache this outer function to avoid redundant .upper() calls.
+    Bolt ⚡: Re-added outer cache to avoid redundant .upper() calls in hot paths.
     """
     if not key or not isinstance(key, str):
         return False
@@ -270,8 +287,7 @@ def is_sensitive_key(key: str) -> bool:
     A key is sensitive if it's in the known SECRET_KEYS set or
     contains any of the SENSITIVE_SUBSTRINGS.
 
-    Bolt ⚡: We cache this outer function to avoid redundant .upper() calls for
-    identical key strings (e.g. during recursive redaction of large lists).
+    Bolt ⚡: Re-added outer cache to avoid redundant .upper() calls in hot paths.
     """
     if not key or not isinstance(key, str):
         return False
@@ -323,7 +339,8 @@ SAFE_PLACEHOLDERS = {
 @functools.lru_cache(maxsize=1024)
 def _is_placeholder_cached(value: str) -> bool:
     """Internal cached logic for placeholder detection."""
-    return value.strip().lower() in SAFE_PLACEHOLDERS
+    # Bolt ⚡: Expects a pre-normalized (stripped and lower-cased) string.
+    return value in SAFE_PLACEHOLDERS
 
 
 def is_placeholder(value: str) -> bool:
@@ -334,6 +351,11 @@ def is_placeholder(value: str) -> bool:
     Bolt ⚡: Caching this function avoids redundant .strip().lower() calls
     for repeated configuration values and API response fields.
     """
+    # ⚡ Bolt: Fast-fail for numeric/boolean types to avoid expensive str() normalization.
+    # Placeholders are exclusively strings.
+    if isinstance(value, (int, float, bool)):
+        return False
+
     if value is None:
         return True
 
@@ -345,7 +367,8 @@ def is_placeholder(value: str) -> bool:
     if len(val_str) > 50:
         return False
 
-    return _is_placeholder_cached(val_str)
+    # Bolt ⚡: Normalize BEFORE hitting the cache to maximize reuse across case variants.
+    return _is_placeholder_cached(val_str.strip().lower())
 
 
 # Bolt ⚡: Pre-compile network-aware regexes for faster Stacks address validation.
