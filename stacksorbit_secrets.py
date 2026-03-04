@@ -82,7 +82,14 @@ PUBLIC_RE = re.compile("|".join(PUBLIC_SUBSTRINGS))
 HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
 # Bolt ⚡: Pre-compile high-confidence sensitive keywords for surgical exclusion in normalized keys.
-HIGH_CONFIDENCE_SENSITIVE_WORDS = ["PRIV", "SECRET", "MNEMONIC", "PASS", "AUTH", "PHRASE", "RECOVERY", "SEED", "PWD", "XPRV", "MASTER", "VAULT", "ADMIN", "ROOT"]
+# These words represent clear security risks and must trigger redaction even when paired
+# with public identifiers (e.g., 'PUBLIC_JWT', 'ADDR_TOKEN').
+HIGH_CONFIDENCE_SENSITIVE_WORDS = [
+    "PRIV", "SECRET", "MNEMONIC", "PASS", "AUTH", "PHRASE", "RECOVERY",
+    "SEED", "PWD", "XPRV", "MASTER", "VAULT", "ADMIN", "ROOT", "JWT",
+    "BEARER", "SALT", "CRED", "SESS", "TOKEN", "KUBECONFIG", "DOCKER",
+    "DATABASE", "DB_", "SENSITIVE", "ENCRYPT", "BIP3"
+]
 HIGH_CONFIDENCE_SENSITIVE_RE = re.compile("|".join(HIGH_CONFIDENCE_SENSITIVE_WORDS), re.IGNORECASE)
 
 
