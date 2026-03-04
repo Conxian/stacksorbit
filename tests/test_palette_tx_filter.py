@@ -3,9 +3,14 @@ import asyncio
 from stacksorbit_gui import StacksOrbitGUI
 from textual.widgets import Input, DataTable, Label, TabbedContent
 
+async def mock_async_none(*args, **kwargs):
+    return None
+
 @pytest.mark.asyncio
-async def test_tx_filtering_logic():
+async def test_tx_filtering_logic(monkeypatch):
     """Verify that the transaction filter correctly narrows down results."""
+    # Disable background data fetching for clean testing
+    monkeypatch.setattr("stacksorbit_gui.StacksOrbitGUI.update_data", mock_async_none)
     app = StacksOrbitGUI()
     app.address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
 
@@ -55,8 +60,9 @@ async def test_tx_filtering_logic():
         assert table.row_count == 3
 
 @pytest.mark.asyncio
-async def test_tx_filter_focus_shortcut():
+async def test_tx_filter_focus_shortcut(monkeypatch):
     """Verify that the '/' shortcut focuses the filter input."""
+    monkeypatch.setattr("stacksorbit_gui.StacksOrbitGUI.update_data", mock_async_none)
     app = StacksOrbitGUI()
     app.address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
     async with app.run_test() as pilot:
@@ -66,23 +72,33 @@ async def test_tx_filter_focus_shortcut():
 
         # Press '/'
         await pilot.press("/")
-        await pilot.pause()
+        # Wait a bit for messages to be processed
+        await pilot.pause(0.5)
 
         # Check focus and tab
         assert app.query_one(TabbedContent).active == "transactions"
-        # In some environments has_focus might be tricky, so we check if it is focused
-        assert app.query_one("#tx-filter-input") == app.focused
+        # Check if focus is correct or will be soon
+        if app.focused is None or app.focused.id != "tx-filter-input":
+            await pilot.pause(0.5)
+
+        assert app.focused is not None
+        assert app.focused.id == "tx-filter-input"
 
 @pytest.mark.asyncio
-async def test_tx_filter_input_event():
+async def test_tx_filter_input_event(monkeypatch):
     """Verify that typing in the filter input updates the filter state."""
+    monkeypatch.setattr("stacksorbit_gui.StacksOrbitGUI.update_data", mock_async_none)
     app = StacksOrbitGUI()
+    # Set address before running to ensure it's picked up by reactive logic
     app.address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
     async with app.run_test() as pilot:
+        # Set transactions BEFORE address to avoid empty table via watch_address
         app._all_transactions = [
             {"tx_id": "0x123", "tx_type": "call", "tx_status": "success"},
             {"tx_id": "0x456", "tx_type": "transfer", "tx_status": "success"},
         ]
+        # Ensure the address is correctly set in the reactive state
+        app.address = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"
 
         # Navigate to transactions tab
         await pilot.press("f3")
@@ -92,7 +108,7 @@ async def test_tx_filter_input_event():
         app.query_one("#tx-filter-input").focus()
         await pilot.press("t", "r", "a", "n", "s")
         # Ensure the event handler finished
-        await pilot.pause()
+        await pilot.pause(0.5)
 
         assert app.tx_filter == "trans"
         # Manually trigger update to ensure it's matched if the event was slow

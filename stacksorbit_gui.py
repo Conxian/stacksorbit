@@ -104,6 +104,7 @@ class StacksOrbitGUI(App):
 
     # Reactive variables
     network = reactive("testnet")
+    address = reactive("Not configured")
     unsaved_changes = reactive(False)
     tx_filter = reactive("")
 
@@ -131,6 +132,25 @@ class StacksOrbitGUI(App):
             is_testnet = network == "testnet"
             self.w_faucet_btn.display = is_testnet
             self.w_settings_faucet_btn.display = is_testnet
+        except Exception:
+            # Widgets might not be mounted yet
+            pass
+
+    def watch_address(self, address: str) -> None:
+        """Watch the address reactive variable and update UI components."""
+        try:
+            is_configured = address and address != "Not configured"
+
+            # Update dashboard address display
+            display_val = address if is_configured else "[dim]Not configured[/]"
+            self.w_display_address.update(display_val)
+
+            # Update dashboard explorer button state
+            self.w_view_dashboard_explorer_btn.disabled = not is_configured
+
+            # Sync transactions table if it exists
+            self._update_transactions_table()
+
         except Exception:
             # Widgets might not be mounted yet
             pass
@@ -384,6 +404,7 @@ class StacksOrbitGUI(App):
         self.w_view_dashboard_explorer_btn = self.query_one("#view-dashboard-explorer-btn", Button)
         self.w_settings_faucet_btn = self.query_one("#settings-faucet-btn", Button)
         self.w_view_address_explorer_btn = self.query_one("#view-address-explorer-btn", Button)
+        self.w_copy_address_btn = self.query_one("#copy-address-btn", Button)
         self.w_address_input = self.query_one("#address-input", Input)
         self.w_privkey_input = self.query_one("#privkey-input", Input)
         self.w_address_error = self.query_one("#address-error", Label)
@@ -485,10 +506,11 @@ class StacksOrbitGUI(App):
         self.w_copy_source_btn.disabled = True
         self.w_view_explorer_btn.disabled = True
 
-        # PALETTE: Initialize address explorer button states
+        # PALETTE: Initialize address utility button states
         is_addr_configured = self.address != "Not configured"
         self.w_view_dashboard_explorer_btn.disabled = not is_addr_configured
         self.w_view_address_explorer_btn.disabled = not is_addr_configured
+        self.w_copy_address_btn.disabled = not is_addr_configured
 
         # Transaction actions initialization
         self.w_clear_tx_filter_btn.display = False
@@ -858,6 +880,16 @@ class StacksOrbitGUI(App):
             self.copy_to_clipboard(self.address)
             self.notify("Address copied to clipboard", severity="information")
 
+            # PALETTE: Visual feedback on the adjacent copy button
+            try:
+                btn = self.query_one("#copy-dashboard-address-btn", Button)
+                if btn.label != "✅":
+                    btn.label = "✅"
+                    await asyncio.sleep(1)
+                    btn.label = "📋"
+            except Exception:
+                pass
+
     @on(Click, "#metric-network")
     def on_network_metric_click(self) -> None:
         """Refresh data when network metric is clicked."""
@@ -896,12 +928,15 @@ class StacksOrbitGUI(App):
         if event.tabbed_content.active == "settings":
             self.w_privkey_input.focus()
         elif event.tabbed_content.active == "transactions":
-            self.w_transactions_table.focus()
+            # PALETTE: Only focus table if we aren't explicitly focusing the filter
+            if not self.focused or self.focused.id != "tx-filter-input":
+                self.w_transactions_table.focus()
 
     def action_focus_tx_filter(self) -> None:
         """Focus the transaction filter input."""
         self.w_tabbed_content.active = "transactions"
-        self.w_tx_filter_input.focus()
+        # Pilot ⚡: Use call_after_refresh to ensure tab-change focus doesn't override us.
+        self.call_after_refresh(self.w_tx_filter_input.focus)
 
     def action_clear_tx_filter(self) -> None:
         """Action to clear the transaction filter."""
@@ -1083,10 +1118,20 @@ class StacksOrbitGUI(App):
         if event.input.has_focus:
             self.unsaved_changes = True
 
-        if not event.value:
+        is_valid = validate_stacks_address(event.value, self.network)
+        has_value = bool(event.value)
+
+        # PALETTE: Reactively update Settings buttons based on validation
+        try:
+            self.w_copy_address_btn.disabled = not has_value
+            self.w_view_address_explorer_btn.disabled = not is_valid
+        except Exception:
+            pass
+
+        if not has_value:
             event.input.remove_class("error")
             error_label.update("")
-        elif validate_stacks_address(event.value, self.network):
+        elif is_valid:
             event.input.remove_class("error")
             error_label.update(f"[green]✅ Valid[/]{count_display}")
         else:
