@@ -101,3 +101,8 @@
 **Vulnerability:** Modern sensitive patterns like JWTs, Bearer tokens, and database credentials were bypassing redaction when prefixed with public identifiers (e.g., `PUBLIC_JWT`, `ADDR_TOKEN`) because they were missing from the high-confidence surgical exclusion list.
 **Learning:** Security detection for composite keys must evolve alongside the application's supported data types. A static or outdated exclusion list creates a regression window for newer secret formats.
 **Prevention:** Maintain an exhaustive and centralized high-confidence sensitive keyword list that is automatically applied to re-validate any key matching a public identifier pattern. Regularly audit this list to include standard authentication (JWT, BEARER, SESS) and infrastructure (DOCKER, KUBECONFIG, DB_) patterns.
+
+## 2026-03-02 - Expansion of Surgical Exclusion for Cryptographic Secrets
+**Vulnerability:** Composite keys containing high-risk cryptographic identifiers (e.g., `PUBLIC_SSH_KEY`, `ADDR_PGP_KEY`, `TX_PEM_CERT`) were bypassing redaction when paired with public identifiers.
+**Learning:** Surgical exclusion lists for public data must be kept in sync with the primary sensitive keyword list to prevent "blind spots" for composite keys that include both public and high-confidence sensitive terms.
+**Prevention:** Regularly audit and expand the high-confidence surgical exclusion list to include all core cryptographic and authentication patterns (CERT, PKCS, SSH, PGP, GPG, PEM) supported by the application.
