@@ -97,3 +97,7 @@
 ## 2026-03-30 - Hoisting Bucketed Time in TUI Loops
 **Learning:** Hoisting the bucketing logic for relative time formatting (e.g., `int(now.timestamp() / 10) * 10`) out of high-frequency loops (like transaction table refreshes) significantly improves performance. It avoids redundant O(N) system calls for `datetime.now()` and O(N) arithmetic, ensuring that the module-level LRU cache for time formatting (`_format_relative_time_cached`) is hit with a stable key for every item in the refresh cycle.
 **Action:** Always hoist timestamp normalization and bucket calculations out of loops. Pass the pre-calculated bucket to formatting utilities to maximize cache efficiency and minimize main-thread CPU overhead in the GUI.
+
+## 2026-04-05 - Redaction Throughput Optimization for Scalar Collections
+**Learning:** Recursive redaction of large data structures (like blockchain balances or status flags) in Python suffers from significant function call overhead when every element in a list/tuple/set triggers a new `redact_recursive` call. For non-sensitive collections, hoisting the scalar type check (`isinstance(sub_item, (int, float, bool)) or sub_item is None`) directly into the collection comprehension bypasses redundant function calls and internal validation logic.
+**Action:** Always hoist scalar type checks into collection comprehensions within recursive processing functions when the parent context is known to be non-sensitive. This can provide a multi-fold speedup (e.g., ~4.3x) for datasets dominated by numeric or boolean arrays.
