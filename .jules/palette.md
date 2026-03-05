@@ -59,3 +59,7 @@
 ## 2025-05-28 - Reactive UI Synchronization and Feedback
 **Learning:** Using reactive properties for primary state (like the user address) allows for effortless synchronization across multiple tabs and UI components without complex callback chains. Providing immediate visual feedback (like icon flips or button state changes) as a direct result of user interaction (even passive interaction like scrolling) makes the application feel significantly more responsive and polished.
 **Action:** Promote primary application state to reactive variables. Implement 'watch_' methods to automate UI synchronization. Use 'RowHighlighted' events in DataTables to create fluid master-detail experiences.
+
+## 2025-05-29 - Unified Contextual Keyboard Shortcuts
+**Learning:** In a multi-tab TUI, implementing unified contextual keyboard shortcuts (e.g., [c] for Copy, [e] for Explorer) that adapt their behavior based on the active tab significantly enhances power-user efficiency and reduces cognitive load. Providing immediate discoverability through tooltip hints ensures these shortcuts are accessible to all users.
+**Action:** Identify common cross-tab actions and implement a centralized dispatcher for contextual keyboard shortcuts. Always append shortcut hints in brackets to relevant widget tooltips.
