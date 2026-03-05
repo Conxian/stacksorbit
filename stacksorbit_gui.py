@@ -98,7 +98,8 @@ class StacksOrbitGUI(App):
         Binding("f5", "switch_tab('settings')", "Settings", show=True),
         Binding("/", "focus_tx_filter", "Search Transactions", show=False),
         Binding("escape", "clear_tx_filter", "Clear Filter", show=False),
-        Binding("c", "precheck", "Pre-check", show=False),
+        Binding("c", "context_copy", "Copy", show=False),
+        Binding("e", "context_explorer", "View on Explorer", show=False),
         Binding("u", "deploy", "Deploy", show=False),
     ]
 
@@ -277,7 +278,11 @@ class StacksOrbitGUI(App):
                     yield DataTable(id="contracts-table", zebra_stripes=True)
                     yield Vertical(
                         Horizontal(
-                            Label("Contract Details", classes="header"),
+                            Label(
+                                "Contract Details",
+                                id="contract-details-header-label",
+                                classes="header clickable-label",
+                            ),
                             Button("📋", id="copy-contract-id-btn"),
                             Button("📄", id="copy-source-btn"),
                             Button("🌐", id="view-explorer-btn"),
@@ -299,7 +304,11 @@ class StacksOrbitGUI(App):
                 yield LoadingIndicator()
                 yield DataTable(id="transactions-table", zebra_stripes=True)
                 with Horizontal(id="transaction-actions"):
-                    yield Label("Select a transaction to see actions", id="tx-status-label")
+                    yield Label(
+                        "Select a transaction to see actions",
+                        id="tx-status-label",
+                        classes="clickable-label",
+                    )
                     yield Button("📋", id="copy-selected-tx-btn")
                     yield Button("🌐", id="view-selected-tx-explorer-btn")
 
@@ -422,7 +431,7 @@ class StacksOrbitGUI(App):
         self.w_deployment_log = self.query_one("#deployment-log", Log)
         self.w_show_privkey = self.query_one("#show-privkey", Switch)
         self.w_tabbed_content = self.query_one(TabbedContent)
-        self.w_contract_details_header_label = self.query_one("#contract-details-header Label", Label)
+        self.w_contract_details_header_label = self.query_one("#contract-details-header-label", Label)
         self.w_contract_details_md = self.query_one("#contract-details", Markdown)
         self.w_details_loader = self.query(".details-pane LoadingIndicator").first()
 
@@ -468,10 +477,10 @@ class StacksOrbitGUI(App):
             "Toggle private key visibility"
         )
         self.query_one("#copy-address-btn", Button).tooltip = (
-            "Copy address to clipboard"
+            "Copy address to clipboard [c]"
         )
         self.w_view_address_explorer_btn.tooltip = (
-            "View address on Hiro Explorer"
+            "View address on Hiro Explorer [e]"
         )
         self.query_one("#connect-wallet-btn", Button).tooltip = (
             "Connect your wallet via browser"
@@ -480,13 +489,13 @@ class StacksOrbitGUI(App):
             "Your active Stacks address for deployments"
         )
         self.w_display_address.tooltip = (
-            "Click to copy your Stacks address"
+            "Click to copy your Stacks address [c]"
         )
         self.query_one("#copy-dashboard-address-btn", Button).tooltip = (
-            "Copy your Stacks address to clipboard"
+            "Copy your Stacks address to clipboard [c]"
         )
         self.w_view_dashboard_explorer_btn.tooltip = (
-            "View your address on Hiro Explorer"
+            "View your address on Hiro Explorer [e]"
         )
         self.w_faucet_btn.tooltip = (
             "Get free STX from the Hiro Testnet Faucet"
@@ -495,11 +504,17 @@ class StacksOrbitGUI(App):
             "Get free STX from the Hiro Testnet Faucet"
         )
         self.w_copy_contract_btn.tooltip = (
-            "Copy selected contract ID"
+            "Copy selected contract ID [c]"
         )
         self.w_copy_source_btn.tooltip = "Copy contract source code"
         self.w_view_explorer_btn.tooltip = (
-            "View contract on Hiro Explorer"
+            "View contract on Hiro Explorer [e]"
+        )
+        self.w_contract_details_header_label.tooltip = (
+            "Click to copy contract ID [c]"
+        )
+        self.w_tx_status_label.tooltip = (
+            "Click to copy transaction ID [c]"
         )
 
         self.w_copy_contract_btn.disabled = True
@@ -517,9 +532,9 @@ class StacksOrbitGUI(App):
         self.w_clear_tx_filter_btn.tooltip = "Clear filter [ESC]"
         self.w_copy_tx_btn.disabled = True
         self.w_view_tx_explorer_btn.disabled = True
-        self.w_copy_tx_btn.tooltip = "Copy full transaction ID"
+        self.w_copy_tx_btn.tooltip = "Copy full transaction ID [c]"
         self.w_view_tx_explorer_btn.tooltip = (
-            "View transaction on Hiro Explorer"
+            "View transaction on Hiro Explorer [e]"
         )
 
         self.w_save_config_btn.tooltip = (
@@ -922,6 +937,18 @@ class StacksOrbitGUI(App):
         """Toggle private key visibility when its label is clicked."""
         self.w_show_privkey.toggle()
 
+    @on(Click, "#contract-details-header-label")
+    async def on_contract_details_label_click(self) -> None:
+        """PALETTE: Copy contract ID when header label is clicked."""
+        if self.selected_contract_id:
+            await self.on_copy_contract_id_pressed()
+
+    @on(Click, "#tx-status-label")
+    async def on_tx_status_label_click(self) -> None:
+        """PALETTE: Copy transaction ID when status label is clicked."""
+        if self.selected_tx_id:
+            await self.on_copy_selected_tx_pressed()
+
     @on(TabbedContent.TabActivated)
     def on_tab_changed(self, event: TabbedContent.TabActivated) -> None:
         """Handle tab changes to improve interaction focus."""
@@ -948,12 +975,39 @@ class StacksOrbitGUI(App):
         """Switch to a specific tab."""
         self.w_tabbed_content.active = tab_id
 
-    def action_precheck(self) -> None:
-        """Action to trigger pre-check from keyboard shortcut [c]."""
-        if self.w_tabbed_content.active == "deployment":
+    async def action_context_copy(self) -> None:
+        """Unified 'Copy' [c] shortcut dispatcher. PALETTE: Enhanced efficiency."""
+        tab = self.w_tabbed_content.active
+        if tab == "overview":
+            await self.on_copy_dashboard_address_pressed()
+        elif tab == "contracts":
+            await self.on_copy_contract_id_pressed()
+        elif tab == "transactions":
+            await self.on_copy_selected_tx_pressed()
+        elif tab == "deployment":
             btn = self.query_one("#precheck-btn", Button)
             if not btn.disabled:
                 self.on_precheck_pressed(Button.Pressed(btn))
+        elif tab == "settings":
+            await self.on_copy_address_pressed()
+
+    async def action_context_explorer(self) -> None:
+        """Unified 'View on Explorer' [e] shortcut dispatcher. PALETTE: Enhanced discoverability."""
+        tab = self.w_tabbed_content.active
+        if tab == "overview":
+            await self.on_view_address_explorer_pressed()
+        elif tab == "contracts":
+            await self.on_view_explorer_pressed()
+        elif tab == "transactions":
+            await self.on_view_selected_tx_explorer_pressed()
+        elif tab == "settings":
+            # For settings, we use a mock object to signal we want the address from the input
+            class MockEvent:
+                class MockButton:
+                    def __init__(self): self.id = "view-address-explorer-btn"
+                def __init__(self): self.button = self.MockButton()
+
+            await self.on_view_address_explorer_pressed(MockEvent())
 
     def action_deploy(self) -> None:
         """Action to trigger deploy from keyboard shortcut [u]."""
@@ -1244,12 +1298,12 @@ class StacksOrbitGUI(App):
 
     @on(Button.Pressed, "#view-dashboard-explorer-btn")
     @on(Button.Pressed, "#view-address-explorer-btn")
-    async def on_view_address_explorer_pressed(self, event: Button.Pressed) -> None:
+    async def on_view_address_explorer_pressed(self, event: Button.Pressed = None) -> None:
         """Open the Stacks address on the Hiro Explorer."""
         # For dashboard button, use self.address.
         # For settings button, use the current input value for better UX.
         address = self.address
-        if event.button.id == "view-address-explorer-btn":
+        if event and event.button.id == "view-address-explorer-btn":
             address = self.w_address_input.value
 
         if not address or address == "Not configured":

@@ -24,8 +24,8 @@ async def test_address_explorer_buttons_exist():
         assert settings_explorer_btn is not None
 
         # Check tooltips
-        assert dashboard_explorer_btn.tooltip == "View your address on Hiro Explorer"
-        assert settings_explorer_btn.tooltip == "View address on Hiro Explorer"
+        assert dashboard_explorer_btn.tooltip == "View your address on Hiro Explorer [e]"
+        assert settings_explorer_btn.tooltip == "View address on Hiro Explorer [e]"
 
         # Check Network Status tooltip
         network_status_card = app.query("#network-status").first().parent

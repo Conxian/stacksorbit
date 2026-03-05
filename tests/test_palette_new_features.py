@@ -40,7 +40,7 @@ async def test_clickable_address():
     async with app.run_test() as pilot:
         display_address = app.query_one("#display-address", Static)
         assert "clickable-label" in display_address.classes
-        assert display_address.tooltip == "Click to copy your Stacks address"
+        assert display_address.tooltip == "Click to copy your Stacks address [c]"
 
         # Verify Click handler exists (calling it doesn't crash)
         await pilot.click("#display-address")
