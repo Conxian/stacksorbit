@@ -366,9 +366,19 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
                 # 🛡️ Sentinel: Explicitly use UTF-8 decoding for incoming JSON data.
                 data = json.loads(post_data.decode("utf-8"))
 
-                # 🛡️ Sentinel: Validate session token to prevent unauthorized overrides
-                # Use secrets.compare_digest to prevent timing attacks
-                if not data.get('token') or not WalletConnectHandler.session_token or not secrets.compare_digest(data.get('token'), WalletConnectHandler.session_token):
+                # 🛡️ Sentinel: DoS and Crash Protection - ensure data is a dictionary.
+                if not isinstance(data, dict):
+                    self.send_error(400, "Bad Request: JSON body must be a dictionary")
+                    return
+
+                token = data.get('token')
+                # 🛡️ Sentinel: Validate session token to prevent unauthorized overrides.
+                # Use secrets.compare_digest to prevent timing attacks and ensure type safety.
+                if (
+                    not isinstance(token, str)
+                    or not WalletConnectHandler.session_token
+                    or not secrets.compare_digest(token, WalletConnectHandler.session_token)
+                ):
                     print("⚠️  Unauthorized connection attempt: Invalid session token")
                     self.send_error(403, "Invalid session token")
                     return
@@ -392,7 +402,8 @@ class WalletConnectHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("X-XSS-Protection", "0")
                 self.end_headers()
                 self.wfile.write(json.dumps({'status': 'ok'}).encode())
-            except (json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
+            except (json.JSONDecodeError, ValueError, KeyError, TypeError, AttributeError) as e:
+                # 🛡️ Sentinel: Include AttributeError to prevent 500 errors on malformed payloads.
                 print(f"⚠️  Error processing wallet connection: {e}")
                 self.send_error(400, "Bad Request")
         else:

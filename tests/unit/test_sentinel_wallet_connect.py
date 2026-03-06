@@ -52,8 +52,28 @@ def test_wallet_connect_post_invalid_token_type():
     # Call do_POST
     WalletConnectHandler.do_POST(handler)
 
-    # Verify that it sent a 400 error due to TypeError in comparison
-    handler.send_error.assert_called_once_with(400, "Bad Request")
+    # Verify that it sent a 403 error due to token type check failure
+    handler.send_error.assert_called_once_with(403, "Invalid session token")
+
+def test_wallet_connect_post_malformed_json_list():
+    """Test that do_POST handles malformed JSON (list instead of dict) without crashing."""
+    handler = MagicMock(spec=WalletConnectHandler)
+    handler.path = "/wallet-connected"
+    WalletConnectHandler.session_token = "test_token"
+
+    # Mock post data with a list instead of a dictionary
+    invalid_data = json.dumps(["not", "a", "dict"])
+    handler.headers = {"Content-Length": str(len(invalid_data))}
+    handler.rfile = MagicMock()
+    handler.rfile.read.return_value = invalid_data.encode()
+
+    handler.send_error = MagicMock()
+
+    # Call do_POST
+    WalletConnectHandler.do_POST(handler)
+
+    # Verify that it sent a 400 error for non-dictionary JSON
+    handler.send_error.assert_called_once_with(400, "Bad Request: JSON body must be a dictionary")
 
 def test_save_wallet_address_filters_secrets(tmp_path):
     """Test that save_wallet_address filters out sensitive keys."""
