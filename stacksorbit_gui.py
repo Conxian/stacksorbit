@@ -103,6 +103,19 @@ class StacksOrbitGUI(App):
         Binding("u", "deploy", "Deploy", show=False),
     ]
 
+    # Bolt ⚡: High-performance lookups for transaction display strings.
+    # Defining these as class constants avoids redundant dictionary creation in hot loops.
+    TX_STATUS_MAP = {
+        "success": "[green]✅ success[/]",
+        "failed": "[red]❌ failed[/]",
+    }
+    TX_TYPE_MAP = {
+        "smart_contract": "📄 [cyan]contract[/]",
+        "contract_call": "📞 [magenta]call[/]",
+        "token_transfer": "💸 [yellow]transfer[/]",
+        "coinbase": "⛏️ [green]coinbase[/]",
+    }
+
     # Reactive variables
     network = reactive("testnet")
     address = reactive("Not configured")
@@ -589,81 +602,72 @@ class StacksOrbitGUI(App):
     def _update_transactions_table(self) -> None:
         """Filter and repopulate the transactions table based on current filter."""
         transactions_table = self.w_transactions_table
-        transactions_table.clear()
-
         filter_text = self.tx_filter.lower().strip()
-        filtered_txs = []
 
-        if not self._all_transactions:
-            if self.address != "Not configured":
-                transactions_table.add_row("", "No transactions found", "Press [r] to refresh", "", "")
+        # Bolt ⚡: Use batch_update to minimize UI re-renders and layout shifts.
+        with self.batch_update():
+            transactions_table.clear()
+
+            # Handle empty state (Regression Fix: ensure clear() is called first)
+            if not self._all_transactions:
+                if self.address != "Not configured":
+                    transactions_table.add_row("", "No transactions found", "Press [r] to refresh", "", "")
+                else:
+                    transactions_table.add_row(
+                        "⚠️", "Config missing", "Press [F5] to configure", "", ""
+                    )
+                self.w_tx_filter_count.update("(0/0 matches)")
+                return
+
+            if not filter_text:
+                filtered_txs = self._all_transactions
+            else:
+                # Bolt ⚡: Use pre-calculated search keys for highly efficient O(N) filtering.
+                # Use a generator expression for slightly better memory efficiency on large lists.
+                filtered_txs = [
+                    tx for tx in self._all_transactions
+                    if filter_text in (tx["_search_key"] if "_search_key" in tx else self._prepare_tx_search_key(tx) or tx["_search_key"])
+                ]
+
+            if filtered_txs:
+                # Bolt ⚡: Normalize 'now' to 10s intervals to maximize cache hits across refreshes.
+                # This avoids redundant calculations for transactions whose relative time hasn't changed.
+                # Hoisting this out of the loop saves O(N) timestamp conversions.
+                now_utc = datetime.now(timezone.utc)
+                now_bucket = int(now_utc.timestamp() / 10) * 10
+
+                for tx in filtered_txs:
+                    status = tx.get("tx_status", "")
+                    # Bolt ⚡: Use O(1) class-level lookup for display strings.
+                    display_status = self.TX_STATUS_MAP.get(status, status)
+                    if "pending" in status:
+                        display_status = "[yellow]⏳ pending[/]"
+                    elif "abort" in status:
+                        display_status = "[red]❌ failed[/]"
+
+                    tx_type = tx.get("tx_type", "")
+                    display_type = self.TX_TYPE_MAP.get(tx_type, tx_type)
+
+                    # PALETTE: Include confirmation count for confirmed transactions
+                    tx_block_height = tx.get("block_height")
+                    if tx_block_height and status == "success":
+                        conf = max(0, self.current_block_height - tx_block_height + 1)
+                        block_display = f"{tx_block_height} [dim]({conf})[/]"
+                    else:
+                        block_display = str(tx_block_height or "") + " [dim](-)[/]"
+
+                    transactions_table.add_row(
+                        tx.get("tx_id", "")[:10] + "...",
+                        display_type,
+                        display_status,
+                        self._format_relative_time(tx.get("burn_block_time_iso"), now_bucket),
+                        block_display,
+                        key=tx.get("tx_id"),
+                    )
             else:
                 transactions_table.add_row(
-                    "⚠️", "Config missing", "Press [F5] to configure", "", ""
+                    "🔍", f"No matches for '{filter_text}'", "Try a different search term.", "", ""
                 )
-            self.w_tx_filter_count.update("(0/0 matches)")
-            return
-
-        for tx in self._all_transactions:
-            tx_id = tx.get("tx_id", "")
-            tx_type = tx.get("tx_type", "")
-            tx_status = tx.get("tx_status", "")
-
-            if not filter_text or (
-                filter_text in tx_id.lower()
-                or filter_text in tx_type.lower()
-                or filter_text in tx_status.lower()
-            ):
-                filtered_txs.append(tx)
-
-        if filtered_txs:
-            # Bolt ⚡: Normalize 'now' to 10s intervals to maximize cache hits across refreshes.
-            # This avoids redundant calculations for transactions whose relative time hasn't changed.
-            # Hoisting this out of the loop saves O(N) timestamp conversions.
-            now_utc = datetime.now(timezone.utc)
-            now_bucket = int(now_utc.timestamp() / 10) * 10
-
-            for tx in filtered_txs:
-                status = tx.get("tx_status", "")
-                display_status = status
-                if status == "success":
-                    display_status = "[green]✅ success[/]"
-                elif "pending" in status:
-                    display_status = "[yellow]⏳ pending[/]"
-                elif "abort" in status or status == "failed":
-                    display_status = "[red]❌ failed[/]"
-
-                tx_type = tx.get("tx_type", "")
-                display_type = tx_type
-                if tx_type == "smart_contract":
-                    display_type = "📄 [cyan]contract[/]"
-                elif tx_type == "contract_call":
-                    display_type = "📞 [magenta]call[/]"
-                elif tx_type == "token_transfer":
-                    display_type = "💸 [yellow]transfer[/]"
-                elif tx_type == "coinbase":
-                    display_type = "⛏️ [green]coinbase[/]"
-
-                # PALETTE: Include confirmation count for confirmed transactions
-                tx_block_height = tx.get("block_height")
-                if tx_block_height and status == "success":
-                    conf = max(0, self.current_block_height - tx_block_height + 1)
-                    block_display = f"{tx_block_height} [dim]({conf})[/]"
-                else:
-                    block_display = str(tx_block_height or "") + " [dim](-)[/]"
-
-                transactions_table.add_row(
-                    tx.get("tx_id", "")[:10] + "...",
-                    display_type,
-                    display_status,
-                    self._format_relative_time(tx.get("burn_block_time_iso"), now_bucket),
-                    block_display,
-                    key=tx.get("tx_id"),
-                )
-        else:
-            transactions_table.add_row(
-                "🔍", f"No matches for '{filter_text}'", "Try a different search term.", "", ""
-            )
 
         count_display = f"({len(filtered_txs)}/{len(self._all_transactions)} matches)"
         if filter_text and not filtered_txs:
@@ -677,6 +681,10 @@ class StacksOrbitGUI(App):
 
         transactions_table = self.query_one("#transactions-table", DataTable)
         transactions_table.add_columns("TX ID", "Type", "Status", "Time", "Block")
+
+    def _prepare_tx_search_key(self, tx: Dict) -> None:
+        """Bolt ⚡: Pre-calculate searchable key for a transaction."""
+        tx["_search_key"] = f"{tx.get('tx_id', '')} {tx.get('tx_type', '')} {tx.get('tx_status', '')}".lower()
 
     def _format_relative_time(self, iso_time: str, now_bucket: int) -> str:
         """Format an ISO timestamp as a relative time string (e.g., '5m ago')."""
@@ -796,34 +804,42 @@ class StacksOrbitGUI(App):
             # ⚡ Bolt: Only clear and repopulate contracts table if data changed
             if deployed_contracts != self._last_contracts:
                 contracts_table = self.w_contracts_table
-                contracts_table.clear()
-                if deployed_contracts:
-                    # Bolt ⚡: Build rows in a list and use add_rows() for atomic, high-performance table population.
-                    contract_rows = []
-                    for contract in deployed_contracts:
-                        address, name = contract.get("contract_id", "...").split(".")
-                        contract_rows.append(("✅", name, address))
+                # Bolt ⚡: Wrap in batch_update to minimize re-renders.
+                with self.batch_update():
+                    contracts_table.clear()
+                    if deployed_contracts:
+                        # Bolt ⚡: Build rows in a list and use add_rows() for atomic, high-performance table population.
+                        contract_rows = []
+                        for contract in deployed_contracts:
+                            address, name = contract.get("contract_id", "...").split(".")
+                            contract_rows.append(("✅", name, address))
 
-                    # Note: DataTable.add_rows doesn't take keys in the same way as add_row in some versions,
-                    # so we'll use add_row in a loop if add_rows doesn't support keys.
-                    # Actually, Textual's add_rows doesn't support per-row keys.
-                    # So I will keep add_row but move it to a more efficient loop if possible.
-                    # Wait, if I want keys, I have to use add_row.
-                    for i, row in enumerate(contract_rows):
-                        contracts_table.add_row(*row, key=deployed_contracts[i].get("contract_id"))
-                elif self.address != "Not configured":
-                    contracts_table.add_row(
-                        "", "No contracts found", "Press [F4] to deploy"
-                    )
-                else:
-                    contracts_table.add_row(
-                        "⚠️", "Config missing", "Press [F5] to set up"
-                    )
+                        # Note: DataTable.add_rows doesn't take keys in the same way as add_row in some versions,
+                        # so we'll use add_row in a loop if add_rows doesn't support keys.
+                        # Actually, Textual's add_rows doesn't support per-row keys.
+                        # So I will keep add_row but move it to a more efficient loop if possible.
+                        # Wait, if I want keys, I have to use add_row.
+                        for i, row in enumerate(contract_rows):
+                            contracts_table.add_row(*row, key=deployed_contracts[i].get("contract_id"))
+                    elif self.address != "Not configured":
+                        contracts_table.add_row(
+                            "", "No contracts found", "Press [F4] to deploy"
+                        )
+                    else:
+                        contracts_table.add_row(
+                            "⚠️", "Config missing", "Press [F5] to set up"
+                        )
                 self._last_contracts = deployed_contracts
 
             # Process transactions result
             if isinstance(transactions, Exception):
                 raise transactions
+
+            if transactions:
+                # Bolt ⚡: Pre-calculate lower-cased searchable strings for each transaction
+                # to optimize filtering performance in _update_transactions_table.
+                for tx in transactions:
+                    self._prepare_tx_search_key(tx)
 
             # Update last updated label
             now_label = datetime.now().strftime("%H:%M:%S")
