@@ -563,7 +563,7 @@ class StacksOrbitGUI(App):
 
         # Add tooltips to metric cards for better clarity
         self.query("#network-status").first().parent.tooltip = (
-            f"Current status of the Stacks API ({self.monitor.api_url}). Click to refresh."
+            f"Current status of the Stacks API ({self.monitor.api_url}). Click to refresh [r]."
         )
         self.query("#contract-count").first().parent.tooltip = (
             "Total number of contracts deployed by this address"
@@ -670,6 +670,9 @@ class StacksOrbitGUI(App):
                 )
 
         count_display = f"({len(filtered_txs)}/{len(self._all_transactions)} matches)"
+        if filtered_txs and filter_text:
+            count_display += " [dim][Enter] to browse[/]"
+
         if filter_text and not filtered_txs:
             count_display = f"[red]{count_display}[/]"
         self.w_tx_filter_count.update(count_display)
@@ -869,7 +872,9 @@ class StacksOrbitGUI(App):
             self.selected_contract_id = contract_id
             # Update detail header with contract name
             name = contract_id.split(".")[1] if "." in contract_id else contract_id
-            self.w_contract_details_header_label.update(f"Details: [cyan]{name}[/]")
+            self.w_contract_details_header_label.update(
+                f"Details: [cyan]{name}[/] [dim][c]opy [e]xplorer[/]"
+            )
 
             self.w_copy_contract_btn.disabled = False
             self.w_copy_source_btn.disabled = False
@@ -893,7 +898,7 @@ class StacksOrbitGUI(App):
             self.w_copy_tx_btn.disabled = False
             self.w_view_tx_explorer_btn.disabled = False
             self.w_tx_status_label.update(
-                f"Selected: [cyan]{tx_id[:16]}...[/cyan]"
+                f"Selected: [cyan]{tx_id[:16]}...[/cyan] [dim][c]opy [e]xplorer[/]"
             )
 
     @on(DataTable.RowSelected, "#transactions-table")
@@ -968,12 +973,25 @@ class StacksOrbitGUI(App):
     @on(TabbedContent.TabActivated)
     def on_tab_changed(self, event: TabbedContent.TabActivated) -> None:
         """Handle tab changes to improve interaction focus."""
-        if event.tabbed_content.active == "settings":
-            self.w_privkey_input.focus()
-        elif event.tabbed_content.active == "transactions":
+        active_tab = event.tabbed_content.active
+        if active_tab == "overview":
+            if self.w_refresh_btn:
+                self.w_refresh_btn.focus()
+        elif active_tab == "contracts":
+            self.w_contracts_table.focus()
+        elif active_tab == "transactions":
             # PALETTE: Only focus table if we aren't explicitly focusing the filter
             if not self.focused or self.focused.id != "tx-filter-input":
                 self.w_transactions_table.focus()
+        elif active_tab == "deployment":
+            self.query_one("#precheck-btn", Button).focus()
+        elif active_tab == "settings":
+            self.w_privkey_input.focus()
+
+    @on(Input.Submitted, "#tx-filter-input")
+    def on_tx_filter_submitted(self) -> None:
+        """PALETTE: Focus the transactions table when search is submitted."""
+        self.w_transactions_table.focus()
 
     def action_focus_tx_filter(self) -> None:
         """Focus the transaction filter input."""
@@ -1165,6 +1183,8 @@ class StacksOrbitGUI(App):
         """Handle clear log button press."""
         self.query_one("#deployment-log", Log).clear()
         self.notify("Deployment log cleared")
+        # PALETTE: Return focus to primary action button
+        self.query_one("#start-deploy-btn", Button).focus()
 
     @on(Switch.Changed, "#show-privkey")
     def on_show_privkey_changed(self, event: Switch.Changed) -> None:
