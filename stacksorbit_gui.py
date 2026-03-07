@@ -101,6 +101,7 @@ class StacksOrbitGUI(App):
         Binding("c", "context_copy", "Copy", show=False),
         Binding("e", "context_explorer", "View on Explorer", show=False),
         Binding("u", "deploy", "Deploy", show=False),
+        Binding("p", "precheck", "Pre-check", show=False),
     ]
 
     # Bolt ⚡: High-performance lookups for transaction display strings.
@@ -187,6 +188,7 @@ class StacksOrbitGUI(App):
         self._all_transactions = []
         self._last_transactions = None
         self._last_metrics = {}
+        self._deployment_log_lines = []
 
     def _load_config(self) -> Dict:
         """Load configuration from file and environment, enforcing security policies."""
@@ -340,6 +342,7 @@ class StacksOrbitGUI(App):
                             id="start-deploy-btn",
                             variant="primary",
                         )
+                        yield Button("📋", id="copy-log-btn")
                         yield Button(
                             "🗑️ Clear",
                             id="clear-log-btn",
@@ -442,6 +445,7 @@ class StacksOrbitGUI(App):
         self.w_tx_filter_count = self.query_one("#tx-filter-count", Label)
         self.w_save_config_btn = self.query_one("#save-config-btn", Button)
         self.w_deployment_log = self.query_one("#deployment-log", Log)
+        self.w_copy_log_btn = self.query_one("#copy-log-btn", Button)
         self.w_show_privkey = self.query_one("#show-privkey", Switch)
         self.w_tabbed_content = self.query_one(TabbedContent)
         self.w_contract_details_header_label = self.query_one("#contract-details-header-label", Label)
@@ -480,11 +484,12 @@ class StacksOrbitGUI(App):
             "Refresh all dashboard data [r]"
         )
         self.query_one("#precheck-btn", Button).tooltip = (
-            "Run diagnostic checks before deployment [c]"
+            "Run diagnostic checks before deployment [p]"
         )
         self.query_one("#start-deploy-btn", Button).tooltip = (
             "Start the deployment process [u]"
         )
+        self.w_copy_log_btn.tooltip = "Copy deployment log to clipboard [c]"
         self.query_one("#clear-log-btn", Button).tooltip = "Clear the deployment log"
         self.w_show_privkey.tooltip = (
             "Toggle private key visibility"
@@ -1019,9 +1024,7 @@ class StacksOrbitGUI(App):
         elif tab == "transactions":
             await self.on_copy_selected_tx_pressed()
         elif tab == "deployment":
-            btn = self.query_one("#precheck-btn", Button)
-            if not btn.disabled:
-                self.on_precheck_pressed(Button.Pressed(btn))
+            await self.on_copy_log_pressed()
         elif tab == "settings":
             await self.on_copy_address_pressed()
 
@@ -1049,6 +1052,13 @@ class StacksOrbitGUI(App):
             btn = self.query_one("#start-deploy-btn", Button)
             if not btn.disabled:
                 self.on_start_deploy_pressed(Button.Pressed(btn))
+
+    def action_precheck(self) -> None:
+        """Action to trigger pre-check from keyboard shortcut [p]."""
+        if self.w_tabbed_content.active == "deployment":
+            btn = self.query_one("#precheck-btn", Button)
+            if not btn.disabled:
+                self.on_precheck_pressed(Button.Pressed(btn))
 
     async def fetch_contract_details(self, contract_id: str) -> None:
         """Worker to fetch and display contract details."""
@@ -1123,6 +1133,7 @@ class StacksOrbitGUI(App):
         """Run a CLI command in a separate thread, with button feedback."""
         log = self.query_one("#deployment-log", Log)
         log.clear()
+        self._deployment_log_lines.clear()
 
         loading_indicator = self.query("#deployment LoadingIndicator").first()
         loading_indicator.display = True
@@ -1144,13 +1155,20 @@ class StacksOrbitGUI(App):
                     text=True,
                 )
                 for line in iter(process.stdout.readline, ""):
-                    self.call_from_thread(log.write, line.strip())
+                    self._deployment_log_lines.append(line)
+                    self.call_from_thread(log.write, line)
                 process.stdout.close()
                 return_code = process.wait()
-                self.call_from_thread(
-                    log.write,
-                    f"\n[bold]{'Success' if return_code == 0 else 'Failed'}[/bold]",
-                )
+                status_msg = f"\n[bold]{'Success' if return_code == 0 else 'Failed'}[/bold]"
+                self._deployment_log_lines.append(status_msg)
+                self.call_from_thread(log.write, status_msg)
+
+                # Notify completion
+                cmd_name = command[2] if len(command) > 2 else "Command"
+                notify_msg = f"{cmd_name.capitalize()} finished"
+                if return_code != 0:
+                    notify_msg += f" (Code: {return_code})"
+                self.call_from_thread(self.notify, notify_msg, severity="information" if return_code == 0 else "error")
             finally:
                 self.call_from_thread(setattr, button, "label", original_label)
                 self.call_from_thread(setattr, precheck_btn, "disabled", False)
@@ -1178,10 +1196,28 @@ class StacksOrbitGUI(App):
             in_progress_label="Deploying...",
         )
 
+    @on(Button.Pressed, "#copy-log-btn")
+    async def on_copy_log_pressed(self) -> None:
+        """Handle copy log button press with visual feedback."""
+        if self._deployment_log_lines:
+            log_text = "".join(self._deployment_log_lines)
+            self.copy_to_clipboard(log_text)
+            self.notify("Deployment log copied to clipboard", severity="information")
+
+            # Micro-UX: Visual feedback
+            btn = self.w_copy_log_btn
+            if btn.label != "✅":
+                btn.label = "✅"
+                await asyncio.sleep(1)
+                btn.label = "📋"
+        else:
+            self.notify("Deployment log is empty", severity="warning")
+
     @on(Button.Pressed, "#clear-log-btn")
     def on_clear_log_pressed(self) -> None:
         """Handle clear log button press."""
         self.query_one("#deployment-log", Log).clear()
+        self._deployment_log_lines.clear()
         self.notify("Deployment log cleared")
         # PALETTE: Return focus to primary action button
         self.query_one("#start-deploy-btn", Button).focus()
