@@ -20,6 +20,7 @@ from stacksorbit_secrets import (
     is_placeholder,
     save_secure_config,
     set_secure_permissions,
+    redact_recursive,
 )
 
 # Setup colored logging
@@ -69,12 +70,17 @@ def cache_api_call(func):
             # Bolt ⚡: Optimization - Only save if the data has actually changed
             # to avoid redundant disk writes for frequent identical updates (e.g. polling).
             old_data = self.cache.get(cache_key, {}).get("data")
-            self.cache[cache_key] = {"timestamp": time.time(), "data": result}
+            now = time.time()
+            self.cache[cache_key] = {"timestamp": now, "data": result}
+
+            # Bolt ⚡: Incrementally redact only the new entry to avoid O(N) overhead.
+            redacted_result = redact_recursive(result, parent_key=cache_key)
+            self.redacted_cache[cache_key] = {"timestamp": now, "data": redacted_result}
+
             if result != old_data:
-                # Bolt ⚡: Create a shallow copy while holding the lock to allow
-                # thread-safe background I/O without holding the lock during disk writes.
-                # This prevents 'RuntimeError: dictionary changed size during iteration'.
-                cache_copy = self.cache.copy()
+                # Bolt ⚡: Create a shallow copy of the REDACTED cache for background persistence.
+                # This ensures save_secure_config doesn't need to redact the whole thing again.
+                cache_copy = self.redacted_cache.copy()
 
         if cache_copy is not None:
             # Bolt ⚡: Pass the snapshot to save_cache for lock-free background persistence.
@@ -107,6 +113,8 @@ class DeploymentMonitor:
         self.cache_lock = threading.Lock()
         self.cache_expiry = 300  # Cache for 5 minutes
         self.cache = self._load_cache()
+        # Bolt ⚡: Initialize the redacted cache with already redacted data from disk.
+        self.redacted_cache = self.cache.copy()
 
         # Bolt ⚡: Add adaptive polling intervals to reduce API calls during inactivity.
         self.min_poll_interval = 5  # Start with a 5-second interval
@@ -133,12 +141,14 @@ class DeploymentMonitor:
             data = cache_data
             if data is None:
                 with self.cache_lock:
-                    data = self.cache.copy()
+                    # Bolt ⚡: Use the redacted cache snapshot to avoid O(N) overhead.
+                    data = self.redacted_cache.copy()
 
             # 🛡️ Sentinel: Use secure persistence with 0600 permissions.
             # Bolt ⚡: Use indent=None to reduce I/O overhead and file size.
-            # We re-enable redaction to maintain the 'Sentinel' security standard.
-            save_secure_config(str(self.cache_path), data, json_format=True, redact=True, indent=None)
+            # ⚡ Bolt: Use redact=False because the cache is already incrementally redacted.
+            # This eliminates a multi-millisecond O(N) bottleneck on every disk write.
+            save_secure_config(str(self.cache_path), data, json_format=True, redact=False, indent=None)
         except Exception as e:
             self.logger.error(f"Could not save cache file: {e}")
 
