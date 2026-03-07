@@ -441,7 +441,8 @@ def save_secure_config(filepath: str, config: object, json_format: bool = False,
                         # 🛡️ Sentinel: Security Enforcer.
                         # Explicitly skip any known secrets, potential sensitive keys, OR values that look like secrets.
                         # This prevents secrets from being saved to disk even if stored under generic key names.
-                        if not is_sensitive_key(str(key)) and not is_sensitive_value(str(value)):
+                        # 🛡️ Sentinel: Regression Fix - allow sensitive keys if the value is a safe placeholder.
+                        if (not is_sensitive_key(str(key)) and not is_sensitive_value(str(value))) or is_placeholder(str(value)):
                             # 🛡️ Sentinel: Sanitize key and value to prevent injection and format breakage.
                             # We remove newlines and equals signs from keys to prevent configuration injection.
                             safe_key = (
