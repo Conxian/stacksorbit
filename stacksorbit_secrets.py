@@ -199,11 +199,20 @@ def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
         # function calls and internal checks for integers, floats, booleans, and None.
         # This provides a significant speedup for large numeric data (e.g., blockchain balances).
         if not is_sensitive:
-            redacted_items = [
-                sub_item if isinstance(sub_item, (int, float, bool)) or sub_item is None
-                else redact_recursive(sub_item, parent_key, is_sensitive, is_public)
-                for sub_item in item
-            ]
+            if is_public:
+                # Bolt ⚡: Also hoist string check for public collections.
+                # Safe because strings in public collections skip value-based detection.
+                redacted_items = [
+                    sub_item if isinstance(sub_item, (str, int, float, bool)) or sub_item is None
+                    else redact_recursive(sub_item, parent_key, is_sensitive, is_public)
+                    for sub_item in item
+                ]
+            else:
+                redacted_items = [
+                    sub_item if isinstance(sub_item, (int, float, bool)) or sub_item is None
+                    else redact_recursive(sub_item, parent_key, is_sensitive, is_public)
+                    for sub_item in item
+                ]
         else:
             redacted_items = [
                 redact_recursive(sub_item, parent_key, is_sensitive, is_public)
