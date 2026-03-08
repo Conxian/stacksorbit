@@ -78,6 +78,11 @@ Tab.--current {
     border: round #007acc;
 }
 
+.metric-card:focus {
+    background: #252527;
+    border: tall #007acc;
+}
+
 #metrics-grid {
     layout: grid;
     grid-size: 3;
