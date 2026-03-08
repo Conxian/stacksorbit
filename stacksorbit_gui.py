@@ -32,7 +32,7 @@ try:
     from textual.containers import Container, Horizontal, Vertical, VerticalScroll, Grid
     from textual.reactive import reactive
     from textual.binding import Binding
-    from textual.events import Click
+    from textual.events import Click, Key
     from textual import on
 
     GUI_AVAILABLE = True
@@ -304,9 +304,11 @@ class StacksOrbitGUI(App):
                             id="contract-details-header",
                         ),
                         LoadingIndicator(),
-                        Markdown(
-                            "Select a contract from the table to view its source code.",
-                            id="contract-details",
+                        VerticalScroll(
+                            Markdown(
+                                "Select a contract from the table to view its source code.",
+                                id="contract-details",
+                            ),
                         ),
                         classes="details-pane",
                     )
@@ -448,6 +450,14 @@ class StacksOrbitGUI(App):
         self.w_copy_log_btn = self.query_one("#copy-log-btn", Button)
         self.w_show_privkey = self.query_one("#show-privkey", Switch)
         self.w_tabbed_content = self.query_one(TabbedContent)
+
+        # PALETTE: Make dashboard metric cards focusable for keyboard accessibility
+        for card_id in ["#metric-network", "#metric-contracts", "#metric-balance", "#metric-nonce", "#metric-height"]:
+            try:
+                self.query_one(card_id, Container).can_focus = True
+            except Exception:
+                pass
+
         self.w_contract_details_header_label = self.query_one("#contract-details-header-label", Label)
         self.w_contract_details_md = self.query_one("#contract-details", Markdown)
         self.w_details_loader = self.query(".details-pane LoadingIndicator").first()
@@ -975,6 +985,17 @@ class StacksOrbitGUI(App):
         if self.selected_tx_id:
             await self.on_copy_selected_tx_pressed()
 
+    def on_key(self, event: Key) -> None:
+        """Handle dashboard metric card interaction via keyboard."""
+        if event.key == "enter" and self.focused:
+            focused_id = self.focused.id
+            if focused_id == "metric-network":
+                self.action_refresh()
+            elif focused_id == "metric-contracts":
+                self.on_contracts_metric_click()
+            elif focused_id in ("metric-balance", "metric-nonce", "metric-height"):
+                self.on_transactions_metric_click()
+
     @on(TabbedContent.TabActivated)
     def on_tab_changed(self, event: TabbedContent.TabActivated) -> None:
         """Handle tab changes to improve interaction focus."""
@@ -1414,12 +1435,17 @@ class StacksOrbitGUI(App):
                 severity="information",
             )
 
-            # Micro-UX: Visual feedback
+            # PALETTE: Enhanced visual feedback on both button and label
             btn = self.query_one("#copy-contract-id-btn", Button)
+            label = self.w_contract_details_header_label
+            old_label = label.renderable
+
             if btn.label != "✅":
                 btn.label = "✅"
+                label.update("[green]Copied to clipboard![/]")
                 await asyncio.sleep(1)
                 btn.label = "📋"
+                label.update(old_label)
 
     @on(Button.Pressed, "#copy-source-btn")
     async def on_copy_source_pressed(self) -> None:
@@ -1458,12 +1484,17 @@ class StacksOrbitGUI(App):
                 f"Transaction ID copied: {self.selected_tx_id}", severity="information"
             )
 
-            # Micro-UX: Visual feedback
+            # PALETTE: Enhanced visual feedback on both button and status label
             btn = self.query_one("#copy-selected-tx-btn", Button)
+            label = self.w_tx_status_label
+            old_label = label.renderable
+
             if btn.label != "✅":
                 btn.label = "✅"
+                label.update("[green]Copied to clipboard![/]")
                 await asyncio.sleep(1)
                 btn.label = "📋"
+                label.update(old_label)
 
     @on(Button.Pressed, "#view-selected-tx-explorer-btn")
     async def on_view_selected_tx_explorer_pressed(self) -> None:
