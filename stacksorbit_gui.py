@@ -1302,6 +1302,16 @@ class StacksOrbitGUI(App):
         self.w_clear_tx_filter_btn.display = bool(event.value)
         self._update_transactions_table()
 
+    @on(Input.Submitted, "#privkey-input")
+    def on_privkey_submitted(self) -> None:
+        """PALETTE: Move focus to address input when private key is submitted."""
+        self.w_address_input.focus()
+
+    @on(Input.Submitted, "#address-input")
+    def on_address_submitted(self) -> None:
+        """PALETTE: Move focus to save button when address is submitted."""
+        self.w_save_config_btn.focus()
+
     @on(Input.Changed, "#privkey-input")
     def on_privkey_changed(self, event: Input.Changed) -> None:
         """Real-time validation for Private Key with character count."""
