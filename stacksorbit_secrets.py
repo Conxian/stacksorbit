@@ -58,6 +58,12 @@ SENSITIVE_SUBSTRINGS = [
     "DOCKER",
     "DATABASE",
     "DB_",
+    "OAUTH",
+    "COOKIE",
+    "CSRF",
+    "SESSID",
+    "SESSIONID",
+    "DECRYPT",
 ]
 
 # Bolt ⚡: Pre-compile regex for faster substring matching in high-frequency checks.
@@ -89,7 +95,8 @@ HIGH_CONFIDENCE_SENSITIVE_WORDS = [
     "SEED", "PWD", "XPRV", "MASTER", "VAULT", "ADMIN", "ROOT", "JWT",
     "BEARER", "SALT", "CRED", "SESS", "TOKEN", "KUBECONFIG", "DOCKER",
     "DATABASE", "DB_", "SENSITIVE", "ENCRYPT", "BIP3", "CERT", "PKCS",
-    "SSH", "PGP", "GPG", "PEM"
+    "SSH", "PGP", "GPG", "PEM", "OAUTH", "COOKIE", "CSRF", "SESSID",
+    "SESSIONID", "DECRYPT"
 ]
 HIGH_CONFIDENCE_SENSITIVE_RE = re.compile("|".join(HIGH_CONFIDENCE_SENSITIVE_WORDS), re.IGNORECASE)
 
@@ -360,6 +367,8 @@ SAFE_PLACEHOLDERS = {
     "your_mnemonic_here",
     "your_seed_phrase_here",
     "your_recovery_phrase_here",
+    "your_oauth_token_here",
+    "your_cookie_here",
 }
 
 
