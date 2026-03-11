@@ -107,6 +107,11 @@
 **Learning:** Surgical exclusion lists for public data must be kept in sync with the primary sensitive keyword list to prevent "blind spots" for composite keys that include both public and high-confidence sensitive terms.
 **Prevention:** Regularly audit and expand the high-confidence surgical exclusion list to include all core cryptographic and authentication patterns (CERT, PKCS, SSH, PGP, GPG, PEM) supported by the application.
 
+## 2026-03-05 - Session and OAuth Pattern Hardening
+**Vulnerability:** Common modern sensitive patterns like OAuth tokens, CSRF tokens, and session identifiers (SESSID, Cookie) were missing from the centralized detection engine, potentially allowing their exposure in logs or plaintext artifacts.
+**Learning:** Security detection lists must be periodically audited and expanded to include standard authentication and session-management identifiers used by modern web and API ecosystems.
+**Prevention:** Maintain a comprehensive and centralized list of sensitive authentication and session keywords. Ensure that these keywords are treated as high-confidence secrets to prevent bypasses via composite public keys (e.g., `PUBLIC_OAUTH_TOKEN`).
+
 ## 2026-03-03 - Type Safety in Security Comparisons
 **Vulnerability:** The local wallet connection server was susceptible to 500 Internal Server Error crashes when receiving malformed JSON (e.g., a list instead of a dictionary) or non-string tokens. This occurred because `secrets.compare_digest` raises a `TypeError` if operands are not of the same type (e.g., comparing a string to an integer).
 **Learning:** Robust security handlers must validate both the structure of the input (e.g., `isinstance(data, dict)`) and the type of sensitive fields (e.g., `isinstance(token, str)`) before performing comparisons. Relying on implicit behavior of libraries like `json` or `secrets` without explicit type guards can lead to unhandled exceptions and Denial of Service.

@@ -98,3 +98,43 @@ def test_case_insensitivity():
     assert is_sensitive_key("public_recovery_phrase") is True
     assert is_sensitive_key("Addr_Seed_Phrase") is True
     assert is_sensitive_key("Public_Key") is False
+
+def test_new_redaction_keywords():
+    """🛡️ Sentinel: Verify that new high-confidence keywords are redacted."""
+    from stacksorbit_secrets import is_sensitive_key, redact_recursive
+
+    # Verify new high-confidence keywords
+    assert is_sensitive_key("PUBLIC_OAUTH") is True
+    assert is_sensitive_key("ADDR_COOKIE") is True
+    assert is_sensitive_key("X_CSRF_TOKEN") is True
+    assert is_sensitive_key("MY_SESSID") is True
+    assert is_sensitive_key("SESSIONID_ADDR") is True
+    assert is_sensitive_key("PUBLIC_DECRYPT_KEY") is True
+
+    # Verify redaction
+    config = {
+        "OAUTH_TOKEN": "secret123",
+        "COOKIE_VAL": "sess456",
+        "CSRF_SECRET": "csrf789",
+        "SESSID": "sid000",
+        "SESSIONID": "sid111",
+        "DECRYPT_PASS": "pass222"
+    }
+    redacted = redact_recursive(config)
+    for key in config:
+        assert redacted[key] == "<redacted>"
+
+def test_new_placeholders_preserved():
+    """🛡️ Sentinel: Verify that new placeholders are preserved."""
+    from stacksorbit_secrets import redact_recursive, is_placeholder
+
+    assert is_placeholder("your_oauth_token_here") is True
+    assert is_placeholder("your_cookie_here") is True
+
+    config = {
+        "OAUTH_TOKEN": "your_oauth_token_here",
+        "SESSION_COOKIE": "your_cookie_here"
+    }
+    redacted = redact_recursive(config)
+    assert redacted["OAUTH_TOKEN"] == "your_oauth_token_here"
+    assert redacted["SESSION_COOKIE"] == "your_cookie_here"

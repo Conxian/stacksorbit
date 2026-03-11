@@ -51,6 +51,7 @@ The modernization roadmap ensures StacksOrbit remains at the forefront of Stacks
     *   [x] Implement interactive input labels and clickable metric cards.
     *   Harden path validation and nested secret redaction.
     *   [x] Implement "View on Explorer" integration for account addresses.
+    *   [x] Expand centralized secret detection with modern session and OAuth patterns.
 
 ## 4. Feature Alignment
 
@@ -470,4 +471,14 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   Validated `vitest.config.ts` for native Simnet support and explicit `Clarinet.toml` integration.
     *   Synchronized `PRD.md` documentation, including the Contract Registry and Multi-Network Alignment tables, with the active codebase.
     *   Performed full-suite verification across Vitest (Simnet) and Pytest (Core) environments to ensure system integrity.
+*   **Status:** Complete.
+
+### Session 35: Session and OAuth Pattern Hardening (Sentinel)
+
+*   **Objective:** Enhance the application's security posture by expanding the centralized secret detection engine to include modern authentication and session patterns.
+*   **Changes:**
+    *   Expanded `SENSITIVE_SUBSTRINGS` and `HIGH_CONFIDENCE_SENSITIVE_WORDS` in `stacksorbit_secrets.py` to include `OAUTH`, `COOKIE`, `CSRF`, `SESSID`, `SESSIONID`, and `DECRYPT`.
+    *   Standardized corresponding safe placeholders (`your_oauth_token_here`, `your_cookie_here`) in `SAFE_PLACEHOLDERS` to maintain developer experience for documentation and templates.
+    *   Enhanced the security regression suite in `tests/unit/test_sentinel_redaction_expansion.py` to verify the detection of new high-confidence patterns and preservation of new placeholders.
+    *   Verified system integrity via a full unit test suite (44 passed).
 *   **Status:** Complete.
