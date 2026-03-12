@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Anya Chain Labs
+# This software is released under the MIT License.
+# See the LICENSE file in the project root for full license information.
+
 """
 Conxian Testnet Deployment Script - Enhanced Version
 Complete deployment system with CLI integration, monitoring, and verification

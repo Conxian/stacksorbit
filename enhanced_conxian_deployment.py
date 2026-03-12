@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Anya Chain Labs
+# This software is released under the MIT License.
+# See the LICENSE file in the project root for full license information.
+
 """
 Enhanced Conxian Deployment Script with CLI Integration
 Provides comprehensive deployment and monitoring capabilities for the Conxian protocol

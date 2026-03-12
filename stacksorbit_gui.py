@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Anya Chain Labs
+# This software is released under the MIT License.
+# See the LICENSE file in the project root for full license information.
+
 """
 StacksOrbit GUI - A modern, feature-rich dashboard for Stacks blockchain deployment
 """
