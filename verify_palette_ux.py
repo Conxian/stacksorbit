@@ -1,3 +1,7 @@
+# Copyright (c) 2025 Anya Chain Labs
+# This software is released under the MIT License.
+# See the LICENSE file in the project root for full license information.
+
 import asyncio
 from stacksorbit_gui import StacksOrbitGUI
 from textual.widgets import Button, Label

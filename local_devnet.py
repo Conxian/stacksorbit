@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Anya Chain Labs
+# This software is released under the MIT License.
+# See the LICENSE file in the project root for full license information.
+
 """
 Local Development Network for StacksOrbit
 Provides a simple interface for managing a local Stacks development network

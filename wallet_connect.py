@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Anya Chain Labs
+# This software is released under the MIT License.
+# See the LICENSE file in the project root for full license information.
+
 """
 StacksOrbit Wallet Connect - QR Code Authentication
 Generates a QR code for wallet connection and retrieves the address for deployment

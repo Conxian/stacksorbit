@@ -1,26 +1,22 @@
-# Documentation Issues for StacksOrbit
+# Documentation Status for StacksOrbit
 
-This document lists the identified issues in the StacksOrbit documentation.
+This document tracks the resolution of documentation issues.
 
-## 1. Ambiguity
+## 1. Ambiguity & Redundancy (Resolved)
 
-*   **Inconsistent Commands (historical, largely resolved):** Earlier versions of the documentation (including legacy `README_ENHANCED.md` and `README_ULTIMATE.md`) presented multiple overlapping commands for similar actions, such as `npm run setup` and `python setup_wizard.py`, without clear guidance on when to use each. The current `README.md` and `AGENTS.md` now standardize on the `stacksorbit_cli.py` entry point and should be treated as canonical, while the legacy READMEs are retained as extended background.
-*   **Vague "Ultimate" and "Enhanced" Terminology (legacy docs):** The project historically used terms like "ultimate" and "enhanced" (e.g., `ultimate_stacksorbit.py`, `enhanced_dashboard.py`) without a clear definition of what makes them "ultimate" or "enhanced" compared to their counterparts. These labels are now considered legacy; `AGENTS.md` and `stacksorbit_cli.py` describe the current, unified toolchain.
+*   **Standardized Commands:** All documentation now standardizes on `stacksorbit_cli.py` and `pnpm` for canonical entry points. Legacy scripts (`setup_wizard.py`, etc.) have been consolidated or marked as legacy in `AGENTS.md`.
+*   **Terminology Alignment:** Labels like "ultimate" and "enhanced" have been unified under the core StacksOrbit identity.
 
-## 2. Contradictions
+## 2. Contradictions (Resolved)
 
-*   **Redundant and Potentially Conflicting Information:** There is significant overlap between the `README.md`, `ENHANCEMENT_SUMMARY.md`, and `CONTRIBUTING.md` files. This creates a risk of information becoming inconsistent across documents as the project evolves.
+*   **Single Source of Truth:** `AGENTS.md` is now the definitive technical guide. `README.md` serves as a high-level landing page that points to `AGENTS.md` for technical details.
 
-## 3. Missing Elements
+## 3. Missing Elements (Resolved)
 
-*   **No `AGENTS.md` File (resolved):** This issue has been addressed. `AGENTS.md` now exists and serves as the primary reference for both human developers and AI agents.
-*   **Lack of a Clear "Single Source of Truth" (resolved):** The creation of `AGENTS.md` and the simplified root `README.md` established a clear "single source of truth" for development and deployment information. Other READMEs are now secondary and should defer to `AGENTS.md`.
-*   **No High-Level Architectural Overview (resolved):** The high-level architecture, including the relationship between the CLI, core deployer, monitoring dashboard, and the Stacks blockchain, is now documented in `AGENTS.md` (see section 1.1 Architectural Overview).
+*   **AGENTS.md:** Created and maintained as the primary reference for developers and AI agents.
+*   **Architectural Overview:** Documented in Section 1 of `AGENTS.md`.
+*   **License Headers:** MIT license headers have been added to all major source files (Session 36).
 
-## 4. Scalability Concerns
+## 4. Maintenance (Ongoing)
 
-*   **Documentation Maintenance Overhead:** The current fragmented and redundant documentation structure is difficult to maintain. As the project grows, keeping all documents in sync will become increasingly challenging.
-
-## 5. Compliance Gaps
-
-*   **No Explicit License Information in all Files:** While a `LICENSE` file exists, not every file includes a license header, which can be a good practice for open-source projects.
+*   The project now uses the "Root-Up" protocol to ensure `PRD.md`, `AGENTS.md`, and the codebase remain synchronized.
