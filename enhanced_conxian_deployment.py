@@ -919,19 +919,55 @@ class EnhancedConxianDeployer:
         return ordered_contracts
 
     def _deploy_single_contract(self, contract: Dict) -> Optional[str]:
-        """Deploy a single contract (placeholder - would use Stacks SDK)"""
-        # This is a placeholder - in a real implementation, this would use
-        # the @stacks/transactions library to create and broadcast deployment transactions
-
+        """Deploy a single contract using Stacks SDK via Node.js wrapper"""
         print(f"Deploying {contract['name']}...")
+        
+        # In a dry run, return a fake transaction ID
+        if self.config.get("DEPLOYMENT_MODE") == "dry_run":
+            time.sleep(1)
+            return "0x" + "1" * 64
 
-        # Simulate deployment
-        time.sleep(1)
-
-        # Generate fake transaction ID for demonstration
-        fake_tx_id = "0x" + "1" * 64
-
-        return fake_tx_id
+        try:
+            # Use the JS wrapper to execute the deployment
+            js_script = Path(__file__).parent / "js-tests" / "execute_deploy.js"
+            if not js_script.exists():
+                print(f"[ERROR] Deployment script not found at {js_script}")
+                return None
+                
+            # Path needs to be resolved relative to Conxian protocol dir or absolute
+            # For simplicity, let's assume contract['path'] is relative to Conxian root
+            contract_path = Path("..") / "Conxian" / contract['path']
+            if not contract_path.exists():
+                print(f"[ERROR] Contract file not found at {contract_path}")
+                return None
+                
+            cmd = [
+                "node", 
+                str(js_script),
+                contract['name'],
+                str(contract_path),
+                self.config.get("DEPLOYER_PRIVKEY", ""),
+                self.config.get("NETWORK", "testnet")
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            output = json.loads(result.stdout)
+            
+            if output.get("success"):
+                return output.get("txId")
+            else:
+                print(f"[ERROR] Deployment failed: {output.get('error')} - {output.get('reason')}")
+                return None
+                
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] Node.js execution failed: {e.stderr}")
+            return None
+        except json.JSONDecodeError:
+            print(f"[ERROR] Invalid output from deployment script")
+            return None
+        except Exception as e:
+            print(f"[ERROR] Unexpected deployment error: {str(e)}")
+            return None
 
     def _estimate_gas(self, contract: Dict) -> float:
         """Estimate gas cost for contract deployment"""

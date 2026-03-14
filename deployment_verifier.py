@@ -152,7 +152,16 @@ class DeploymentVerifier:
         if not account_info:
             return {"passed": False, "error": "Could not retrieve account information"}
 
-        balance = int(account_info.get("balance", 0)) / 1000000
+        balance_raw = account_info.get("balance", 0)
+        try:
+            if isinstance(balance_raw, str) and balance_raw.startswith("0x"):
+                balance_val = int(balance_raw, 16)
+            else:
+                balance_val = int(balance_raw)
+        except (ValueError, TypeError):
+            balance_val = 0
+            
+        balance = balance_val / 1000000
         nonce = account_info.get("nonce", 0)
 
         # Basic validation
@@ -275,7 +284,16 @@ class DeploymentVerifier:
         if not account_info:
             return {"passed": False, "error": "Could not retrieve account information"}
 
-        balance = int(account_info.get("balance", 0)) / 1000000
+        balance_raw = account_info.get("balance", 0)
+        try:
+            if isinstance(balance_raw, str) and balance_raw.startswith("0x"):
+                balance_val = int(balance_raw, 16)
+            else:
+                balance_val = int(balance_raw)
+        except (ValueError, TypeError):
+            balance_val = 0
+            
+        balance = balance_val / 1000000
         nonce = account_info.get("nonce", 0)
 
         # Estimate gas usage (very rough)

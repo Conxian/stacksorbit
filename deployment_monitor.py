@@ -186,7 +186,7 @@ class DeploymentMonitor:
             log_file = (
                 log_dir / f"deployment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
             )
-            file_handler = logging.FileHandler(log_file)
+            file_handler = logging.FileHandler(log_file, encoding='utf-8')
             # 🛡️ Sentinel: Ensure log files have secure permissions (0600).
             set_secure_permissions(str(log_file))
             file_handler.setLevel(log_level)
