@@ -75,6 +75,7 @@ SENSITIVE_RE = re.compile("|".join(SENSITIVE_SUBSTRINGS))
 
 # Bolt ⚡: Public keys that should be excluded from value-based secret detection.
 # These often contain 64-character hex strings but are public blockchain data.
+# Added large-data keywords to allow skipping expensive value-based detection.
 PUBLIC_SUBSTRINGS = [
     "PUBLIC",
     "TX_",
@@ -83,6 +84,10 @@ PUBLIC_SUBSTRINGS = [
     "SIGNATURE",  # Explicitly allow standalone 'SIGNATURE' as public
     "ADDR",
     "PRINCIPAL",
+    "SOURCE",
+    "CODE",
+    "MANIFEST",
+    "METADATA",
 ]
 
 # Bolt ⚡: Pre-compile regex for faster public key matching.
@@ -160,12 +165,22 @@ def is_sensitive_value(value: str) -> bool:
     🛡️ Sentinel: Check if a value looks like a secret (e.g., a private key or mnemonic).
     This provides defense-in-depth by catching secrets even if stored under non-sensitive keys.
 
-    Bolt ⚡: Optimization - Fast-fail for non-strings or large strings.
+    Bolt ⚡: Optimization - Zero-copy fast-fail for non-strings or large strings.
     This prevents unnecessary LRU cache lookups and expensive processing for non-secrets.
     """
     # ⚡ Bolt: Fast-fail non-string types immediately.
     if not isinstance(value, str) or not value:
         return False
+
+    # ⚡ Bolt: Zero-copy fast-fail for large strings (e.g. source code).
+    # Secrets are always under 500 chars. We use a 1500 char threshold to safely skip
+    # .strip() for large strings unless they have extreme padding (which is invalid).
+    val_len = len(value)
+    if val_len > 1500:
+        # 🛡️ Sentinel: Check boundaries to prevent whitespace-based bypasses.
+        # If the first/last characters are not whitespace, strip() won't reduce size enough.
+        if not value[0].isspace() and not value[-1].isspace():
+            return False
 
     # 🛡️ Sentinel: Strip whitespace before checking length to prevent newline-based bypasses.
     # This ensures that multiline secrets or those with trailing newlines are still detected.
@@ -251,7 +266,9 @@ def redact_recursive(item, parent_key="", is_sensitive=None, is_public=None):
         # Bolt ⚡: Avoid redundant str() conversion and stripping.
         is_val_sensitive = False
         if isinstance(item, str):
-            is_val_sensitive = not is_public and is_sensitive_value(item)
+            # Bolt ⚡: Skip value-based detection if the key is already marked sensitive.
+            # This avoids redundant processing for known secrets.
+            is_val_sensitive = not is_sensitive and not is_public and is_sensitive_value(item)
 
         if is_sensitive or is_val_sensitive:
             # Skip empty values or common non-secret placeholders

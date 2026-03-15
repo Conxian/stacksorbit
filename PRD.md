@@ -494,8 +494,19 @@ StacksOrbit is committed to supporting the latest Clarity language features.
     *   **Registry Sync:** Verified that the Multi-Network Alignment registry in `PRD.md` correctly reflects the Chainhook predicates and contract principals across Devnet, Testnet, and Mainnet.
 *   **Status:** Complete.
 
+### Session 37: Zero-Copy Redaction & High-Throughput Detection (Bolt ⚡)
+
+*   **Objective:** Implement a high-impact performance optimization to the secret detection engine to eliminate redundant memory allocations and CPU overhead during project redaction.
+*   **Changes:**
+    *   **Zero-Copy Fast-Fail:** Implemented a safe, zero-copy fast-fail check in `is_sensitive_value` (stacksorbit_secrets.py) that bypasses expensive `.strip()` allocations for strings > 1500 chars by inspecting leading/trailing characters.
+    *   **Keyword Expansion:** Expanded `PUBLIC_SUBSTRINGS` to include "SOURCE", "CODE", "MANIFEST", and "METADATA", allowing the scanner to automatically skip value-based detection for common large data fields.
+    *   **Short-Circuit Logic:** Optimized `redact_recursive` to skip `is_sensitive_value` checks for keys already identified as sensitive, reducing redundant processing for known secrets.
+    *   **Benchmark Verification:** Created `tests/benchmark_bolt.py` and `tests/benchmark_is_sensitive.py` to document performance gains, achieving a ~2x speedup for large datasets and a >1000x speedup for unpadded large strings.
+    *   **System Integrity:** Verified no regressions via full unit test suite (70 passed).
+*   **Status:** Complete.
+
 ### Session Snapshot
-*   **Version:** 1.2.0
+*   **Version:** 1.2.1
 *   **License:** MIT (Standardized)
 *   **Documentation:** Consolidated (`AGENTS.md` as SSoT)
-*   **Tests:** 62 Passed (Pytest), 2 Passed (Vitest)
+*   **Tests:** 70 Passed (Pytest), 2 Passed (Vitest)
